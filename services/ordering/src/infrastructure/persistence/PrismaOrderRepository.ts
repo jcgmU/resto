@@ -1,10 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 import {
   OrderDTO,
+  OrderHistoryEventDTO,
   OrderItemDTO,
   OrderModifierDTO,
   OrderRepository,
   OrderStatus,
+  computeOrderOverdue,
 } from '@packages/shared-types';
 
 export class PrismaOrderRepository implements OrderRepository {
@@ -26,9 +28,20 @@ export class PrismaOrderRepository implements OrderRepository {
         productName: item.productName,
         unitPrice: Number(item.unitPrice),
         quantity: item.quantity,
-        notes: item.notes,
+        notes: item.notes ?? undefined,
         modifiers,
       };
+    });
+
+    const delayMinutes = Number(record.delayMinutes ?? 0);
+    const estimatedMinutes =
+      record.estimatedMinutes != null ? Number(record.estimatedMinutes) : undefined;
+    const notes = record.notes ?? undefined;
+    const overdue = computeOrderOverdue({
+      status: record.status,
+      createdAt: record.createdAt,
+      estimatedMinutes,
+      delayMinutes,
     });
 
     return {
@@ -39,6 +52,10 @@ export class PrismaOrderRepository implements OrderRepository {
       status: record.status,
       total: Number(record.total),
       items,
+      notes,
+      estimatedMinutes,
+      delayMinutes,
+      overdue,
       createdAt: record.createdAt instanceof Date ? record.createdAt.toISOString() : record.createdAt,
       cancelledAt: record.cancelledAt
         ? record.cancelledAt instanceof Date
@@ -58,6 +75,9 @@ export class PrismaOrderRepository implements OrderRepository {
           tableId: order.tableId,
           status: order.status as any,
           total: order.total,
+          notes: order.notes ?? null,
+          estimatedMinutes: order.estimatedMinutes ?? null,
+          delayMinutes: order.delayMinutes ?? 0,
           items: {
             create: order.items.map((item) => ({
               id: item.id,
@@ -146,11 +166,96 @@ export class PrismaOrderRepository implements OrderRepository {
   }
 
   async cancel(tenantId: string, id: string, cancelledAt: Date): Promise<OrderDTO> {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.order.findFirst({
+        where: { tenantId, id },
+      });
+      if (!existing) {
+        throw new Error(`Order ${id} not found`);
+      }
+      const fromStatus = existing.status;
+      const updated = await tx.order.update({
+        where: { id },
+        data: {
+          status: 'CANCELLED' as any,
+          cancelledAt,
+        },
+        include: {
+          items: {
+            include: {
+              modifiers: true,
+            },
+          },
+        },
+      });
+
+      await tx.orderStatusEvent.create({
+        data: {
+          orderId: id,
+          fromStatus,
+          toStatus: 'CANCELLED',
+          occurredAt: cancelledAt,
+        },
+      });
+
+      return this.mapToDTO(updated);
+    });
+  }
+
+  async updateStatus(
+    tenantId: string,
+    id: string,
+    status: OrderStatus,
+    updatedAt: Date
+  ): Promise<OrderDTO> {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.order.findFirst({
+        where: { tenantId, id },
+      });
+      if (!existing) {
+        throw new Error(`Order ${id} not found`);
+      }
+      const fromStatus = existing.status;
+      const updated = await tx.order.update({
+        where: { id },
+        data: {
+          status: status as any,
+          updatedAt,
+        },
+        include: {
+          items: {
+            include: {
+              modifiers: true,
+            },
+          },
+        },
+      });
+
+      await tx.orderStatusEvent.create({
+        data: {
+          orderId: id,
+          fromStatus,
+          toStatus: status,
+          occurredAt: updatedAt,
+        },
+      });
+
+      return this.mapToDTO(updated);
+    });
+  }
+
+  async updateDelay(tenantId: string, id: string, delayMinutes: number): Promise<OrderDTO> {
+    const existing = await this.prisma.order.findFirst({
+      where: { tenantId, id },
+    });
+    if (!existing) {
+      throw new Error(`Order ${id} not found`);
+    }
+
     const updated = await this.prisma.order.update({
       where: { id },
       data: {
-        status: 'CANCELLED' as any,
-        cancelledAt,
+        delayMinutes,
       },
       include: {
         items: {
@@ -164,27 +269,25 @@ export class PrismaOrderRepository implements OrderRepository {
     return this.mapToDTO(updated);
   }
 
-  async updateStatus(
-    tenantId: string,
-    id: string,
-    status: OrderStatus,
-    updatedAt: Date
-  ): Promise<OrderDTO> {
-    const updated = await this.prisma.order.update({
-      where: { id },
-      data: {
-        status: status as any,
-        updatedAt,
-      },
-      include: {
-        items: {
-          include: {
-            modifiers: true,
-          },
-        },
-      },
+  async getOrderHistory(tenantId: string, orderId: string): Promise<OrderHistoryEventDTO[]> {
+    const order = await this.prisma.order.findFirst({
+      where: { tenantId, id: orderId },
+    });
+    if (!order) {
+      return [];
+    }
+
+    const records = await this.prisma.orderStatusEvent.findMany({
+      where: { orderId },
+      orderBy: { occurredAt: 'asc' },
     });
 
-    return this.mapToDTO(updated);
+    return records.map((r) => ({
+      id: r.id,
+      orderId: r.orderId,
+      fromStatus: r.fromStatus,
+      toStatus: r.toStatus,
+      occurredAt: r.occurredAt.toISOString(),
+    }));
   }
 }

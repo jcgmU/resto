@@ -9,6 +9,7 @@ import {
   ModifierRequiredError,
   ProductNotFoundError,
   ProductUnavailableError,
+  ValidationError,
 } from './errors';
 
 export interface RecalculatedOrder {
@@ -29,9 +30,17 @@ export function validateAndPriceCart(
   const orderItems: OrderItemDTO[] = [];
 
   for (const item of cartItems) {
+    if (typeof item.quantity !== 'number' || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 99) {
+      throw new ValidationError(`Cantidad inválida (${item.quantity}): debe ser un entero entre 1 y 99`);
+    }
+
     const product = productMap.get(item.productId);
     if (!product) {
       throw new ProductNotFoundError(`Producto con id ${item.productId} no existe en catálogo`);
+    }
+
+    if (product.price < 0) {
+      throw new ValidationError(`El precio del producto ${product.name} no puede ser negativo`);
     }
 
     if (!product.isAvailable) {
@@ -108,6 +117,10 @@ export function validateAndPriceCart(
       notes: item.notes,
       modifiers: itemModifiers,
     });
+  }
+
+  if (totalCents < 0) {
+    throw new ValidationError('El total de la orden no puede ser negativo');
   }
 
   return {

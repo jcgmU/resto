@@ -1,30 +1,65 @@
 export const BENTO_TOKENS: Record<string, string> = {
-  '--bento-page-bg': '#ECEEE6',
-  '--bento-card-bg': '#FAFAF6',
-  '--bento-card-radius': '24px',
+  // Estructura y fondos Suite
+  '--bento-page-bg': '#d0d3d6',
+  '--bento-page-bg-pwa': '#f2f4f5',
+  '--bento-card-bg': 'rgba(255, 255, 255, 0.65)',
+  '--bento-card-bg-solid': '#ffffff',
+  '--bento-card-radius': '2rem',
   '--bento-card-padding': '24px',
-  '--bento-inner-radius': '16px',
+  '--bento-inner-radius': '1.5rem',
   '--bento-pill-radius': '9999px',
   '--bento-grid-gap': '16px',
-  '--bento-card-shadow': '0 4px 6px rgba(0,0,0,0.05)',
+  '--bento-card-shadow': '4px 6px 30px rgba(150, 155, 160, 0.2), -4px -4px 20px rgba(255, 255, 255, 0.8)',
   '--bento-hover-scale': '1.02',
-  '--bento-text': '#0E100B',
-  '--bento-text-muted': '#52525B',
-  '--bento-accent': '#D7F35C',
-  '--bento-accent-strong': '#0E100B',
-  '--bento-tinta': '#0E100B',
-  '--bento-lima': '#D7F35C',
-  '--bento-hueso': '#ECEEE6',
-  '--bento-papel': '#FAFAF6',
-  '--bento-border': '#E2E4DC',
-  '--bento-amber': '#F59E0B',
-  '--bento-amber-strong': '#92400E',
-  '--bento-warning': 'var(--bento-amber)',
-  '--bento-success': '#15803D',
-  '--bento-destructive': '#DC2626',
-  '--bento-focus-ring': '2px solid #0E100B',
+
+  // Textos y bordes Suite
+  '--bento-text': '#3a3c3e',
+  '--bento-text-muted': '#666666',
+  '--bento-border': 'rgba(255, 255, 255, 0.6)',
+
+  // Marca y acciones primarias Suite
+  '--bento-primary': '#5c6784',
+  '--bento-primary-hover': '#4a536b',
+  '--bento-accent': '#5c6784',
+  '--bento-accent-strong': '#1d1f22',
+  '--bento-info': '#a5b9c6',
+
+  // Rail lateral flotante oscuro Suite
+  '--bento-rail-bg': '#1d1f22',
+  '--bento-rail-active': '#a5b9c6',
+  '--bento-rail-inactive': '#6b7280',
+
+  // Estados pastel y textos asociados con contraste AA
+  '--bento-status-occupied': '#e0a6a6',
+  '--bento-status-occupied-text': '#7a3030',
+  '--bento-status-occupied-bg': 'rgba(224, 166, 166, 0.2)',
+  '--bento-status-reserved': '#dcc98a',
+  '--bento-status-reserved-text': '#8a6b32',
+  '--bento-status-reserved-bg': 'rgba(220, 201, 138, 0.2)',
+  '--bento-status-available': '#8fbf95',
+  '--bento-status-available-text': '#527a55',
+  '--bento-status-available-bg': 'rgba(143, 191, 149, 0.2)',
+  '--bento-status-neutral-bg': 'rgba(255, 255, 255, 0.65)',
+
+  // Semánticos generales (compatibilidad)
+  '--bento-amber': '#dcc98a',
+  '--bento-amber-strong': '#8a6b32',
+  '--bento-warning': 'var(--bento-status-reserved)',
+  '--bento-success': 'var(--bento-status-available)',
+  '--bento-destructive': 'var(--bento-status-occupied)',
+
+  // Alias deprecados (conservar una oleada)
+  '--bento-lima': '#a5b9c6',
+  '--bento-tinta': '#1d1f22',
+  '--bento-hueso': '#d0d3d6',
+  '--bento-papel': '#ffffff',
+
+  // Foco y tipografía
+  '--bento-focus-ring': '2px solid #5c6784',
   '--bento-font-heading': "var(--font-bricolage, 'Bricolage Grotesque', sans-serif)",
   '--bento-font-body': "var(--font-dm-sans, 'DM Sans', sans-serif)",
+
+  // Accesibilidad táctil y espaciados
   '--bento-touch-target': '44px',
   '--bento-touch-gap': '8px',
   '--bento-safe-bottom': 'env(safe-area-inset-bottom)',
@@ -38,30 +73,48 @@ export const BENTO_TOKENS: Record<string, string> = {
 // Nota: packages/ui-components/src/bento/bento.css es la fuente de verdad montada en las apps
 export const BENTO_STYLESHEET = `
 :root {
-  --bento-page-bg: #ECEEE6;
-  --bento-card-bg: #FAFAF6;
-  --bento-card-radius: 24px;
+  --bento-page-bg: #d0d3d6;
+  --bento-page-bg-pwa: #f2f4f5;
+  --bento-card-bg: rgba(255, 255, 255, 0.65);
+  --bento-card-bg-solid: #ffffff;
+  --bento-card-radius: 2rem;
   --bento-card-padding: 24px;
-  --bento-inner-radius: 16px;
+  --bento-inner-radius: 1.5rem;
   --bento-pill-radius: 9999px;
   --bento-grid-gap: 16px;
-  --bento-card-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  --bento-card-shadow: 4px 6px 30px rgba(150, 155, 160, 0.2), -4px -4px 20px rgba(255, 255, 255, 0.8);
   --bento-hover-scale: 1.02;
-  --bento-text: #0E100B;
-  --bento-text-muted: #52525B;
-  --bento-accent: #D7F35C;
-  --bento-accent-strong: #0E100B;
-  --bento-tinta: #0E100B;
-  --bento-lima: #D7F35C;
-  --bento-hueso: #ECEEE6;
-  --bento-papel: #FAFAF6;
-  --bento-border: #E2E4DC;
-  --bento-amber: #F59E0B;
-  --bento-amber-strong: #92400E;
-  --bento-warning: var(--bento-amber);
-  --bento-success: #15803D;
-  --bento-destructive: #DC2626;
-  --bento-focus-ring: 2px solid #0E100B;
+  --bento-text: #3a3c3e;
+  --bento-text-muted: #666666;
+  --bento-border: rgba(255, 255, 255, 0.6);
+  --bento-primary: #5c6784;
+  --bento-primary-hover: #4a536b;
+  --bento-accent: #5c6784;
+  --bento-accent-strong: #1d1f22;
+  --bento-info: #a5b9c6;
+  --bento-rail-bg: #1d1f22;
+  --bento-rail-active: #a5b9c6;
+  --bento-rail-inactive: #6b7280;
+  --bento-status-occupied: #e0a6a6;
+  --bento-status-occupied-text: #7a3030;
+  --bento-status-occupied-bg: rgba(224, 166, 166, 0.2);
+  --bento-status-reserved: #dcc98a;
+  --bento-status-reserved-text: #8a6b32;
+  --bento-status-reserved-bg: rgba(220, 201, 138, 0.2);
+  --bento-status-available: #8fbf95;
+  --bento-status-available-text: #527a55;
+  --bento-status-available-bg: rgba(143, 191, 149, 0.2);
+  --bento-status-neutral-bg: rgba(255, 255, 255, 0.65);
+  --bento-amber: #dcc98a;
+  --bento-amber-strong: #8a6b32;
+  --bento-warning: var(--bento-status-reserved);
+  --bento-success: var(--bento-status-available);
+  --bento-destructive: var(--bento-status-occupied);
+  --bento-lima: #a5b9c6;
+  --bento-tinta: #1d1f22;
+  --bento-hueso: #d0d3d6;
+  --bento-papel: #ffffff;
+  --bento-focus-ring: 2px solid #5c6784;
   --bento-font-heading: var(--font-bricolage, 'Bricolage Grotesque', sans-serif);
   --bento-font-body: var(--font-dm-sans, 'DM Sans', sans-serif);
   --bento-touch-target: 44px;
@@ -82,6 +135,7 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--bento-font-heading);
+  font-weight: 300;
 }
 
 [data-component="bento-grid"] {
@@ -107,6 +161,9 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: var(--bento-card-radius);
   box-shadow: var(--bento-card-shadow);
   background-color: var(--bento-card-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--bento-border);
   padding: var(--bento-card-padding, 24px);
   color: var(--bento-text);
   overflow: hidden;
@@ -157,7 +214,9 @@ h1, h2, h3, h4, h5, h6 {
   padding: 0.25rem;
   border: 1px solid var(--bento-border);
   border-radius: var(--bento-pill-radius);
-  background: var(--bento-papel);
+  background: var(--bento-card-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   font-family: var(--bento-font-body);
 }
 
@@ -165,12 +224,12 @@ h1, h2, h3, h4, h5, h6 {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  min-height: 2.25rem;
+  min-height: var(--bento-touch-target);
   padding: 0 1rem;
   border: 0;
   border-radius: var(--bento-pill-radius);
   background: transparent;
-  color: var(--bento-text);
+  color: var(--bento-text-muted);
   font: inherit;
   font-size: 0.875rem;
   font-weight: 500;
@@ -179,12 +238,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .bento-tabs__tab:hover {
-  background: var(--bento-hueso);
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--bento-text);
 }
 
 .bento-tabs__tab[aria-selected="true"] {
-  background: var(--bento-tinta);
-  color: var(--bento-papel);
+  background: var(--bento-primary);
+  color: var(--bento-card-bg-solid);
 }
 
 .bento-tabs__tab:focus-visible {

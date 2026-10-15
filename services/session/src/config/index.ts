@@ -7,4 +7,5 @@ export const config = {
   PWA_BASE_URL: process.env.PWA_BASE_URL || 'http://localhost:3001',
   JWT_SECRET: process.env.JWT_SECRET || 'super-secret-jwt-key-oleada-0',
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
+  IDENTITY_INTERNAL_URL: process.env.IDENTITY_INTERNAL_URL || process.env.IDENTITY_URL || 'http://localhost:4001',
 };

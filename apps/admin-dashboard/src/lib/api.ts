@@ -15,9 +15,34 @@ function getStoredRefreshToken(): string | null {
   return null;
 }
 
+function isJwtExpired(token: string): boolean {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    let decoded: string;
+    if (typeof atob === 'function') {
+      decoded = atob(base64);
+    } else if (typeof Buffer !== 'undefined') {
+      decoded = Buffer.from(base64, 'base64').toString('utf-8');
+    } else {
+      return false;
+    }
+    const payload = JSON.parse(decoded);
+    if (typeof payload.exp === 'number') {
+      return payload.exp * 1000 <= Date.now();
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export class ApiClient {
   private static _token: string | null = getStoredToken();
   private static _refreshToken: string | null = getStoredRefreshToken();
+  private static _refreshPromise: Promise<string | null> | null = null;
 
   static get token(): string | null {
     if (this._token === null && typeof window !== 'undefined' && window.localStorage) {
@@ -55,6 +80,53 @@ export class ApiClient {
     }
   }
 
+  static async getValidAccessToken(forceRefresh = false): Promise<string | null> {
+    if (this._refreshPromise) {
+      return this._refreshPromise;
+    }
+
+    if (!forceRefresh && this.token && !isJwtExpired(this.token)) {
+      return this.token;
+    }
+
+    const currentRefreshToken = this.refreshToken;
+    if (!currentRefreshToken) {
+      return null;
+    }
+
+    const baseUrl = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:4000';
+
+    this._refreshPromise = (async () => {
+      try {
+        const refreshRes = await fetch(`${baseUrl}/v1/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken: currentRefreshToken }),
+        });
+
+        if (refreshRes.status === 200) {
+          const data = await refreshRes.json();
+          const accessToken = data?.accessToken || data?.tokens?.accessToken;
+          const refreshToken = data?.refreshToken ?? data?.tokens?.refreshToken;
+          if (accessToken) {
+            ApiClient.token = accessToken;
+            if (refreshToken) {
+              ApiClient.refreshToken = refreshToken;
+            }
+            return accessToken;
+          }
+        }
+        return null;
+      } catch {
+        return null;
+      } finally {
+        ApiClient._refreshPromise = null;
+      }
+    })();
+
+    return this._refreshPromise;
+  }
+
   static async request(url: string, options: any = {}): Promise<any> {
     const baseUrl = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:4000';
     const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
@@ -75,30 +147,10 @@ export class ApiClient {
         url !== '/v1/auth/refresh' &&
         ApiClient.refreshToken
       ) {
-        let refreshedTokens: any = null;
-        try {
-          const refreshRes = await fetch(`${baseUrl}/v1/auth/refresh`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken: ApiClient.refreshToken }),
-          });
-          if (refreshRes.status === 200) {
-            const data = await refreshRes.json();
-            const accessToken = data?.accessToken || data?.tokens?.accessToken;
-            const refreshToken = data?.refreshToken ?? data?.tokens?.refreshToken;
-            if (accessToken) {
-              refreshedTokens = { accessToken, refreshToken };
-            }
-          }
-        } catch {
-          // Error de red en refresh
-        }
+        const tokenNeedsRefresh = !ApiClient.token || ApiClient.token === token;
+        const newToken = await ApiClient.getValidAccessToken(tokenNeedsRefresh);
 
-        if (refreshedTokens?.accessToken) {
-          ApiClient.token = refreshedTokens.accessToken;
-          if (refreshedTokens.refreshToken) {
-            ApiClient.refreshToken = refreshedTokens.refreshToken;
-          }
+        if (newToken) {
           return ApiClient.request(url, { ...options, _retried: true });
         }
 
@@ -120,9 +172,26 @@ export class ApiClient {
       const data = isJson ? await res.json() : await res.text();
       
       if (!res.ok) {
-        const error: any = new Error(data?.message || 'Error en la petición');
+        const nestedError = data && typeof data === 'object' && 'error' in data ? data.error : null;
+        const errObj = nestedError && typeof nestedError === 'object' ? nestedError : (typeof data === 'object' ? data : null);
+        
+        const message =
+          errObj?.message ||
+          (typeof nestedError === 'string' ? nestedError : null) ||
+          data?.message ||
+          (typeof data === 'string' ? data : null) ||
+          'Error en la petición';
+
+        const code =
+          errObj?.code ||
+          data?.code ||
+          (typeof nestedError === 'string' ? nestedError : null) ||
+          'UNKNOWN';
+
+        const error: any = new Error(message);
         error.status = res.status;
-        error.code = data?.code || 'UNKNOWN';
+        error.code = code;
+        error.data = data;
         throw error;
       }
       
@@ -166,5 +235,8 @@ export class ApiClient {
   static clearAuth(): void {
     this.token = null;
     this.refreshToken = null;
+    this._refreshPromise = null;
   }
 }
+
+export const getValidAccessToken = (forceRefresh = false) => ApiClient.getValidAccessToken(forceRefresh);

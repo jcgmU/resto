@@ -12,11 +12,15 @@ export default function RegisterPage() {
   const [adminDisplayName, setAdminDisplayName] = useState('');
   const [slug, setSlug] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isNetworkError, setIsNetworkError] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRegister = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
     setError(null);
+    setIsNetworkError(false);
     setLoading(true);
 
     try {
@@ -35,10 +39,21 @@ export default function RegisterPage() {
       }
       router.push('/menu');
     } catch (err: any) {
-      if (err.status === 409 || err.code === 'CONFLICT' || err.message?.includes('registrado')) {
+      if (
+        err.code === 'NETWORK_ERROR' ||
+        err.name === 'TypeError' ||
+        err.message?.toLowerCase().includes('fetch') ||
+        err.message?.toLowerCase().includes('network') ||
+        err.message?.toLowerCase().includes('conectar')
+      ) {
+        setError('No pudimos conectar con el servidor. Revisa que esté encendido e inténtalo de nuevo.');
+        setIsNetworkError(true);
+      } else if (err.status === 409 || err.code === 'CONFLICT' || err.message?.includes('registrado')) {
         setError('El restaurante o correo ya está registrado');
+        setIsNetworkError(false);
       } else {
         setError(err.message || 'Error al registrar el restaurante');
+        setIsNetworkError(false);
       }
     } finally {
       setLoading(false);
@@ -126,25 +141,50 @@ export default function RegisterPage() {
                   fontWeight: 500,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  flexWrap: 'wrap',
                 }}
               >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                <span>{error}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '200px' }}>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                    style={{ flexShrink: 0 }}
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  <span>{error}</span>
+                </div>
+                {isNetworkError && (
+                  <button
+                    type="button"
+                    onClick={() => handleRegister()}
+                    disabled={loading}
+                    style={{
+                      padding: '4px 12px',
+                      backgroundColor: 'transparent',
+                      border: '1px solid var(--bento-destructive)',
+                      borderRadius: 'var(--bento-pill-radius)',
+                      color: 'var(--bento-destructive)',
+                      fontSize: '0.8125rem',
+                      fontWeight: 600,
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      fontFamily: 'var(--bento-font-body)',
+                    }}
+                  >
+                    Reintentar
+                  </button>
+                )}
               </div>
             )}
 

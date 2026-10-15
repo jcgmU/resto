@@ -1,5 +1,6 @@
 import React from 'react';
 import { KpiValue } from '@packages/ui-components';
+import { formatCOP } from '@packages/shared-types';
 
 export interface CartSummaryBarProps {
   total: number;
@@ -28,7 +29,7 @@ export function CartSummaryBar({
     >
       <KpiValue
         label="Total"
-        value={`$${total.toFixed(2)}`}
+        value={formatCOP(total)}
         tone="accent"
       />
 
@@ -49,7 +50,7 @@ export function CartSummaryBar({
           opacity: disabled || isConfirming ? 0.6 : 1,
         }}
       >
-        {isConfirming ? 'Enviando...' : 'Enviar pedido'}
+        {isConfirming ? 'Enviando...' : `Enviar Pedido • ${formatCOP(total)}`}
       </button>
     </div>
   );

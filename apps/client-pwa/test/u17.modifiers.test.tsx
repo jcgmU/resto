@@ -138,7 +138,7 @@ describe('U17: Modificadores completos en PWA (MSW & TDD)', () => {
                       isRequired: true,
                       options: [
                         { id: 'opt-papas', name: 'Papas Rústicas', priceDelta: 0, isDefault: false },
-                        { id: 'opt-ensalada', name: 'Ensalada César', priceDelta: 1.5, isDefault: false },
+                        { id: 'opt-ensalada', name: 'Ensalada César', priceDelta: 3500, isDefault: false },
                       ],
                     },
                   ],
@@ -172,7 +172,7 @@ describe('U17: Modificadores completos en PWA (MSW & TDD)', () => {
     expect(screen.getByText('(Obligatorio)')).toBeInTheDocument();
     expect(screen.getByText('Papas Rústicas')).toBeInTheDocument();
     expect(screen.getByText('Ensalada César')).toBeInTheDocument();
-    expect(screen.getByText('(+$1.50)')).toBeInTheDocument();
+    expect(screen.getByText(/\(\+\s*\$\s*3\.500\)/)).toBeInTheDocument();
 
     // (b) Botón "Añadir al carrito" queda bloqueado/inválido hasta satisfacer el mínimo requerido
     const addBtn = screen.getByRole('button', { name: /añadir al carrito/i });

@@ -15,7 +15,7 @@
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "lint": "echo linting ui-components"
+    "lint": "eslint ."
   },
   "dependencies": {
     "react": "^18.3.1",

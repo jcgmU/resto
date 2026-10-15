@@ -14,6 +14,14 @@ export function GuestSessionGuard({ children }: GuestSessionGuardProps) {
   useEffect(() => {
     setHasToken(Boolean(PwaApiClient.guestToken));
     setMounted(true);
+
+    const unsubscribe = PwaApiClient.subscribeAuth((valid) => {
+      setHasToken((prev) => (prev !== valid ? valid : prev));
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   // Pre-mount / SSR: renderizar placeholder neutro con tokens Lima & Tinta para evitar mismatch de hidratacion

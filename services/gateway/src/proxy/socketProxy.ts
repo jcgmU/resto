@@ -5,6 +5,17 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config';
 
 export function attachSocketGateway(server: http.Server) {
+  try {
+    const corsModule = require('cors');
+    if (typeof corsModule !== 'function' && typeof corsModule.default === 'function') {
+      const corsFn = corsModule.default;
+      (corsFn as any).default = corsFn;
+      if (require.cache[require.resolve('cors')]) {
+        require.cache[require.resolve('cors')]!.exports = corsFn;
+      }
+    }
+  } catch {}
+
   const io = new SocketIOServer(server, {
     cors: { origin: '*' },
     transports: ['websocket', 'polling'],

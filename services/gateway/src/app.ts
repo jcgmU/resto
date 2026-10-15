@@ -9,37 +9,113 @@ import { attachSocketGateway } from './proxy/socketProxy';
 import { routeTable } from './routes/routeTable';
 
 // Hook http.createServer to attach Socket.io gateway when our Express app is passed
-const originalCreateServer = http.createServer;
-(http as any).createServer = function (this: any, ...args: any[]) {
-  const server = originalCreateServer.apply(this, args as any);
-  if (args[0] && (args[0] as any)._isGatewayApp) {
-    attachSocketGateway(server);
-  }
-  return server;
-};
+if (!(http as any)._isGatewayHooked) {
+  (http as any)._isGatewayHooked = true;
+  const originalCreateServer = http.createServer;
+  (http as any).createServer = function (this: any, ...args: any[]) {
+    const server = originalCreateServer.apply(this, args as any);
+    if (args[0] && (args[0] as any)._isGatewayApp && (args[0] as any)._attachSockets && !(server as any)._hasSocketGateway) {
+      (server as any)._hasSocketGateway = true;
+      attachSocketGateway(server);
+    }
+    return server;
+  };
+}
+
+function checkServiceHealth(baseUrl: string, timeoutMs = 2000): Promise<'up' | 'down'> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (status: 'up' | 'down') => {
+      if (!settled) {
+        settled = true;
+        resolve(status);
+      }
+    };
+
+    try {
+      const targetUrl = new URL('/health', baseUrl);
+      const req = http.get(
+        targetUrl,
+        {
+          timeout: timeoutMs,
+          headers: config.internalSharedSecret
+            ? { 'x-internal-token': config.internalSharedSecret }
+            : undefined,
+        },
+        (res) => {
+          res.resume();
+          finish(res.statusCode === 200 ? 'up' : 'down');
+        }
+      );
+
+      req.on('timeout', () => {
+        req.destroy();
+        finish('down');
+      });
+
+      req.on('error', () => {
+        finish('down');
+      });
+    } catch {
+      finish('down');
+    }
+  });
+}
 
 export function createApp(): express.Application {
   const app: express.Application = express();
   (app as any)._isGatewayApp = true;
+  if (process.env.NODE_ENV !== 'test') {
+    (app as any)._attachSockets = true;
+  }
 
   // Middlewares globales
   app.use(cors({ origin: config.corsOrigins }));
   app.use(express.json());
 
-  // Endpoint de agregación de salud
-  app.get('/health', (_req, res) => {
-    res.status(200).json({
-      status: 'ok',
-      services: {
-        gateway: 'ok',
-        identity: 'ok',
-        catalog: 'ok',
-        session: 'ok',
-        ordering: 'ok',
-        postgres: 'ok',
-        redis: 'ok',
-      },
-    });
+  // Endpoints de salud: liveness y alias
+  app.get(['/health', '/health/live'], (_req, res) => {
+    res.status(200).json({ status: 'live' });
+  });
+
+  // Endpoint de salud: readiness con timeout de 2000ms sobre los 4 microservicios
+  app.get('/health/ready', async (_req, res) => {
+    const identityUrl = process.env.IDENTITY_SERVICE_URL || config.services.identity;
+    const catalogUrl = process.env.CATALOG_SERVICE_URL || config.services.catalog;
+    const sessionUrl = process.env.SESSION_SERVICE_URL || config.services.session;
+    const orderingUrl = process.env.ORDERING_SERVICE_URL || config.services.ordering;
+
+    const [identity, catalog, session, ordering] = await Promise.all([
+      checkServiceHealth(identityUrl),
+      checkServiceHealth(catalogUrl),
+      checkServiceHealth(sessionUrl),
+      checkServiceHealth(orderingUrl),
+    ]);
+
+    const services = {
+      identity,
+      catalog,
+      session,
+      ordering,
+    };
+
+    const isReady =
+      identity === 'up' &&
+      catalog === 'up' &&
+      session === 'up' &&
+      ordering === 'up';
+
+    if (isReady) {
+      res.status(200).json({
+        status: 'ready',
+        services,
+      });
+    } else {
+      res.status(503).json({
+        status: 'unready',
+        services,
+      });
+    }
   });
 
   // Registro declarativo de rutas según routeTable

@@ -72,6 +72,83 @@ describe('A. Identity — unitarios de casos de uso (Tests 1-10)', () => {
         expect.objectContaining({ code: 'VALIDATION_ERROR' } as Partial<DomainError>)
       );
     });
+
+    test('4b. RegisterTenant con MIN_ADMIN_PASSWORD_LENGTH=4 acepta password de 5 caracteres', async () => {
+      const originalEnv = process.env.MIN_ADMIN_PASSWORD_LENGTH;
+      try {
+        process.env.MIN_ADMIN_PASSWORD_LENGTH = '4';
+        const useCase = new RegisterTenantUseCaseImpl(
+          new InMemoryTenantRepository(),
+          new InMemoryUserRepository(),
+          new InMemoryRefreshTokenRepository(),
+          new FakePasswordHasher(),
+          new FakeTokenIssuer()
+        );
+        const result = await useCase.execute({
+          restaurantName: 'La Pergola 4',
+          adminEmail: 'admin@pergola4.com',
+          adminPassword: 'admin',
+          adminDisplayName: 'Admin Demo',
+        });
+        expect(result).toBeDefined();
+        expect(result.user.role).toBe('ADMIN');
+      } finally {
+        if (originalEnv !== undefined) {
+          process.env.MIN_ADMIN_PASSWORD_LENGTH = originalEnv;
+        } else {
+          delete process.env.MIN_ADMIN_PASSWORD_LENGTH;
+        }
+      }
+    });
+
+    test('4c. RegisterTenant con MIN_ADMIN_PASSWORD_LENGTH limpio o inválido exige mínimo por defecto 8', async () => {
+      const originalEnv = process.env.MIN_ADMIN_PASSWORD_LENGTH;
+      try {
+        delete process.env.MIN_ADMIN_PASSWORD_LENGTH;
+        const useCase = new RegisterTenantUseCaseImpl(
+          new InMemoryTenantRepository(),
+          new InMemoryUserRepository(),
+          new InMemoryRefreshTokenRepository(),
+          new FakePasswordHasher(),
+          new FakeTokenIssuer()
+        );
+        await expect(
+          useCase.execute({
+            restaurantName: 'La Pergola Default',
+            adminEmail: 'short@pergola.com',
+            adminPassword: 'admin',
+            adminDisplayName: 'Admin Short',
+          })
+        ).rejects.toThrow(
+          expect.objectContaining({
+            code: 'VALIDATION_ERROR',
+            message: 'Password must be at least 8 characters',
+          } as Partial<DomainError>)
+        );
+
+        // Test con valor inválido ('invalid' o '0')
+        process.env.MIN_ADMIN_PASSWORD_LENGTH = 'not-a-number';
+        await expect(
+          useCase.execute({
+            restaurantName: 'La Pergola Invalid',
+            adminEmail: 'short2@pergola.com',
+            adminPassword: 'admin',
+            adminDisplayName: 'Admin Short 2',
+          })
+        ).rejects.toThrow(
+          expect.objectContaining({
+            code: 'VALIDATION_ERROR',
+            message: 'Password must be at least 8 characters',
+          } as Partial<DomainError>)
+        );
+      } finally {
+        if (originalEnv !== undefined) {
+          process.env.MIN_ADMIN_PASSWORD_LENGTH = originalEnv;
+        } else {
+          delete process.env.MIN_ADMIN_PASSWORD_LENGTH;
+        }
+      }
+    });
   });
 
   describe('Login (Tests 5-6)', () => {

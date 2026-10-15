@@ -66,8 +66,12 @@ describe('U23 / H6: PWA a 375px — Layout, catálogo 100% y footer fijo con saf
       boxSizing: 'border-box',
     });
 
+    // Header principal con h1 Carta (D9.2)
+    const h1 = screen.getByRole('heading', { level: 1, name: 'Carta' });
+    expect(h1).toBeInTheDocument();
+
     // Header de categorías (TabsPill)
-    const header = container.querySelector('header');
+    const header = container.querySelector('header[data-component="category-tabs"]') || container.querySelectorAll('header')[1];
     expect(header).toBeInTheDocument();
     expect(header).toHaveStyle({
       width: '100%',
@@ -142,18 +146,14 @@ describe('U23 / H6: PWA a 375px — Layout, catálogo 100% y footer fijo con saf
       boxSizing: 'border-box',
     });
 
-    const btnPagar = screen.getByRole('button', { name: /Pagar/i });
-    expect(btnPagar).toHaveStyle({
-      width: '100%',
-      boxSizing: 'border-box',
-    });
+    expect(screen.queryByRole('button', { name: /Pagar/i })).not.toBeInTheDocument();
 
-    // CartFab convive en fixed a bottom: 84px con zIndex: 40 por encima del footer (30)
+    // CartFab convive en fixed a bottom: 140px con zIndex: 40 por encima del footer (30)
     const { container: fabContainer } = render(<CartFab itemCount={1} />);
     const fabBtn = fabContainer.querySelector('[data-component="cart-fab"]');
     expect(fabBtn).toHaveStyle({
       position: 'fixed',
-      bottom: '84px',
+      bottom: '140px',
       right: '16px',
       zIndex: 40,
     });

@@ -1,5 +1,6 @@
 export * from './common/UseCase';
 export * from './common/errors';
+export * from './common/format';
 export * from './identity/dtos';
 export * from './identity/ports';
 export * from './catalog/dtos';

@@ -7,6 +7,7 @@ import { ApiClient } from '../src/lib/api';
 import KdsPage from '../src/app/(panel)/kds/page';
 import { FeatureFlagProviderRoot, StaticFeatureFlagProvider } from '@packages/ui-components';
 import { act } from '@testing-library/react';
+import * as realtimeModule from '../src/lib/realtime';
 
 describe('U24 (H7): Enums e IDs crudos en KDS a español', () => {
   const sampleTables: TableDTO[] = [
@@ -153,6 +154,116 @@ describe('U24 (H7): Enums e IDs crudos en KDS a español', () => {
     expect(screen.queryByText('table-1791762875669-723')).not.toBeInTheDocument();
     expect(screen.queryByText('table-salon-1')).not.toBeInTheDocument();
 
+    spy.mockRestore();
+  });
+
+  test('D9.1: KdsPage renderiza "Pantalla de Cocina" como H2 y no contiene H1', async () => {
+    localStorage.setItem('token', 'staff-token');
+    const provider = new StaticFeatureFlagProvider({ 'kitchen-display': true });
+
+    const spy = jest.spyOn(ApiClient, 'request').mockImplementation(async (url: string) => {
+      if (url === '/v1/tables') return { data: sampleTables };
+      return { data: [] };
+    });
+
+    await act(async () => {
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <KdsPage />
+        </FeatureFlagProviderRoot>
+      );
+    });
+
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: /Pantalla de Cocina/i })).toBeInTheDocument();
+
+    spy.mockRestore();
+  });
+
+  test('D9.5: KdsPage anuncia en vivo el nombre resuelto de la mesa (getTableDisplayName) en eventos socket', async () => {
+    localStorage.setItem('token', 'staff-token');
+    const provider = new StaticFeatureFlagProvider({ 'kitchen-display': true });
+
+    const socketListeners: Record<string, (data: any) => void> = {};
+    const mockSocket = {
+      on: jest.fn((event, handler) => {
+        socketListeners[event] = handler;
+      }),
+      disconnect: jest.fn(),
+    };
+    const socketSpy = jest.spyOn(realtimeModule, 'connectOrdersSocket').mockReturnValue(mockSocket as any);
+
+    const spy = jest.spyOn(ApiClient, 'request').mockImplementation(async (url: string) => {
+      if (url === '/v1/tables') return { data: sampleTables };
+      return { data: [] };
+    });
+
+    let container: HTMLElement;
+    await act(async () => {
+      const rendered = render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <KdsPage />
+        </FeatureFlagProviderRoot>
+      );
+      container = rendered.container;
+    });
+
+    const liveRegion = container!.querySelector('[role="status"][aria-atomic="true"]');
+    expect(liveRegion).toBeInTheDocument();
+
+    // 1. order:created con mesa conocida
+    act(() => {
+      socketListeners['order:created']?.({
+        order: {
+          ...sampleOrder,
+          id: 'ord-socket-1',
+          tableId: 'table-1791762875669-723',
+        },
+      });
+    });
+    expect(liveRegion).toHaveTextContent('Nueva orden de la mesa Terraza 4');
+
+    // 2. order:created con mesa desconocida (respaldo formateado)
+    act(() => {
+      socketListeners['order:created']?.({
+        order: {
+          ...sampleOrder,
+          id: 'ord-socket-2',
+          tableId: 'table-999999123456',
+        },
+      });
+    });
+    expect(liveRegion).toHaveTextContent('Nueva orden de la mesa Mesa · 123456');
+
+    // 3. order:status-changed READY
+    act(() => {
+      socketListeners['order:status-changed']?.({
+        order: {
+          ...sampleOrder,
+          id: 'ord-socket-1',
+          tableId: 'table-1791762875669-723',
+        },
+        status: 'READY',
+      });
+    });
+    expect(liveRegion).toHaveTextContent('Orden de la mesa Terraza 4 lista');
+
+    // 4. service-call:created
+    act(() => {
+      socketListeners['service-call:created']?.({
+        call: {
+          callId: 'call-socket-1',
+          tenantId: 't-1',
+          sessionId: 's-1',
+          tableId: 'table-salon-1',
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+        },
+      });
+    });
+    expect(liveRegion).toHaveTextContent('Llamado de servicio en la mesa Salón Principal');
+
+    socketSpy.mockRestore();
     spy.mockRestore();
   });
 });

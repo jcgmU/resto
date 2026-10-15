@@ -15,17 +15,13 @@ export function createServiceCallsRouter(serviceCallUseCases: ServiceCallUseCase
         });
       }
 
-      const { tableId, note } = req.body;
-      if (!tableId) {
-        return res.status(400).json({
-          error: { code: 'VALIDATION_ERROR', message: 'tableId es requerido' },
-        });
-      }
+      const { tableId, note, type } = req.body || {};
 
       const call = await serviceCallUseCases.createServiceCall.execute({
         tenantId,
         sessionId,
         tableId,
+        type,
         note,
       });
 

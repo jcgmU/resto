@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BillDTO, PaymentMethod, TableSessionDTO, TableDTO } from '@packages/shared-types';
+import { BillDTO, PaymentMethod, TableSessionDTO, TableDTO, formatCOP } from '@packages/shared-types';
 import {
   BentoCard,
   KpiValue,
@@ -175,7 +175,7 @@ export function BillSummaryCard({ bill, tables, error, onRetry }: BillSummaryCar
           </svg>
           Cuenta — {getTableDisplayName(bill.tableId, tables)}
         </h3>
-        <KpiValue label="Total a cobrar" value={`$${bill.total}`} tone="accent" />
+        <KpiValue label="Total a cobrar" value={formatCOP(bill.total)} tone="accent" />
       </div>
 
       {error && (
@@ -209,7 +209,15 @@ export function BillSummaryCard({ bill, tables, error, onRetry }: BillSummaryCar
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
             <span style={{ fontFamily: 'var(--bento-font-body)' }}>
-              {error === 'SESSION_CLOSE_FAILED' ? 'Error al cerrar la sesión en el servidor' : error}
+              {error === 'SESSION_CLOSE_FAILED'
+                ? 'Error al cerrar la sesión en el servidor'
+                : error === 'BILL_EMPTY'
+                ? 'La mesa no tiene pedidos registrados para cobrar'
+                : error === 'SESSION_NOT_FOUND'
+                ? 'La sesión no existe o ya fue cerrada'
+                : error === 'BILL_NOT_FOUND'
+                ? 'No se encontró cuenta para esta sesión'
+                : error}
             </span>
           </div>
           {onRetry && (
@@ -229,7 +237,7 @@ export function BillSummaryCard({ bill, tables, error, onRetry }: BillSummaryCar
                 fontWeight: 600,
               }}
             >
-              Reintentar cierre
+              {error === 'SESSION_CLOSE_FAILED' ? 'Reintentar cierre' : 'Reintentar'}
             </button>
           )}
         </div>
@@ -245,7 +253,7 @@ export function BillSummaryCard({ bill, tables, error, onRetry }: BillSummaryCar
             }}
           >
             <div style={{ fontSize: '0.85rem', color: 'var(--bento-text-muted)', marginBottom: '4px', fontFamily: 'var(--bento-font-body)' }}>
-              {formatOrderNumber(order.id)} • Subtotal: ${order.total}
+              {formatOrderNumber(order.id)} • Subtotal: {formatCOP(order.total)}
             </div>
             {order.items.map((item) => (
               <div
@@ -261,7 +269,7 @@ export function BillSummaryCard({ bill, tables, error, onRetry }: BillSummaryCar
                   <span style={{ marginRight: '6px' }}>{item.quantity}x</span>
                   <span>{item.productName}</span>
                 </div>
-                <span style={{ fontVariantNumeric: 'tabular-nums' }}>${item.unitPrice * item.quantity}</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCOP(item.unitPrice * item.quantity)}</span>
               </div>
             ))}
           </div>
@@ -282,8 +290,6 @@ export function PaymentMethodPicker({
 }: PaymentMethodPickerProps) {
   const options: { method: PaymentMethod; label: string }[] = [
     { method: 'CASH', label: PAYMENT_METHOD_LABELS.CASH || 'Efectivo' },
-    { method: 'CARD', label: PAYMENT_METHOD_LABELS.CARD || 'Tarjeta' },
-    { method: 'OTHER', label: PAYMENT_METHOD_LABELS.OTHER || 'Otro' },
   ];
 
   return (
@@ -390,8 +396,8 @@ export function ConfirmPaymentButton({
       <ModalConfirm
         open={isConfirming}
         title="Confirmar cobro"
-        current={{ label: 'Cuenta actual', value: `$${total}` }}
-        proposed={{ label: 'Total a cobrar', value: `$${total}` }}
+        current={{ label: 'Cuenta actual', value: formatCOP(total) }}
+        proposed={{ label: 'Total a cobrar', value: formatCOP(total) }}
         impacts={[
           { label: 'Método', value: PAYMENT_METHOD_LABELS[method || 'CASH'] || 'Efectivo' },
         ]}
@@ -449,8 +455,229 @@ export function PaymentSuccessCard({
         </span>
       </div>
       <div style={{ color: 'var(--bento-text-muted)', fontFamily: 'var(--bento-font-body)' }}>
-        {getTableDisplayName(tableId, tables)} • Total: ${amount} • Medio: {PAYMENT_METHOD_LABELS[method] || method}
+        {getTableDisplayName(tableId, tables)} • Total: {formatCOP(amount)} • Medio: {PAYMENT_METHOD_LABELS[method] || method}
       </div>
     </BentoCard>
   );
 }
+
+export interface ReleaseTableModalProps {
+  open: boolean;
+  tableName: string;
+  pendingAmount: number;
+  loading?: boolean;
+  error?: string | null;
+  onConfirm: () => void;
+  onClose: () => void;
+  onRetry?: () => void;
+}
+
+export function ReleaseTableModal({
+  open,
+  tableName,
+  pendingAmount,
+  loading = false,
+  error = null,
+  onConfirm,
+  onClose,
+  onRetry,
+}: ReleaseTableModalProps) {
+  if (!open) return null;
+
+  const hasPending = pendingAmount > 0;
+
+  return (
+    <div
+      data-testid="modal-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !loading) onClose();
+      }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+        background: 'color-mix(in srgb, var(--bento-hueso) 70%, transparent)',
+        zIndex: 1000,
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="release-table-dialog-title"
+        data-component="modal-confirm"
+        tabIndex={-1}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && !loading) {
+            e.stopPropagation();
+            onClose();
+          }
+        }}
+        style={{
+          width: '100%',
+          maxWidth: '480px',
+          background: 'var(--bento-papel)',
+          color: 'var(--bento-text)',
+          borderRadius: 'var(--bento-card-radius)',
+          border: '1px solid var(--bento-border)',
+          boxShadow: 'var(--bento-card-shadow)',
+          padding: '24px',
+          fontFamily: 'var(--bento-font-body)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px',
+        }}
+      >
+        <h2
+          id="release-table-dialog-title"
+          style={{ margin: 0, fontSize: '20px', fontFamily: 'var(--bento-font-heading)' }}
+        >
+          Liberar mesa
+        </h2>
+
+        {hasPending ? (
+          <div
+            role="alert"
+            tabIndex={-1}
+            style={{
+              padding: '14px',
+              borderRadius: 'var(--bento-inner-radius)',
+              background: 'color-mix(in srgb, var(--bento-destructive) 10%, transparent)',
+              color: 'var(--bento-destructive)',
+              border: '1px solid var(--bento-destructive)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
+              <svg
+                aria-hidden="true"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>Acción bloqueada</span>
+            </div>
+            <span style={{ fontSize: '0.9rem' }}>
+              La mesa tiene un consumo pendiente de {formatCOP(pendingAmount)} sin cobrar. No es posible liberar la mesa hasta liquidar la cuenta.
+            </span>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <p style={{ margin: 0, color: 'var(--bento-text)' }}>
+              La mesa <strong>{tableName}</strong> está al día y no tiene consumos pendientes.
+            </p>
+            <p style={{ margin: 0, color: 'var(--bento-text-muted)', fontSize: '0.9rem' }}>
+              ¿Confirmas que deseas cerrar la sesión y liberar la mesa?
+            </p>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid var(--bento-border)', paddingTop: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+            <span style={{ color: 'var(--bento-text-muted)' }}>Mesa</span>
+            <span style={{ fontWeight: 600 }}>{tableName}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+            <span style={{ color: 'var(--bento-text-muted)' }}>Saldo pendiente</span>
+            <span style={{ fontWeight: 700, color: hasPending ? 'var(--bento-destructive)' : 'var(--bento-success)' }}>
+              {formatCOP(pendingAmount)}
+            </span>
+          </div>
+        </div>
+
+        {error && (
+          <div
+            role="alert"
+            tabIndex={-1}
+            style={{
+              padding: '12px',
+              borderRadius: 'var(--bento-inner-radius)',
+              background: 'color-mix(in srgb, var(--bento-destructive) 10%, transparent)',
+              color: 'var(--bento-destructive)',
+              border: '1px solid var(--bento-destructive)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+            }}
+          >
+            <span>{error === 'SESSION_CLOSE_FAILED' ? 'Error al cerrar la sesión en el servidor' : error}</span>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                style={{
+                  minHeight: '36px',
+                  padding: '0 12px',
+                  borderRadius: 'var(--bento-pill-radius)',
+                  background: 'var(--bento-destructive)',
+                  color: 'var(--bento-papel)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                Reintentar cierre
+              </button>
+            )}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: '8px' }}>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            style={{
+              minHeight: '44px',
+              padding: '0 20px',
+              borderRadius: 'var(--bento-pill-radius)',
+              fontFamily: 'var(--bento-font-body)',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              background: 'transparent',
+              color: 'var(--bento-destructive)',
+              border: '1px solid transparent',
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            disabled={hasPending || loading}
+            onClick={hasPending ? undefined : onConfirm}
+            title={hasPending ? 'Acción bloqueada: saldo pendiente sin cobrar' : 'Confirmar liberación'}
+            style={{
+              minHeight: '44px',
+              padding: '0 20px',
+              borderRadius: 'var(--bento-pill-radius)',
+              fontFamily: 'var(--bento-font-body)',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: (hasPending || loading) ? 'not-allowed' : 'pointer',
+              background: hasPending ? 'var(--bento-border)' : 'var(--bento-tinta)',
+              color: hasPending ? 'var(--bento-text-muted)' : 'var(--bento-papel)',
+              border: 'none',
+              opacity: hasPending ? 0.6 : 1,
+            }}
+          >
+            {loading ? 'Liberando...' : 'Confirmar liberación'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+

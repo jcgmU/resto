@@ -9,14 +9,20 @@ export class RedisTableRepository implements TableRepository {
     const key = RedisKeys.table(tenantId, table.tableId);
     const setKey = RedisKeys.tenantTables(tenantId);
 
-    const payload = JSON.stringify(table);
+    const normalizedTable: TableDTO & { qrKey: string } = {
+      ...table,
+      capacity: table.capacity ?? 4,
+      status: table.status ?? 'AVAILABLE',
+    };
+
+    const payload = JSON.stringify(normalizedTable);
     await this.redis
       .multi()
       .set(key, payload)
-      .sadd(setKey, table.tableId)
+      .sadd(setKey, normalizedTable.tableId)
       .exec();
 
-    const { qrKey: _, ...dto } = table;
+    const { qrKey: _, ...dto } = normalizedTable;
     return dto;
   }
 
@@ -24,7 +30,12 @@ export class RedisTableRepository implements TableRepository {
     const key = RedisKeys.table(tenantId, tableId);
     const raw = await this.redis.get(key);
     if (!raw) return null;
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return {
+      ...parsed,
+      capacity: parsed.capacity ?? 4,
+      status: parsed.status ?? 'AVAILABLE',
+    };
   }
 
   async listByTenant(tenantId: string): Promise<TableDTO[]> {
@@ -40,9 +51,23 @@ export class RedisTableRepository implements TableRepository {
       if (raw) {
         const parsed = JSON.parse(raw);
         const { qrKey: _, ...dto } = parsed;
-        tables.push(dto);
+        tables.push({
+          ...dto,
+          capacity: dto.capacity ?? 4,
+          status: dto.status ?? 'AVAILABLE',
+        });
       }
     }
     return tables;
+  }
+
+  async delete(tenantId: string, tableId: string): Promise<void> {
+    const key = RedisKeys.table(tenantId, tableId);
+    const setKey = RedisKeys.tenantTables(tenantId);
+    await this.redis
+      .multi()
+      .del(key)
+      .srem(setKey, tableId)
+      .exec();
   }
 }

@@ -44,7 +44,42 @@ Construido con **TDD estricto** (Red-Green-Refactor), en **oleadas** incremental
 - **Docker Desktop** (o Docker Engine + plugin Compose) en ejecución
 - Puertos libres: `3000`, `3001`, `4000` a `4004`, `5432`, `6379`
 
-### Pasos
+### Vía rápida recomendada: Un solo comando (`pnpm demo`)
+
+La forma más rápida para probar el sistema completo con datos precargados y acceso desde el móvil en la misma red WiFi:
+
+```bash
+# 1. Clonar e instalar dependencias
+git clone https://github.com/jcgmU/resto.git
+cd resto
+pnpm install
+
+# 2. Iniciar todo el entorno demo en un solo comando
+pnpm demo
+```
+
+Este comando automatiza todo el proceso:
+1. Comprueba que Docker Desktop y Docker Compose estén en ejecución.
+2. Detecta la dirección IP de tu red local (`LAN_IP`).
+3. Levanta los contenedores del backend en Docker (`services`) con CORS y URLs configurados para tu IP local.
+4. Espera a que el Gateway (`:4000`) esté disponible y compila los paquetes compartidos (`@packages/*`).
+5. Configura `.env.local` en ambos frontends con `NEXT_PUBLIC_GATEWAY_URL` y las *feature flags* activas.
+6. Ejecuta el seed idempotente (`node scripts/seed-demo.mjs`) con categorías, platos (precios COP enteros, descripción y tiempo de preparación), modificadores, 4 zonas (Terraza, Salón Principal, Barra, VIP), mesas con zona y capacidad, una reserva demo para hoy y el usuario administrador demo (`admin` / `admin`). Puede correrse varias veces sin duplicar datos.
+7. Inicia los servidores de desarrollo de `@apps/admin-dashboard` (`:3000`) y `@apps/client-pwa` (`:3001`).
+
+Al finalizar el arranque verás un banner con las URLs de acceso:
+- **Panel Admin:** `http://localhost:3000` (o `http://<LAN_IP>:3000`) — Usuario: `admin` | Contraseña: `admin`
+- **PWA Clientes:** `http://localhost:3001` (o `http://<LAN_IP>:3001`)
+
+> Para ver el guion de prueba paso a paso con el móvil, consulta la **[Guía de Pruebas](docs/GUIA-PRUEBAS.md)**.  
+> Para detener la demo: presiona `Ctrl+C` en la terminal y ejecuta `docker compose --profile services down`.  
+> Para reiniciar los datos a cero: `docker compose --profile services down -v` y vuelve a correr `pnpm demo`.
+
+---
+
+### Vía manual paso a paso
+
+Si prefieres levantar cada componente por separado o configurar un restaurante desde cero:
 
 ```bash
 # 1. Clonar e instalar dependencias de todo el monorepo
@@ -109,9 +144,19 @@ El flujo completo de un servicio, de punta a punta:
 
 | Ruta | Para qué sirve |
 |---|---|
-| `/dashboard` | Resumen: mesas ocupadas, pedidos activos y alertas de servicio. Ventas y ticket promedio aparecen como "Próximamente" |
+| `/dashboard` | **Resumen Operativo**: indicadores (mesas activas, pedidos activos, SLA estimado), plano de mesas con filtro por **zona** y por estado, **reservas del día** (crear, cancelar y **Cliente llegó**, que abre la sesión de la mesa), brief de alertas de servicio y el interruptor de **modo de operación**. Ventas y ticket promedio aparecen como "Próximamente" |
+| `/meseros` | **Terminal de Meseros**: atención guiada en mesa (selección de mesa, comanda con nota por ítem y despacho a cocina). Funciona en ambos modos de operación; es la vía principal en `waiter_only` |
+| `/mesas` | Gestión de mesas con **zona** y **capacidad** asignables; las mesas con reserva activa de hoy se muestran como *Reservada* |
+| `/kds` | Monitor de cocina con **SLA** por pedido (tiempo estimado del restaurante vs. tiempo transcurrido, con marca de atraso), posibilidad de **añadir demora** al pedido y panel de llamadas de servicio |
 | `/pagos` | Historial de pagos (próximamente) |
 | `/ajustes` | Configuración del restaurante (próximamente) |
+
+**Modo de operación.** Se alterna desde `/dashboard` (o con `PATCH /v1/tenant/settings` `{ "operatingMode": "hybrid" | "waiter_only" }`, solo admin/manager):
+
+- `hybrid` (por defecto): los comensales piden escaneando el QR y el personal también puede tomar pedidos.
+- `waiter_only`: el QR deja de abrir sesiones (`POST /v1/sessions/open` responde `403 QR_DISABLED`); el mesero abre la sesión con `POST /v1/sessions/staff-open` y pide en nombre de la mesa enviando `x-session-id`. El servicio de sesiones cachea el modo hasta 30 s, por lo que el cambio puede tardar ese tiempo en aplicarse al QR.
+
+Una vez que el comensal pide la cuenta (`POST /v1/sessions/:id/bill-request`), la sesión deja de aceptar pedidos nuevos (`409 SESSION_NOT_ORDERABLE`) hasta que el cobro la cierre o el staff la reabra.
 
 Lo que está marcado "Próximamente" está protegido por *feature flags* y no es una pantalla rota: ver [sección 6](#6-configuración-variables-de-entorno).
 
@@ -234,8 +279,11 @@ El backend está contenedorizado (un `Dockerfile` por servicio). Los frontends s
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` | `postgres` / `postgres` | Credenciales de Postgres. **Cambia la contraseña en producción** |
 | `POSTGRES_PORT` / `REDIS_PORT` | `5432` / `6379` | Puertos publicados en el host |
 | `GATEWAY_PORT` | `4000` | Puerto público del gateway |
-| `CORS_ORIGINS` | `http://localhost:3000,http://localhost:3001` | Orígenes de los frontends permitidos por el gateway |
+| `CORS_ORIGINS` | `http://localhost:3000,http://localhost:3001` | Orígenes de los frontends permitidos por el gateway (el script demo añade automáticamente la IP local) |
 | `PWA_BASE_URL` | `http://localhost:3001` | URL pública de la PWA; el Session Service la usa para construir el enlace/QR de cada mesa |
+| `LAN_IP` | (autodetectada) | IP de red local del host para pruebas en WiFi desde móviles (usada por `pnpm demo`) |
+| `MIN_ADMIN_PASSWORD_LENGTH` | `8` | Longitud mínima exigida para la contraseña de admin en Identity service (`4` para entorno demo local) |
+| `DEMO_ADMIN_PASSWORD` | `admin` | Contraseña asignada a la cuenta `admin` por el seed demo (`scripts/seed-demo.mjs`) |
 
 Las bases `resto_identity`, `resto_catalog` y `resto_ordering` se crean solas (`infra/postgres/init/`) y las **migraciones Prisma se ejecutan al arrancar** Identity, Catalog y Ordering.
 
@@ -243,10 +291,11 @@ Las bases `resto_identity`, `resto_catalog` y `resto_ordering` se crean solas (`
 
 | Variable | Por defecto | Para qué sirve |
 |---|---|---|
-| `NEXT_PUBLIC_GATEWAY_URL` | `http://localhost:4000` | URL pública del gateway (API y WebSocket). Se incrusta en el build |
+| `NEXT_PUBLIC_GATEWAY_URL` | `http://localhost:4000` | URL pública del gateway (API y WebSocket). Se incrusta en el build (en `pnpm demo` se configura como `http://<LAN_IP>:4000`) |
 | `NEXT_PUBLIC_FEATURE_FLAGS` | (ver `.env.example`) | Funcionalidades activas, formato `flag:true,flag:false` |
 
 **Feature flags** (`kitchen-display`, `payments`, `analytics`, `multi-language`): si un flag no está en `true`, su pantalla muestra el aviso **"Próximamente"** en lugar de la funcionalidad. Para usar el KDS completo y el cobro, el panel necesita `kitchen-display:true,payments:true`. `analytics` y `multi-language` aún no tienen funcionalidad (solo el aviso).
+
 
 ---
 
@@ -302,10 +351,10 @@ Estados de una orden: `PLACED → IN_KITCHEN → READY → DELIVERED` (o `CANCEL
 ```bash
 pnpm install                 # dependencias
 pnpm build                   # build de los paquetes compartidos
-pnpm test                    # TODOS los tests (371)
+pnpm test                    # TODOS los tests unitarios y de integración
 pnpm test:ui                 # solo ui-components
 pnpm test:gateway            # solo gateway
-node e2e.mjs                 # E2E real por HTTP (requiere el backend en Docker levantado)
+pnpm test:e2e                # E2E oficial versionado (HTTP + WebSocket contra stack Docker)
 ```
 
 Build **completo** (paquetes + apps + servicios), que es el que valida los tipos reales:
@@ -315,6 +364,10 @@ pnpm --filter "./packages/*" --filter "./apps/*" --filter "./services/*" -r run 
 ```
 
 > `pnpm build` a secas solo compila `packages/*`. Los filtros van **antes** de `run build`.
+
+> [!IMPORTANT]
+> **Requisito para tests de contrato (`pnpm test`):**
+> La suite completa (`pnpm test`) incluye tests de contrato reales contra PostgreSQL y Redis (`test/contract/` en `identity`, `catalog`, `ordering` y `session` usando bases aisladas `resto_*_test` y Redis db2/db3). Requiere que los contenedores Postgres y Redis estén en ejecución (`docker compose up -d` o `pnpm demo`). Si el stack no está disponible, los tests de contrato fallan con un mensaje explícito.
 
 El flujo de verificación del equipo (chequeos automáticos A1-A6 y manuales M1-M7) está en [`brain/Equipo/Verificacion.md`](brain/Equipo/Verificacion.md). Resultado de la última verificación: [`brain/Verificaciones/2026-10-11-2150-verificacion.md`](brain/Verificaciones/2026-10-11-2150-verificacion.md).
 
@@ -340,11 +393,15 @@ Metodología: oleadas con ciclo *Planificación Roja → Ejecución Roja → Pla
 
 ## 11. Alcance actual y limitaciones
 
-**Incluido:** registro de restaurantes, login con refresh de token, carta (categorías y productos), mesas con QR rotable, sesión de invitado sin registro, carrito con cantidades, pedidos, KDS en tiempo real, llamadas de servicio ("Pedir la cuenta"), cobro con confirmación y liberación de mesa, 17 vistas con estados *cargando / vacío / error / ok*.
+**Incluido:** registro de restaurantes, login con usuario o correo (`admin` / `admin`), carta (categorías, productos y modificadores), mesas con QR rotable y enlaces adaptados a red local, sesión de invitado sin registro, carrito con cantidades, pedidos, KDS en tiempo real con anuncios por nombre de mesa, llamadas de servicio ("Pedir la cuenta"), cobro con confirmación y liberación de mesa, suite completa de tests automatizados y flujo E2E con WebSockets.
 
-**No incluido todavía** (aparece como "Próximamente"): analíticas y ventas, historial de pagos, ajustes del restaurante, multi-idioma, pasarela de pago real (hoy el cobro solo se registra), gestión de empleados desde el panel.
+**Política de pagos en UI:** la pantalla de Checkout (`/checkout`) ofrece en la interfaz exclusivamente cobro en **Efectivo (Cash)** para simplificar la operación en caja del MVP, mientras que el backend mantiene la flexibilidad de soportar `CASH`, `CARD` y `OTHER`.
 
-**Deuda menor conocida:** el KDS tiene dos `h1`, la PWA no tiene `h1`, los chips de categoría de la PWA miden 36 px (recomendado 44 px), el botón flotante del carrito se solapa unos 11 px con "Pedir la cuenta" a 375 px, y el anuncio en vivo del KDS usa el id crudo de la mesa. El script `scripts/check-47-e2e.js` (smoke de la oleada 0) está obsoleto; `e2e.mjs` es el E2E vigente.
+**No incluido todavía** (aparece como "Próximamente"): analíticas y ventas, historial de pagos, ajustes del restaurante, multi-idioma, pasarela de pago electrónica real (en el MVP el cobro se registra en efectivo en UI), gestión de empleados desde el panel.
+
+**Deuda técnica resuelta:** en la fase de preparación de pruebas se subsanó la deuda de accesibilidad y UI previa (el KDS ahora tiene un único `h1`, la carta PWA cuenta con encabezado `h1` "Carta", los chips de categoría cumplen el estándar táctil accesible de 44 px, el botón flotante del carrito `CartFab` se ubica a 140 px de la base evitando cualquier solape con las acciones inferiores, y el anuncio en vivo del KDS resuelve el nombre legible de la mesa).
+
+**Pruebas End-to-End:** la verificación oficial versionada de todo el ciclo de vida se ejecuta con `pnpm test:e2e` (`scripts/e2e-demo.mjs`), que valida HTTP y eventos Socket.io en tiempo real contra el backend en ejecución. Incluye además notas por ítem y generales, llamada de mesero (`WAITER_CALL`), modo `waiter_only` (`QR_DISABLED` + `staff-open`), bloqueo de pedidos tras pedir la cuenta (`SESSION_NOT_ORDERABLE`) y cobro en efectivo; siempre restaura el modo `hybrid` al terminar. Detalle en [docs/GUIA-PRUEBAS.md](docs/GUIA-PRUEBAS.md).
 
 ---
 
@@ -365,9 +422,9 @@ Metodología: oleadas con ciclo *Planificación Roja → Ejecución Roja → Pla
 ├── 01_Arquitectura/         # ADRs, system design, guía UI/UX
 ├── 02_Dominio/              # Diccionario de contratos API/eventos
 ├── 03_Oleadas/              # Registro de progreso por oleada
-├── docs/                    # Manifiestos técnicos y planes por oleada
+├── docs/                    # Manifiestos técnicos, guías de prueba y planes por oleada
+├── scripts/                 # Utilidades de arranque demo, seed y verificación E2E
 ├── brain/                   # Vault del equipo de agentes (protocolo, handoffs, verificaciones)
-├── e2e.mjs                  # E2E real contra el stack levantado
 ├── docker-compose.yml       # Postgres, Redis, Gateway y (perfil "services") los 4 servicios
 └── turbo.json
 ```

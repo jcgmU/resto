@@ -127,6 +127,8 @@ exports.Prisma.TenantScalarFieldEnum = {
   name: 'name',
   slug: 'slug',
   status: 'status',
+  operatingMode: 'operatingMode',
+  estimatedPrepMinutes: 'estimatedPrepMinutes',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };

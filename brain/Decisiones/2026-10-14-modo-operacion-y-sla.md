@@ -1,0 +1,12 @@
+# ADR: Modo de operación por tenant (Híbrido / Solo Meseros) y SLA de cocina
+
+- **Fecha:** 2026-10-14
+- **Estado:** Aceptado (actualiza y reemplaza `2026-10-14-mesero-sin-qr.md`)
+- **Hilo:** correcciones-qa-y-notas ronda 2 (N02c + referencia)
+- **Contexto:** La suite de referencia define un "Modo de Operación" por restaurante: **Híbrido (QR + Meseros)** o **Solo Meseros (QR Inactivo)**; con QR apagado la vista cliente muestra "Un mesero tomará su orden". Además define un "Tiempo Límite Estimado" (SLA) configurable por restaurante que alimenta una barra de progreso en el KDS (verde <75%, ámbar ≥75%, rojo ≥100%) con contador `Nm / SLAm`. Sustituye el booleano `waiterModeEnabled` del ADR anterior.
+- **Decisión:**
+  1. Tenant en identity gana: `operatingMode` (`'hybrid' | 'waiter_only'`, default `'hybrid'`) y `estimatedPrepMinutes` (SLA, int, default 18, rango válido 5..120). `GET /v1/tenant/settings`: staff+ lo lee completo; **guest solo recibe los campos públicos** (`operatingMode`) vía el mismo endpoint filtrado por rol. `PATCH /v1/tenant/settings` (admin/manager) validado.
+  2. **Enforcement backend:** con `waiter_only`, `POST /sessions/open` (apertura por QR) se rechaza con 403 `QR_DISABLED`; las sesiones ya abiertas pueden seguir pidiendo cuenta, pero no crear nuevos pedidos (409 `SESSION_NOT_ORDERABLE`); `staff-open` siempre permitido a staff+. Con `hybrid` todo fluye como hoy. El frontend además oculta/muestra vistas según el modo.
+  3. **Terminal de meseros** (staff): seleccionar mesa → abre/reutiliza sesión (`staff-open`) → agregar productos disponibles con nota por ítem y "otras solicitudes" generales → enviar a cocina (confirm con mesa derivada de la sesión). Ordering acepta staff con `x-session-id` explícito; guest solo el de su token.
+  4. **SLA en KDS:** cada orden muestra barra de progreso `elapsed / estimatedPrepMinutes` (verde/ámbar/rojo) y contador `Nm / SLAm`; el tiempo estimado efectivo de una orden puede ampliarse con `delayMinutes` por orden (N20): SLA efectivo = `estimatedPrepMinutes + delayMinutes`. Las columnas se ordenan por más tiempo primero.
+- **Consecuencias:** La PWA necesita leer settings públicas al cargar (guest). El slider/toggle del dashboard escribe contra la API real. `estimatedPrepMinutes` ya existía en el ADR anterior; se mantiene el nombre y se añade `operatingMode`.

@@ -7,6 +7,7 @@ export interface OrderConfirmationCardProps {
   order: OrderDTO;
   pollIntervalMs?: number;
   onOrderUpdate?: (order: OrderDTO) => void;
+  onAddAnotherOrder?: () => void;
 }
 
 const PROGRESS_STEPS = ['Recibido', 'En cocina', 'Listo', 'Entregado'];
@@ -75,6 +76,7 @@ export function OrderConfirmationCard({
   order,
   pollIntervalMs = 5000,
   onOrderUpdate,
+  onAddAnotherOrder,
 }: OrderConfirmationCardProps) {
   const [currentOrder, setCurrentOrder] = useState<OrderDTO>(order);
 
@@ -162,6 +164,54 @@ export function OrderConfirmationCard({
       >
         {statusInfo.description}
       </p>
+
+      {/* Información de estado inmutable y opción de agregar más pedidos (U04) */}
+      <div
+        data-testid="order-clarity-actions"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--bento-spacing-xs)',
+          paddingTop: 'var(--bento-spacing-xs)',
+          borderTop: '1px solid var(--bento-border)',
+        }}
+      >
+        <p
+          data-testid="order-locked-notice"
+          style={{
+            margin: 0,
+            fontSize: '0.875rem',
+            color: 'var(--bento-text-muted)',
+            fontFamily: 'var(--bento-font-body, inherit)',
+          }}
+        >
+          Pedido enviado; ya no puede editarse
+        </p>
+
+        <button
+          type="button"
+          onClick={onAddAnotherOrder}
+          data-testid="add-another-order-btn"
+          style={{
+            alignSelf: 'flex-start',
+            minHeight: 'var(--bento-touch-target, 44px)',
+            padding: '0 var(--bento-spacing-md, 16px)',
+            borderRadius: 'var(--bento-pill-radius)',
+            backgroundColor: 'var(--bento-papel)',
+            border: '1px solid var(--bento-border)',
+            color: 'var(--bento-tinta)',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'var(--bento-font-body, inherit)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          Agregar otro pedido
+        </button>
+      </div>
 
       {statusInfo.problemSegment !== undefined && (
         <div

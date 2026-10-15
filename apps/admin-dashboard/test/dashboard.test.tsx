@@ -178,3 +178,171 @@ describe('H8 Admin Dashboard — Métricas Reales y KPIs', () => {
   });
 });
 
+describe('Unidad V23 — Resumen Operativo y Modo de Operación en Dashboard', () => {
+  const originalRequest = ApiClient.request;
+
+  beforeEach(() => {
+    ApiClient.token = 'mock-admin-token';
+  });
+
+  afterEach(() => {
+    ApiClient.request = originalRequest;
+  });
+
+  test('V23-1: Muestra métricas operativas (Mesas Ocupadas, Disponibilidad y SLA)', async () => {
+    const mockTables = [
+      { tableId: 't-1', label: '1', capacity: 4, zoneId: 'z-1', status: 'OCCUPIED' },
+      { tableId: 't-2', label: '2', capacity: 2, zoneId: 'z-1', status: 'AVAILABLE' },
+      { tableId: 't-3', label: '3', capacity: 6, zoneId: 'z-2', status: 'RESERVED' },
+    ];
+    const mockZones = [
+      { id: 'z-1', name: 'Terraza', sortOrder: 1 },
+      { id: 'z-2', name: 'Salón Principal', sortOrder: 2 },
+    ];
+
+    ApiClient.request = jest.fn(async (endpoint: string) => {
+      if (endpoint === '/v1/tables') return mockTables;
+      if (endpoint === '/v1/zones') return mockZones;
+      if (endpoint.includes('/v1/reservations')) return [];
+      if (endpoint.includes('/v1/sessions')) return [{ tableId: 't-1', status: 'active' }];
+      if (endpoint === '/v1/tenant/settings') return { operatingMode: 'hybrid', estimatedPrepMinutes: 25 };
+      if (endpoint.includes('/v1/orders')) return [];
+      if (endpoint.includes('/v1/service-calls')) return [];
+      return [];
+    });
+
+    render(<DashboardPage />);
+
+    expect(await screen.findByText('Resumen Operativo')).toBeInTheDocument();
+    expect(screen.getByText('Mesas Ocupadas')).toBeInTheDocument();
+    expect(screen.getByText('Disponibilidad')).toBeInTheDocument();
+    expect(screen.getByText('Tiempo Límite Estimado')).toBeInTheDocument();
+    expect(screen.getByText('25 min')).toBeInTheDocument();
+    expect(screen.getByText('1 Libres')).toBeInTheDocument();
+    expect(screen.getByText('1 Reservas')).toBeInTheDocument();
+  });
+
+  test('V23-2: Persistencia del SLA slider contra PATCH /v1/tenant/settings', async () => {
+    let patchedBody: any = null;
+    ApiClient.request = jest.fn(async (endpoint: string, opts?: any) => {
+      if (endpoint === '/v1/tables') return [];
+      if (endpoint === '/v1/zones') return [];
+      if (endpoint.includes('/v1/reservations')) return [];
+      if (endpoint.includes('/v1/sessions')) return [];
+      if (endpoint === '/v1/tenant/settings') {
+        if (opts?.method === 'PATCH') {
+          patchedBody = JSON.parse(opts.body);
+          return { operatingMode: 'hybrid', estimatedPrepMinutes: patchedBody.estimatedPrepMinutes };
+        }
+        return { operatingMode: 'hybrid', estimatedPrepMinutes: 18 };
+      }
+      if (endpoint.includes('/v1/orders')) return [];
+      if (endpoint.includes('/v1/service-calls')) return [];
+      return [];
+    });
+
+    render(<DashboardPage />);
+    expect(await screen.findByText('18 min')).toBeInTheDocument();
+
+    const slider = screen.getByLabelText(/Tiempo Límite Estimado/i);
+    expect(slider).toBeInTheDocument();
+
+    // Cambiar slider y disparar mouseUp
+    fireEvent.change(slider, { target: { value: '35' } });
+    fireEvent.mouseUp(slider, { target: { value: '35' } });
+
+    await waitFor(() => {
+      expect(patchedBody).toEqual({ estimatedPrepMinutes: 35 });
+    });
+  });
+
+  test('V23-3: Toggle de Modo de Operación entre Híbrido y Solo Meseros persiste en PATCH /v1/tenant/settings', async () => {
+    let patchedBody: any = null;
+    let currentMode: string = 'hybrid';
+
+    ApiClient.request = jest.fn(async (endpoint: string, opts?: any) => {
+      if (endpoint === '/v1/tables') return [];
+      if (endpoint === '/v1/zones') return [];
+      if (endpoint.includes('/v1/reservations')) return [];
+      if (endpoint.includes('/v1/sessions')) return [];
+      if (endpoint === '/v1/tenant/settings') {
+        if (opts?.method === 'PATCH') {
+          patchedBody = JSON.parse(opts.body);
+          currentMode = patchedBody.operatingMode;
+          return { operatingMode: currentMode, estimatedPrepMinutes: 18 };
+        }
+        return { operatingMode: currentMode, estimatedPrepMinutes: 18 };
+      }
+      if (endpoint.includes('/v1/orders')) return [];
+      if (endpoint.includes('/v1/service-calls')) return [];
+      return [];
+    });
+
+    render(<DashboardPage />);
+    const toggleBtn = await screen.findByTestId('operating-mode-toggle');
+    expect(toggleBtn).toHaveTextContent(/Híbrido \(QR \+ Meseros\)/i);
+
+    fireEvent.click(toggleBtn);
+
+    await waitFor(() => {
+      expect(patchedBody).toEqual({ operatingMode: 'waiter_only' });
+      expect(toggleBtn).toHaveTextContent(/Solo Meseros \(QR Inactivo\)/i);
+    });
+  });
+
+  test('V23-4: Renderizado de N Puestos • Zona y filtros de estado (TODAS, LIBRES, OCUPADAS, RESERVADAS)', async () => {
+    const mockTables = [
+      { tableId: 't-1', label: '1', capacity: 4, zoneId: 'z-terraza', status: 'AVAILABLE' },
+      { tableId: 't-2', label: '2', capacity: 2, zoneId: 'z-terraza', status: 'OCCUPIED' },
+      { tableId: 't-3', label: '3', capacity: 6, zoneId: 'z-salon', status: 'RESERVED' },
+    ];
+    const mockZones = [
+      { id: 'z-terraza', name: 'Terraza', sortOrder: 1 },
+      { id: 'z-salon', name: 'Salón Principal', sortOrder: 2 },
+    ];
+
+    ApiClient.request = jest.fn(async (endpoint: string) => {
+      if (endpoint === '/v1/tables') return mockTables;
+      if (endpoint === '/v1/zones') return mockZones;
+      if (endpoint.includes('/v1/reservations')) return [];
+      if (endpoint.includes('/v1/sessions')) return [{ tableId: 't-2', status: 'active' }];
+      if (endpoint === '/v1/tenant/settings') return { operatingMode: 'hybrid', estimatedPrepMinutes: 18 };
+      if (endpoint.includes('/v1/orders')) return [];
+      if (endpoint.includes('/v1/service-calls')) return [];
+      return [];
+    });
+
+    render(<DashboardPage />);
+
+    expect(await screen.findByText('Mesa 1')).toBeInTheDocument();
+    expect(screen.getByText('4 Puestos • Terraza')).toBeInTheDocument();
+    expect(screen.getByText('2 Puestos • Terraza')).toBeInTheDocument();
+    expect(screen.getByText('6 Puestos • Salón Principal')).toBeInTheDocument();
+
+    // Filtrar por LIBRES
+    const libresTab = screen.getByRole('tab', { name: /LIBRES/i });
+    fireEvent.click(libresTab);
+
+    expect(screen.getByText('Mesa 1')).toBeInTheDocument();
+    expect(screen.queryByText('Mesa 2')).not.toBeInTheDocument();
+    expect(screen.queryByText('Mesa 3')).not.toBeInTheDocument();
+
+    // Filtrar por OCUPADAS
+    const ocupadasTab = screen.getByRole('tab', { name: /OCUPADAS/i });
+    fireEvent.click(ocupadasTab);
+
+    expect(screen.queryByText('Mesa 1')).not.toBeInTheDocument();
+    expect(screen.getByText('Mesa 2')).toBeInTheDocument();
+    expect(screen.queryByText('Mesa 3')).not.toBeInTheDocument();
+
+    // Filtrar por RESERVADAS
+    const reservadasTab = screen.getByRole('tab', { name: /RESERVADAS/i });
+    fireEvent.click(reservadasTab);
+
+    expect(screen.queryByText('Mesa 1')).not.toBeInTheDocument();
+    expect(screen.queryByText('Mesa 2')).not.toBeInTheDocument();
+    expect(screen.getByText('Mesa 3')).toBeInTheDocument();
+  });
+});
+
+

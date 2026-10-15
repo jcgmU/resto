@@ -25,7 +25,7 @@ export class PrismaProductRepository implements ProductRepository {
           },
         },
       },
-      orderBy: { sortOrder: 'asc' },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
 
     return list.map((p) => ({
@@ -38,6 +38,7 @@ export class PrismaProductRepository implements ProductRepository {
       imageUrl: p.imageUrl || undefined,
       isAvailable: p.isAvailable,
       sortOrder: p.sortOrder,
+      prepTimeMinutes: p.prepTimeMinutes ?? undefined,
       modifierGroups: p.modifierGroups.map((pmg) => ({
         id: pmg.group.id,
         tenantId: pmg.group.tenantId,
@@ -86,6 +87,7 @@ export class PrismaProductRepository implements ProductRepository {
       imageUrl: p.imageUrl || undefined,
       isAvailable: p.isAvailable,
       sortOrder: p.sortOrder,
+      prepTimeMinutes: p.prepTimeMinutes ?? undefined,
       modifierGroups: p.modifierGroups.map((pmg) => ({
         id: pmg.group.id,
         tenantId: pmg.group.tenantId,
@@ -117,6 +119,7 @@ export class PrismaProductRepository implements ProductRepository {
         categoryId: product.categoryId,
         sortOrder: product.sortOrder,
         isAvailable: product.isAvailable,
+        prepTimeMinutes: product.prepTimeMinutes,
       },
       create: {
         id: product.id,
@@ -128,6 +131,7 @@ export class PrismaProductRepository implements ProductRepository {
         imageUrl: product.imageUrl,
         sortOrder: product.sortOrder,
         isAvailable: product.isAvailable,
+        prepTimeMinutes: product.prepTimeMinutes,
       },
     });
 
@@ -136,6 +140,7 @@ export class PrismaProductRepository implements ProductRepository {
       id: saved.id,
       tenantId: saved.tenantId,
       price: Number(saved.price),
+      prepTimeMinutes: saved.prepTimeMinutes ?? undefined,
       createdAt: saved.createdAt,
       updatedAt: saved.updatedAt,
     };
@@ -162,6 +167,7 @@ export class PrismaProductRepository implements ProductRepository {
       imageUrl: updated.imageUrl || undefined,
       isAvailable: updated.isAvailable,
       sortOrder: updated.sortOrder,
+      prepTimeMinutes: updated.prepTimeMinutes ?? undefined,
       createdAt: updated.createdAt,
       updatedAt: updated.updatedAt,
     };

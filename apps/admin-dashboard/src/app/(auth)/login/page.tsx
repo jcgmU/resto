@@ -30,7 +30,7 @@ export default function LoginPage() {
       router.push('/menu');
     } catch (err: any) {
       if (err.status === 401 || err.code === 'UNAUTHORIZED') {
-        setError('Credenciales inválidas. Verifica tu correo y contraseña.');
+        setError('Credenciales inválidas. Verifica tu usuario y contraseña.');
       } else {
         setError(err.message || 'Error al iniciar sesión');
       }
@@ -153,14 +153,14 @@ export default function LoginPage() {
                     fontFamily: 'var(--bento-font-body)',
                   }}
                 >
-                  Correo Electrónico
+                  Usuario o Correo
                 </label>
                 <input
                   id="email"
-                  type="email"
+                  type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ejemplo@resto.com"
+                  placeholder="admin o ejemplo@resto.com"
                   required
                   disabled={loading}
                   style={{

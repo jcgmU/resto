@@ -3,6 +3,8 @@ import {
   OpenTableSessionUseCaseImpl,
   CloseTableSessionUseCaseImpl,
   GetTableSessionUseCaseImpl,
+  RequestBillSessionUseCaseImpl,
+  ReopenBillSessionUseCaseImpl,
 } from '../../src/application/SessionUseCases';
 import {
   CreateTableUseCaseImpl,
@@ -16,7 +18,7 @@ import {
 } from '../../src/infrastructure/fakes/InMemorySessionAdapters';
 import { JwtGuestTokenIssuer } from '../../src/infrastructure/security/JwtGuestTokenIssuer';
 
-describe('A. Session — unitarios de casos de uso (Tests 1-10)', () => {
+describe('A. Session — unitarios de casos de uso (Tests 1-14)', () => {
   let tableRepo: InMemoryTableRepository;
   let sessionRepo: InMemoryTableSessionRepository;
   let tokenIssuer: JwtGuestTokenIssuer;
@@ -25,6 +27,8 @@ describe('A. Session — unitarios de casos de uso (Tests 1-10)', () => {
   let openSession: OpenTableSessionUseCaseImpl;
   let closeSession: CloseTableSessionUseCaseImpl;
   let getSession: GetTableSessionUseCaseImpl;
+  let requestBill: RequestBillSessionUseCaseImpl;
+  let reopenBill: ReopenBillSessionUseCaseImpl;
   let createTable: CreateTableUseCaseImpl;
   let generateQr: GenerateTableQrUseCaseImpl;
   let rotateQr: RotateTableQrKeyUseCaseImpl;
@@ -38,6 +42,8 @@ describe('A. Session — unitarios de casos de uso (Tests 1-10)', () => {
     openSession = new OpenTableSessionUseCaseImpl(sessionRepo, tableRepo, tokenIssuer, 14400);
     closeSession = new CloseTableSessionUseCaseImpl(sessionRepo);
     getSession = new GetTableSessionUseCaseImpl(sessionRepo);
+    requestBill = new RequestBillSessionUseCaseImpl(sessionRepo);
+    reopenBill = new ReopenBillSessionUseCaseImpl(sessionRepo);
     createTable = new CreateTableUseCaseImpl(tableRepo);
     generateQr = new GenerateTableQrUseCaseImpl(tableRepo, qrGenerator);
     rotateQr = new RotateTableQrKeyUseCaseImpl(tableRepo, qrGenerator);
@@ -144,5 +150,57 @@ describe('A. Session — unitarios de casos de uso (Tests 1-10)', () => {
 
     const opened = await openSession.execute({ tenantId: 't-1', tableId: 'tb-1', qrKey: newKey });
     expect(opened.session.status).toBe('active');
+  });
+
+  test('11. RequestBillSessionUseCase cambia status a billRequested y registra billRequestedAt; si ya es billRequested es idempotente', async () => {
+    const opened = await openSession.execute({ tenantId: 't-1', tableId: 'tb-1', qrKey: 'k-1' });
+    const sessionId = opened.session.sessionId;
+
+    const requested = await requestBill.execute({ tenantId: 't-1', sessionId });
+    expect(requested.status).toBe('billRequested');
+    expect(requested.billRequestedAt).toBeDefined();
+
+    // Idempotencia
+    const again = await requestBill.execute({ tenantId: 't-1', sessionId });
+    expect(again.status).toBe('billRequested');
+    expect(again.sessionId).toBe(sessionId);
+  });
+
+  test('12. ReopenBillSessionUseCase cambia status a active y elimina billRequestedAt', async () => {
+    const opened = await openSession.execute({ tenantId: 't-1', tableId: 'tb-1', qrKey: 'k-1' });
+    const sessionId = opened.session.sessionId;
+
+    await requestBill.execute({ tenantId: 't-1', sessionId });
+
+    const reopened = await reopenBill.execute({ tenantId: 't-1', sessionId });
+    expect(reopened.status).toBe('active');
+    expect(reopened.billRequestedAt).toBeUndefined();
+  });
+
+  test('13. ReopenBillSessionUseCase sobre sesión activa o cerrada lanza INVALID_SESSION_STATE', async () => {
+    const opened = await openSession.execute({ tenantId: 't-1', tableId: 'tb-1', qrKey: 'k-1' });
+    const sessionId = opened.session.sessionId;
+
+    // Directamente sobre active
+    await expect(
+      reopenBill.execute({ tenantId: 't-1', sessionId })
+    ).rejects.toThrow('No se puede reabrir la cuenta');
+
+    // Sobre closed
+    await closeSession.execute({ tenantId: 't-1', sessionId });
+    await expect(
+      reopenBill.execute({ tenantId: 't-1', sessionId })
+    ).rejects.toThrow('No se puede reabrir la cuenta');
+  });
+
+  test('14. RequestBillSessionUseCase sobre sesión cerrada lanza INVALID_SESSION_STATE', async () => {
+    const opened = await openSession.execute({ tenantId: 't-1', tableId: 'tb-1', qrKey: 'k-1' });
+    const sessionId = opened.session.sessionId;
+
+    await closeSession.execute({ tenantId: 't-1', sessionId });
+
+    await expect(
+      requestBill.execute({ tenantId: 't-1', sessionId })
+    ).rejects.toThrow('No se puede solicitar la cuenta');
   });
 });

@@ -142,6 +142,7 @@ exports.Prisma.ProductScalarFieldEnum = {
   imageUrl: 'imageUrl',
   isAvailable: 'isAvailable',
   sortOrder: 'sortOrder',
+  prepTimeMinutes: 'prepTimeMinutes',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };

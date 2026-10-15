@@ -6,7 +6,8 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "lint": "echo linting shared-types"
+    "test": "node --test",
+    "lint": "eslint ."
   },
   "devDependencies": {
     "typescript": "^5.6.3"

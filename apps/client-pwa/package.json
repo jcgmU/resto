@@ -5,7 +5,7 @@
   "scripts": {
     "build": "next build",
     "test": "jest",
-    "lint": "echo linting client-pwa",
+    "lint": "eslint .",
     "dev": "next dev -p 3001",
     "start": "next start -p 3001"
   },

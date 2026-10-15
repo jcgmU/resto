@@ -7,7 +7,9 @@ import {
   TenantDTO,
   UserDTO,
   AccessTokenClaims,
+  DomainError,
 } from '@packages/shared-types';
+import { hashRefreshToken } from '../security/tokenHash';
 
 export class InMemoryTenantRepository implements TenantRepository {
   public tenants: TenantDTO[] = [
@@ -16,6 +18,8 @@ export class InMemoryTenantRepository implements TenantRepository {
       name: 'Pergola Existente',
       slug: 'pergola-duplicada',
       status: 'ACTIVE',
+      operatingMode: 'hybrid',
+      estimatedPrepMinutes: 18,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -24,6 +28,8 @@ export class InMemoryTenantRepository implements TenantRepository {
       name: 'Default Tenant',
       slug: 'default-tenant',
       status: 'ACTIVE',
+      operatingMode: 'hybrid',
+      estimatedPrepMinutes: 18,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -44,6 +50,24 @@ export class InMemoryTenantRepository implements TenantRepository {
     } else {
       this.tenants.push(tenant);
     }
+    return tenant;
+  }
+
+  async updateSettings(
+    id: string,
+    settings: { operatingMode?: string; estimatedPrepMinutes?: number }
+  ): Promise<TenantDTO> {
+    const tenant = this.tenants.find((t) => t.id === id);
+    if (!tenant) {
+      throw new DomainError('NOT_FOUND', 'Tenant no encontrado');
+    }
+    if (settings.operatingMode !== undefined) {
+      tenant.operatingMode = settings.operatingMode as any;
+    }
+    if (settings.estimatedPrepMinutes !== undefined) {
+      tenant.estimatedPrepMinutes = settings.estimatedPrepMinutes;
+    }
+    tenant.updatedAt = new Date();
     return tenant;
   }
 }
@@ -120,14 +144,14 @@ export class InMemoryRefreshTokenRepository implements RefreshTokenRepository {
     {
       id: 'rt-valid',
       userId: 'u-valid',
-      tokenHash: 'hash_valid-refresh-token',
+      tokenHash: hashRefreshToken('valid-refresh-token'),
       expiresAt: new Date(Date.now() + 86400000),
       revokedAt: null,
     },
     {
       id: 'rt-expired',
       userId: 'u-valid',
-      tokenHash: 'hash_expired-or-revoked-token',
+      tokenHash: hashRefreshToken('expired-or-revoked-token'),
       expiresAt: new Date(Date.now() - 1000),
       revokedAt: new Date(),
     },
@@ -155,6 +179,32 @@ export class InMemoryRefreshTokenRepository implements RefreshTokenRepository {
       token.revokedAt = new Date();
     }
   }
+
+  async rotate(
+    oldTokenHash: string,
+    newToken: { tokenHash: string; expiresAt: Date }
+  ): Promise<{ userId: string }> {
+    const now = new Date();
+    const token = this.tokens.find(
+      (t) => t.tokenHash === oldTokenHash && !t.revokedAt && t.expiresAt > now
+    );
+
+    if (!token) {
+      throw new DomainError('INVALID_CREDENTIALS', 'Token de refresco inválido o expirado');
+    }
+
+    token.revokedAt = now;
+
+    this.tokens.push({
+      id: `rt-${this.tokens.length + 1}`,
+      userId: token.userId,
+      tokenHash: newToken.tokenHash,
+      expiresAt: newToken.expiresAt,
+      revokedAt: null,
+    });
+
+    return { userId: token.userId };
+  }
 }
 
 export class FakePasswordHasher implements PasswordHasher {
@@ -176,7 +226,7 @@ export class FakeTokenIssuer implements TokenIssuer {
     const raw = `raw_token_${Math.random()}`;
     return {
       raw,
-      hash: `hash_${raw}`,
+      hash: hashRefreshToken(raw),
     };
   }
 }

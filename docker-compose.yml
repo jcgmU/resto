@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - ./infra/postgres/init:/docker-entrypoint-initdb.d
       - postgres_data:/var/lib/postgresql/data
@@ -26,7 +26,7 @@ services:
       - ./infra/redis/redis.conf:/usr/local/etc/redis/redis.conf
       - redis_data:/data
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -41,12 +41,14 @@ services:
     container_name: resto_identity
     restart: unless-stopped
     ports:
-      - "4001:4001"
+      - "127.0.0.1:4001:4001"
     environment:
       NODE_ENV: production
       PORT: 4001
+      INTERNAL_SHARED_SECRET: ${INTERNAL_SHARED_SECRET:-resto-internal-shared-secret-dev-2026}
       IDENTITY_DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/resto_identity?schema=public
       JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-key-oleada-0}
+      MIN_ADMIN_PASSWORD_LENGTH: ${MIN_ADMIN_PASSWORD_LENGTH:-8}
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,15 +61,18 @@ services:
     container_name: resto_catalog
     restart: unless-stopped
     ports:
-      - "4002:4002"
+      - "127.0.0.1:4002:4002"
     environment:
       NODE_ENV: production
       PORT: 4002
+      INTERNAL_SHARED_SECRET: ${INTERNAL_SHARED_SECRET:-resto-internal-shared-secret-dev-2026}
       CATALOG_DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/resto_catalog?schema=public
       JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-key-oleada-0}
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - catalog_uploads:/data/uploads
 
   session:
     profiles: ["services"]
@@ -77,13 +82,15 @@ services:
     container_name: resto_session
     restart: unless-stopped
     ports:
-      - "4003:4003"
+      - "127.0.0.1:4003:4003"
     environment:
       NODE_ENV: production
       PORT: 4003
+      INTERNAL_SHARED_SECRET: ${INTERNAL_SHARED_SECRET:-resto-internal-shared-secret-dev-2026}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-key-oleada-0}
       PWA_BASE_URL: ${PWA_BASE_URL:-http://localhost:3001}
+      IDENTITY_INTERNAL_URL: http://identity:4001
     depends_on:
       redis:
         condition: service_healthy
@@ -96,11 +103,12 @@ services:
     container_name: resto_ordering
     restart: unless-stopped
     ports:
-      - "4004:4004"
+      - "127.0.0.1:4004:4004"
     environment:
       NODE_ENV: production
       ORDERING_PORT: 4004
       PORT: 4004
+      INTERNAL_SHARED_SECRET: ${INTERNAL_SHARED_SECRET:-resto-internal-shared-secret-dev-2026}
       ORDERING_DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/resto_ordering?schema=public
       REDIS_URL: redis://redis:6379/1
       CATALOG_INTERNAL_URL: http://catalog:4002/graphql
@@ -123,6 +131,7 @@ services:
     environment:
       NODE_ENV: production
       GATEWAY_PORT: 4000
+      INTERNAL_SHARED_SECRET: ${INTERNAL_SHARED_SECRET:-resto-internal-shared-secret-dev-2026}
       JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-key-oleada-0}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3001}
       IDENTITY_SERVICE_URL: http://identity:4001
@@ -135,7 +144,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/health/live || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -143,3 +152,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  catalog_uploads:

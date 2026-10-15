@@ -2,6 +2,7 @@ import { routeTable } from '../../../gateway/src/routes/routeTable';
 import fs from 'fs';
 import path from 'path';
 import request from 'supertest';
+import nock from 'nock';
 import { createSeededOrderingTestApp  } from '../helpers/seededOrderingApp';
 
 describe('D. Cierre de oleada (smoke) (Tests 20-22)', () => {
@@ -26,6 +27,13 @@ describe('D. Cierre de oleada (smoke) (Tests 20-22)', () => {
     const app = createSeededOrderingTestApp();
     const tenantId = 't-smoke-e2e';
     const sessionId = 's-smoke-e2e';
+
+    nock('http://localhost:4003')
+      .patch(`/sessions/${sessionId}/close`)
+      .matchHeader('x-tenant-id', tenantId)
+      .matchHeader('x-user-id', 'staff-1')
+      .matchHeader('x-user-role', 'staff')
+      .reply(200, { sessionId, status: 'closed' });
 
     // 1. Staff consulta la cuenta
     const billRes = await request(app)

@@ -23,6 +23,7 @@ export class RedisServiceCallRepository implements ServiceCallRepository {
       tenantId: call.tenantId,
       sessionId: call.sessionId,
       tableId: call.tableId,
+      type: call.type || 'GENERIC',
       status: call.status,
       createdAt: call.createdAt,
     };
@@ -43,7 +44,10 @@ export class RedisServiceCallRepository implements ServiceCallRepository {
     }
     await multi.exec();
 
-    return call;
+    return {
+      ...call,
+      type: call.type || 'GENERIC',
+    };
   }
 
   async findById(tenantId: string, callId: string): Promise<ServiceCallDTO | null> {
@@ -58,6 +62,7 @@ export class RedisServiceCallRepository implements ServiceCallRepository {
       tenantId: raw.tenantId,
       sessionId: raw.sessionId,
       tableId: raw.tableId,
+      type: (raw.type as any) || 'GENERIC',
       note: raw.note || undefined,
       status: raw.status as ServiceCallStatus,
       createdAt: raw.createdAt,

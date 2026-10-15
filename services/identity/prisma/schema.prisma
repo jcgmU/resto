@@ -28,13 +28,15 @@ enum UserStatus {
 }
 
 model Tenant {
-  id        String       @id @default(uuid())
-  name      String
-  slug      String       @unique
-  status    TenantStatus @default(ACTIVE)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  users     User[]
+  id                   String       @id @default(uuid())
+  name                 String
+  slug                 String       @unique
+  status               TenantStatus @default(ACTIVE)
+  operatingMode        String       @default("hybrid")
+  estimatedPrepMinutes Int          @default(18)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  users                User[]
 }
 
 model User {

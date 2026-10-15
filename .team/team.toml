@@ -12,10 +12,10 @@ version = "2.1.296"
 agent_name = "kimi"
 kind = "kimi"
 version = "2.1.1"
-last_session_id = "session_2dc4b948-79bc-4660-979b-579b8e154809"
+last_session_id = "session_7949faf1-8b87-48f5-80c4-8303e66b5df9"
 
 [roles.executor]
 agent_name = "agy"
 kind = "agy"
-version = "1.3.3"
+version = "1.3.5"
 last_session_id = ""

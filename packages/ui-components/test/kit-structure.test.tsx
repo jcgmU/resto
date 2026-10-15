@@ -117,19 +117,19 @@ describe('TabsPill', () => {
     expect(screen.getByRole('tablist', { name: 'Filtro' })).toBeInTheDocument();
     expect(screen.getAllByRole('tab')).toHaveLength(3);
     expect(screen.getByRole('tab', { name: 'Activos' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tab', { name: 'Activos' })).toHaveAttribute('aria-controls', 'tabpanel-b');
+    expect(screen.getByRole('tab', { name: 'Activos' })).not.toHaveAttribute('aria-controls');
     expect(screen.getByRole('tab', { name: /Todos/ })).toHaveAttribute('aria-selected', 'false');
-    expect(screen.getByRole('tab', { name: /Todos/ })).toHaveAttribute('aria-controls', 'tabpanel-a');
+    expect(screen.getByRole('tab', { name: /Todos/ })).not.toHaveAttribute('aria-controls');
   });
 
-  it('assigns aria-controls based on panelId or fallback tabpanel-${id}', () => {
+  it('assigns aria-controls only when panelId is defined', () => {
     const tabsWithPanel = [
       { id: 't1', label: 'Tab 1', panelId: 'custom-panel-1' },
       { id: 't2', label: 'Tab 2' },
     ];
     render(<TabsPill tabs={tabsWithPanel} value="t1" onChange={() => {}} />);
     expect(screen.getByRole('tab', { name: 'Tab 1' })).toHaveAttribute('aria-controls', 'custom-panel-1');
-    expect(screen.getByRole('tab', { name: 'Tab 2' })).toHaveAttribute('aria-controls', 'tabpanel-t2');
+    expect(screen.getByRole('tab', { name: 'Tab 2' })).not.toHaveAttribute('aria-controls');
   });
 
   it('shows counts', () => {

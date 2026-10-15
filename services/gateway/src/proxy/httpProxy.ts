@@ -8,6 +8,11 @@ export function createServiceProxy(target: string) {
     pathRewrite: (path: string) => path.replace(/^\/v1/, ''),
     on: {
       proxyReq: (proxyReq: any, req: any) => {
+        proxyReq.setHeader(
+          'x-internal-token',
+          process.env.INTERNAL_SHARED_SECRET || 'resto-internal-shared-secret-dev-2026'
+        );
+
         const user = req.user;
         if (user) {
           if (user.userId) proxyReq.setHeader('x-user-id', String(user.userId));

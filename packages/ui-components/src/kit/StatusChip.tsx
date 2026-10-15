@@ -8,12 +8,28 @@ export interface StatusChipProps {
   className?: string;
 }
 
-// Texto siempre tinta/ámbar fuerte sobre fondo papel para cumplir contraste; el color semántico va en el dot.
+// Estados pastel con texto oscuro con contraste AA verificado (Suite)
 const TONES: Record<StatusChipTone, { dot: string; bg: string; fg: string }> = {
-  ok: { dot: 'var(--bento-success)', bg: 'var(--bento-lima)', fg: 'var(--bento-tinta)' },
-  warning: { dot: 'var(--bento-amber)', bg: 'var(--bento-papel)', fg: 'var(--bento-amber-strong)' },
-  error: { dot: 'var(--bento-destructive)', bg: 'var(--bento-papel)', fg: 'var(--bento-destructive)' },
-  neutral: { dot: 'var(--bento-text-muted)', bg: 'var(--bento-hueso)', fg: 'var(--bento-text)' },
+  ok: {
+    dot: 'var(--bento-status-available)',
+    bg: 'var(--bento-status-available-bg, rgba(143, 191, 149, 0.2))',
+    fg: 'var(--bento-status-available-text)',
+  },
+  warning: {
+    dot: 'var(--bento-status-reserved)',
+    bg: 'var(--bento-status-reserved-bg, rgba(220, 201, 138, 0.2))',
+    fg: 'var(--bento-status-reserved-text)',
+  },
+  error: {
+    dot: 'var(--bento-status-occupied)',
+    bg: 'var(--bento-status-occupied-bg, rgba(224, 166, 166, 0.2))',
+    fg: 'var(--bento-status-occupied-text)',
+  },
+  neutral: {
+    dot: 'var(--bento-text-muted)',
+    bg: 'var(--bento-status-neutral-bg, var(--bento-card-bg))',
+    fg: 'var(--bento-text)',
+  },
 };
 
 export function StatusChip({ label, tone = 'neutral', className }: StatusChipProps) {

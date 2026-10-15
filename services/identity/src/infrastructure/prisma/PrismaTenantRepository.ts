@@ -12,6 +12,8 @@ export class PrismaTenantRepository implements TenantRepository {
       name: t.name,
       slug: t.slug,
       status: t.status,
+      operatingMode: (t.operatingMode as any) || 'hybrid',
+      estimatedPrepMinutes: t.estimatedPrepMinutes ?? 18,
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
     };
@@ -25,6 +27,8 @@ export class PrismaTenantRepository implements TenantRepository {
       name: t.name,
       slug: t.slug,
       status: t.status,
+      operatingMode: (t.operatingMode as any) || 'hybrid',
+      estimatedPrepMinutes: t.estimatedPrepMinutes ?? 18,
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
     };
@@ -37,12 +41,16 @@ export class PrismaTenantRepository implements TenantRepository {
         name: tenant.name,
         slug: tenant.slug,
         status: tenant.status as any,
+        operatingMode: tenant.operatingMode ?? 'hybrid',
+        estimatedPrepMinutes: tenant.estimatedPrepMinutes ?? 18,
       },
       create: {
         id: tenant.id,
         name: tenant.name,
         slug: tenant.slug,
         status: tenant.status as any,
+        operatingMode: tenant.operatingMode ?? 'hybrid',
+        estimatedPrepMinutes: tenant.estimatedPrepMinutes ?? 18,
       },
     });
     return {
@@ -50,6 +58,37 @@ export class PrismaTenantRepository implements TenantRepository {
       name: t.name,
       slug: t.slug,
       status: t.status,
+      operatingMode: t.operatingMode as any,
+      estimatedPrepMinutes: t.estimatedPrepMinutes,
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt,
+    };
+  }
+
+  async updateSettings(
+    id: string,
+    settings: { operatingMode?: string; estimatedPrepMinutes?: number }
+  ): Promise<TenantDTO> {
+    const data: any = {};
+    if (settings.operatingMode !== undefined) {
+      data.operatingMode = settings.operatingMode;
+    }
+    if (settings.estimatedPrepMinutes !== undefined) {
+      data.estimatedPrepMinutes = settings.estimatedPrepMinutes;
+    }
+
+    const t = await this.prisma.tenant.update({
+      where: { id },
+      data,
+    });
+
+    return {
+      id: t.id,
+      name: t.name,
+      slug: t.slug,
+      status: t.status,
+      operatingMode: t.operatingMode as any,
+      estimatedPrepMinutes: t.estimatedPrepMinutes,
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
     };

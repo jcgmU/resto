@@ -8,7 +8,7 @@
     "test": "jest --runInBand",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
-    "lint": "echo linting catalog"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@apollo/server": "^4.11.0",
@@ -16,11 +16,13 @@
     "@prisma/client": "^5.22.0",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
-    "graphql": "^16.9.0"
+    "graphql": "^16.9.0",
+    "multer": "^2.4.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.14",
+    "@types/multer": "^2.3.0",
     "@types/node": "^20.17.0",
     "@types/supertest": "^6.0.2",
     "jest": "^29.7.0",

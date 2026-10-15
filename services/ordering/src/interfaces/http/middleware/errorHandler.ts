@@ -20,12 +20,17 @@ export function errorHandler(
       code === 'BILL_NOT_FOUND'
     )
       statusCode = 404;
-    else if (code === 'INVALID_STATUS_TRANSITION') statusCode = 409;
+    else if (
+      code === 'INVALID_STATUS_TRANSITION' ||
+      code === 'SESSION_NOT_ORDERABLE' ||
+      code === 'TABLE_MISMATCH' ||
+      code === 'PRODUCT_UNAVAILABLE'
+    )
+      statusCode = 409;
     else if (code === 'CATALOG_UNREACHABLE' || code === 'SESSION_CLOSE_FAILED') statusCode = 502;
     else if (
       code === 'CART_EMPTY' ||
       code === 'BILL_EMPTY' ||
-      code === 'PRODUCT_UNAVAILABLE' ||
       code === 'MODIFIER_REQUIRED' ||
       code === 'MODIFIER_INVALID' ||
       code === 'VALIDATION_ERROR'

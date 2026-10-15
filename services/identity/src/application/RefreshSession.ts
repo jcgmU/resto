@@ -6,11 +6,7 @@ import {
   TokenIssuer,
   DomainError,
 } from '@packages/shared-types';
-import {
-  InMemoryUserRepository,
-  InMemoryRefreshTokenRepository,
-  FakeTokenIssuer,
-} from '../infrastructure/fakes/InMemoryIdentityAdapters';
+import { hashRefreshToken } from '../infrastructure/security/tokenHash';
 
 export class RefreshSessionUseCaseImpl implements RefreshSessionUseCase {
   constructor(
@@ -24,16 +20,16 @@ export class RefreshSessionUseCaseImpl implements RefreshSessionUseCase {
       throw new DomainError('INVALID_CREDENTIALS', 'Token de refresco requerido');
     }
 
-    const tokenHash = `hash_${input.refreshToken}`;
-    const valid = await this.refreshTokenRepo.findValidByHash(tokenHash);
-    if (!valid) {
-      throw new DomainError('INVALID_CREDENTIALS', 'Token de refresco inválido o expirado');
-    }
+    const tokenHash = hashRefreshToken(input.refreshToken);
+    const newRefresh = this.tokenIssuer.generateRefreshToken();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    // Atomic rotation: revoke old token
-    await this.refreshTokenRepo.revoke(valid.id);
+    const { userId } = await this.refreshTokenRepo.rotate(tokenHash, {
+      tokenHash: newRefresh.hash,
+      expiresAt,
+    });
 
-    const user = await this.userRepo.findById(valid.userId);
+    const user = await this.userRepo.findById(userId);
     if (!user) {
       throw new DomainError('INVALID_CREDENTIALS', 'Usuario no encontrado');
     }
@@ -44,10 +40,6 @@ export class RefreshSessionUseCaseImpl implements RefreshSessionUseCase {
       role: user.role,
       email: user.email,
     });
-
-    const newRefresh = this.tokenIssuer.generateRefreshToken();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    await this.refreshTokenRepo.save(user.id, newRefresh.hash, expiresAt);
 
     return {
       accessToken,

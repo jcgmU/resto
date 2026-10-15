@@ -2,24 +2,55 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { requireStaffRole } from './middleware/requireStaffRole';
 import {
   OpenTableSessionUseCaseImpl,
+  StaffOpenSessionUseCaseImpl,
   CloseTableSessionUseCaseImpl,
   GetTableSessionUseCaseImpl,
   ListTableSessionsUseCaseImpl,
+  RequestBillSessionUseCaseImpl,
+  ReopenBillSessionUseCaseImpl,
 } from '../../application/SessionUseCases';
 
 export function createSessionsRouter(deps: {
   openTableSessionUseCase: OpenTableSessionUseCaseImpl;
+  staffOpenSessionUseCase?: StaffOpenSessionUseCaseImpl;
   closeTableSessionUseCase: CloseTableSessionUseCaseImpl;
   getTableSessionUseCase: GetTableSessionUseCaseImpl;
   listTableSessionsUseCase: ListTableSessionsUseCaseImpl;
+  requestBillSessionUseCase: RequestBillSessionUseCaseImpl;
+  reopenBillSessionUseCase: ReopenBillSessionUseCaseImpl;
 }): Router {
   const router = Router();
   const {
     openTableSessionUseCase,
+    staffOpenSessionUseCase,
     closeTableSessionUseCase,
     getTableSessionUseCase,
     listTableSessionsUseCase,
+    requestBillSessionUseCase,
+    reopenBillSessionUseCase,
   } = deps;
+
+  // POST /sessions/staff-open -> protegido para staff (ADMIN, MANAGER, STAFF, WAITER)
+  router.post(
+    '/staff-open',
+    requireStaffRole(['admin', 'manager', 'staff', 'waiter']),
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const tenantId = (req.headers['x-tenant-id'] as string) || req.body?.tenantId;
+        const { tableId } = req.body || {};
+        if (!staffOpenSessionUseCase) {
+          throw new Error('staffOpenSessionUseCase no configurado');
+        }
+        const result = await staffOpenSessionUseCase.execute({
+          tenantId,
+          tableId,
+        });
+        res.status(200).json(result);
+      } catch (err) {
+        next(err);
+      }
+    }
+  );
 
   // POST /sessions/open -> PÚBLICA
   router.post('/open', async (req: Request, res: Response, next: NextFunction) => {
@@ -69,14 +100,42 @@ export function createSessionsRouter(deps: {
     }
   });
 
-  // PATCH /sessions/:id/close -> staff
-  router.patch(
-    '/:id/close',
+  // POST /sessions/:id/bill-request -> guest o staff
+  router.post('/:id/bill-request', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = (req.headers['x-tenant-id'] as string) || req.body?.tenantId;
+      const userRole = ((req.headers['x-user-role'] as string) || '').toLowerCase();
+      const guestSessionId = req.headers['x-session-id'] as string;
+
+      const isStaff = ['staff', 'manager', 'admin'].includes(userRole);
+
+      if (!isStaff && guestSessionId && guestSessionId !== req.params.id) {
+        return res.status(403).json({
+          error: {
+            code: 'FORBIDDEN',
+            message: 'No autorizado para acceder a esta sesión',
+          },
+        });
+      }
+
+      const result = await requestBillSessionUseCase.execute({
+        tenantId,
+        sessionId: req.params.id,
+      });
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // POST /sessions/:id/bill-reopen -> staff
+  router.post(
+    '/:id/bill-reopen',
     requireStaffRole(['staff', 'manager', 'admin']),
     async (req: Request, res: Response, next: NextFunction) => {
       try {
-        const tenantId = req.headers['x-tenant-id'] as string;
-        const result = await closeTableSessionUseCase.execute({
+        const tenantId = (req.headers['x-tenant-id'] as string) || req.body?.tenantId;
+        const result = await reopenBillSessionUseCase.execute({
           tenantId,
           sessionId: req.params.id,
         });
@@ -87,6 +146,23 @@ export function createSessionsRouter(deps: {
     }
   );
 
+  // PATCH y POST /sessions/:id/close -> staff
+  const handleClose = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = (req.headers['x-tenant-id'] as string) || req.body?.tenantId;
+      const result = await closeTableSessionUseCase.execute({
+        tenantId,
+        sessionId: req.params.id,
+      });
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  router.patch('/:id/close', requireStaffRole(['staff', 'manager', 'admin']), handleClose);
+  router.post('/:id/close', requireStaffRole(['staff', 'manager', 'admin']), handleClose);
+
   // GET /sessions -> staff
   router.get(
     '/',
@@ -94,7 +170,7 @@ export function createSessionsRouter(deps: {
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const tenantId = req.headers['x-tenant-id'] as string;
-        const status = req.query.status as 'active' | 'closed' | undefined;
+        const status = req.query.status as 'active' | 'billRequested' | 'closed' | undefined;
         const tableId = req.query.tableId as string | undefined;
 
         const list = await listTableSessionsUseCase.execute({

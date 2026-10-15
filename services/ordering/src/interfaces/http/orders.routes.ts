@@ -57,6 +57,66 @@ export function createOrdersRouter(orderUseCases: OrderUseCases): Router {
     }
   });
 
+  router.get('/:id/history', async (req, res, next) => {
+    try {
+      const { tenantId, role, sessionId } = req.auth!;
+      const { id } = req.params;
+
+      const history = await orderUseCases.getOrderHistory.execute({
+        tenantId,
+        orderId: id,
+        requester: {
+          role: role || 'guest',
+          sessionId,
+        },
+      });
+
+      res.json(history);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.patch('/:id/delay', async (req, res, next) => {
+    try {
+      const { tenantId, role } = req.auth!;
+      const isStaff = role && ['staff', 'manager', 'admin'].includes(role.toLowerCase());
+
+      if (!isStaff) {
+        return res.status(403).json({
+          error: { code: 'FORBIDDEN', message: 'Solo personal autorizado puede asignar demora' },
+        });
+      }
+
+      const { id } = req.params;
+      const { delayMinutes } = req.body;
+
+      if (
+        delayMinutes === undefined ||
+        typeof delayMinutes !== 'number' ||
+        !Number.isInteger(delayMinutes) ||
+        delayMinutes < 0
+      ) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'delayMinutes debe ser un número entero mayor o igual a 0',
+          },
+        });
+      }
+
+      const updated = await orderUseCases.updateOrderDelay.execute({
+        tenantId,
+        orderId: id,
+        delayMinutes,
+      });
+
+      res.json(updated);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   router.patch('/:id/cancel', async (req, res, next) => {
     try {
       const { tenantId, role } = req.auth!;

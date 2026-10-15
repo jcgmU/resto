@@ -96,3 +96,16 @@ export class SessionCloseFailedError extends DomainError {
   }
 }
 
+export class SessionNotOrderableError extends DomainError {
+  constructor(message = 'La sesión no admite pedidos en su estado actual') {
+    super('SESSION_NOT_ORDERABLE', message);
+  }
+}
+
+export class TableMismatchError extends DomainError {
+  constructor(message = 'La mesa indicada no coincide con la mesa de la sesión') {
+    super('TABLE_MISMATCH', message);
+  }
+}
+
+

@@ -8,7 +8,6 @@ import { CartFab, CartSheet, OrderConfirmationCard } from '../../../../../compon
 import {
   BentoGrid,
   BentoCard,
-  FeatureGuard,
   TabsPill,
   TabsPillItem,
   Skeleton,
@@ -16,7 +15,7 @@ import {
   ErrorState,
   StatusChip,
 } from '@packages/ui-components';
-import { ProductDTO, CategoryDTO, CartDTO } from '@packages/shared-types';
+import { ProductDTO, CategoryDTO, CartDTO, OrderDTO } from '@packages/shared-types';
 
 export interface ClientMenuPageProps {
   params: {
@@ -37,9 +36,23 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
   const [isConfirming, setIsConfirming] = useState(false);
   const [cartError, setCartError] = useState<string | null>(null);
   const [confirmedOrder, setConfirmedOrder] = useState<any | null>(null);
-  const [billRequested, setBillRequested] = useState<boolean>(false);
+  const [sessionOrders, setSessionOrders] = useState<OrderDTO[]>([]);
+  const [operatingMode, setOperatingMode] = useState<string>('hybrid');
+  const [waiterCustomNote, setWaiterCustomNote] = useState<string>('');
+  const [billRequested, setBillRequested] = useState<boolean>(() => {
+    return PwaApiClient.session?.status === 'billRequested';
+  });
   const [requestingBill, setRequestingBill] = useState<boolean>(false);
   const [billError, setBillError] = useState<string | null>(null);
+  const [waiterCalled, setWaiterCalled] = useState<boolean>(false);
+  const [callingWaiter, setCallingWaiter] = useState<boolean>(false);
+  const [waiterMessage, setWaiterMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (PwaApiClient.session?.status === 'billRequested') {
+      setBillRequested(true);
+    }
+  }, []);
 
   // Estados completos de carga y error del menú
   const [loadingMenu, setLoadingMenu] = useState<boolean>(true);
@@ -51,6 +64,20 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
       setCart(currentCart);
     } catch {
       // Ignorar error silencioso de carrito vacío
+    }
+  }, []);
+
+  const refreshOrders = useCallback(async () => {
+    if (!PwaApiClient.guestToken) {
+      return;
+    }
+    try {
+      const orders = await PwaApiClient.getOrders();
+      if (Array.isArray(orders)) {
+        setSessionOrders(orders);
+      }
+    } catch {
+      // Ignorar error silencioso de red al recuperar órdenes
     }
   }, []);
 
@@ -106,11 +133,22 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
       });
 
     refreshCart();
+    refreshOrders();
+
+    PwaApiClient.getTenantSettings()
+      .then((settings) => {
+        if (isMounted && settings?.operatingMode) {
+          setOperatingMode(settings.operatingMode);
+        }
+      })
+      .catch(() => {
+        // Ignorar error y mantener default hybrid
+      });
 
     return () => {
       isMounted = false;
     };
-  }, [params.tenantId, refreshCart]);
+  }, [params.tenantId, refreshCart, refreshOrders]);
 
   // Polling silencioso cada ~5s del carrito
   useEffect(() => {
@@ -151,7 +189,41 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
     }
   };
 
-  const handleAddToCart = async (product: ProductDTO, modifiers: any[], quantity: number) => {
+  const hasOrderInProgress = useMemo(() => {
+    const all = [...sessionOrders, ...(confirmedOrder ? [confirmedOrder] : [])];
+    return all.some((o) => ['PLACED', 'CONFIRMED', 'IN_KITCHEN'].includes(o.status));
+  }, [sessionOrders, confirmedOrder]);
+
+  const handleCallWaiter = async (customNote?: string) => {
+    try {
+      setCallingWaiter(true);
+      await PwaApiClient.createServiceCall({
+        type: 'WAITER_CALL',
+        tableId: params.tableId,
+        note: customNote || undefined,
+      });
+      setWaiterCalled(true);
+      if (hasOrderInProgress) {
+        setWaiterMessage('Mesero avisado. Tu pedido sigue en preparación');
+      } else {
+        setWaiterMessage('Mesero avisado. En breve se acercará a tu mesa');
+      }
+    } catch (err: any) {
+      setWaiterMessage('Error al avisar al mesero. Por favor intenta de nuevo.');
+    } finally {
+      setCallingWaiter(false);
+    }
+  };
+
+  const handleAddToCart = async (product: ProductDTO, modifiers: any[], quantity: number, notes?: string) => {
+    if (operatingMode === 'waiter_only') {
+      setCartError('El pedido por celular está desactivado. Un mesero tomará su orden.');
+      return;
+    }
+    if (billRequested) {
+      setCartError('La cuenta ya fue solicitada y no se pueden agregar más pedidos.');
+      return;
+    }
     try {
       setCartError(null);
       const modifierNames = (modifiers || []).map((m: any) => m.optionName || m.name).filter(Boolean);
@@ -159,6 +231,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
         productId: product.id,
         quantity,
         modifiers,
+        notes,
         display: {
           productName: product.name,
           unitPrice: product.price,
@@ -167,20 +240,40 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
       });
       setCart(updatedCart);
     } catch (err: any) {
-      setCartError(err.message || 'Error al agregar item');
+      if (err.status === 409 || err.code === 'SESSION_NOT_ORDERABLE') {
+        setBillRequested(true);
+        setCartError('La cuenta ya fue solicitada y no se pueden agregar más pedidos.');
+      } else {
+        setCartError(err.message || 'Error al agregar item');
+      }
     }
   };
 
-  const handleConfirmOrder = async () => {
+  const handleConfirmOrder = async (notes?: string) => {
+    if (operatingMode === 'waiter_only') {
+      setCartError('El pedido por celular está desactivado. Un mesero tomará su orden.');
+      return;
+    }
+    if (billRequested) {
+      setCartError('La cuenta ya fue solicitada y no se pueden agregar más pedidos.');
+      return;
+    }
     try {
       setIsConfirming(true);
       setCartError(null);
-      const order = await PwaApiClient.confirmOrder(params.tableId);
+      const order = await PwaApiClient.confirmOrder({ tableId: params.tableId, notes });
       setConfirmedOrder(order);
+      setSessionOrders((prev) => [order, ...prev.filter((o) => o.id !== order.id)]);
       setIsCartOpen(false);
       await refreshCart();
+      await refreshOrders();
     } catch (err: any) {
-      setCartError(err.message || 'Error al confirmar pedido');
+      if (err.status === 409 || err.code === 'SESSION_NOT_ORDERABLE') {
+        setBillRequested(true);
+        setCartError('La cuenta ya fue solicitada y no se pueden agregar más pedidos.');
+      } else {
+        setCartError(err.message || 'Error al confirmar pedido');
+      }
     } finally {
       setIsConfirming(false);
     }
@@ -190,25 +283,12 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
     try {
       setRequestingBill(true);
       setBillError(null);
-      await PwaApiClient.requestBill(params.tableId);
+      await PwaApiClient.requestBill(PwaApiClient.session?.sessionId);
       setBillRequested(true);
     } catch (err: any) {
-      setBillError(err.message || 'Error al solicitar la cuenta');
+      setBillError(err.message || 'Error al solicitar la cuenta. Por favor, reintenta.');
     } finally {
       setRequestingBill(false);
-    }
-  };
-
-  const handleGuestCheckout = async () => {
-    if (!PwaApiClient.session?.sessionId) return;
-    try {
-      await PwaApiClient.checkout({
-        sessionId: PwaApiClient.session.sessionId,
-        tableId: params.tableId,
-        method: 'CASH',
-      });
-    } catch {
-      // Ignorar error transitorio en modo guest
     }
   };
 
@@ -219,11 +299,20 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
     return p.categoryId || (p as any).category?.id;
   }, []);
 
-  // Tabs de categorías con conteo y opción 'Todas'
+  // Tabs de categorías con conteo y opción 'Todas' (U03)
   const categoryTabs: TabsPillItem[] = useMemo(() => {
     if (categories.length === 0) {
       return [];
     }
+    // Si solo existe 1 categoría (categories.length <= 1), ocultar el chip/tab 'Todas'
+    if (categories.length <= 1) {
+      return categories.map((c) => ({
+        id: c.id,
+        label: c.name,
+        count: products.filter((p) => getProductCategoryId(p) === c.id).length,
+      }));
+    }
+    // Si hay 2 o más categorías, mostrar 'Todas' y las demás pestañas normalmente
     return [
       { id: ALL_CATEGORIES_ID, label: 'Todas', count: products.length },
       ...categories.map((c) => ({
@@ -234,13 +323,21 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
     ];
   }, [categories, products, getProductCategoryId]);
 
+  useEffect(() => {
+    if (categories.length === 1 && selectedCategory === ALL_CATEGORIES_ID) {
+      setSelectedCategory(categories[0].id);
+    } else if (categories.length > 1 && selectedCategory !== ALL_CATEGORIES_ID && !categories.some((c) => c.id === selectedCategory)) {
+      setSelectedCategory(ALL_CATEGORIES_ID);
+    }
+  }, [categories, selectedCategory]);
+
   // Filtrado reactivo de productos
   const filteredProducts = useMemo(() => {
-    if (selectedCategory === ALL_CATEGORIES_ID) {
+    if (selectedCategory === ALL_CATEGORIES_ID || categories.length <= 1) {
       return products;
     }
     return products.filter((p) => getProductCategoryId(p) === selectedCategory);
-  }, [products, selectedCategory, getProductCategoryId]);
+  }, [products, selectedCategory, categories.length, getProductCategoryId]);
 
   return (
     <GuestSessionGuard>
@@ -258,18 +355,147 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
           paddingBottom: 'calc(140px + env(safe-area-inset-bottom, 0px))',
         }}
       >
-        {confirmedOrder && (
+        <header
+          style={{
+            width: '100%',
+            maxWidth: '100%',
+            boxSizing: 'border-box',
+          }}
+        >
+          <h1
+            style={{
+              margin: 0,
+              fontSize: '26px',
+              lineHeight: 1.25,
+              fontFamily: 'var(--bento-font-heading)',
+              fontWeight: 700,
+              color: 'var(--bento-tinta)',
+            }}
+          >
+            Carta
+          </h1>
+        </header>
+
+        {/* Modo waiter_only informativo (REF-1) */}
+        {operatingMode === 'waiter_only' && (
+          <section
+            role="status"
+            aria-label="Modo solo meseros"
+            data-testid="waiter-only-notice"
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              padding: '24px 16px',
+              borderRadius: 'var(--bento-card-radius)',
+              backgroundColor: 'var(--bento-papel)',
+              border: '1px solid var(--bento-border)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '10px',
+              textAlign: 'center',
+              boxShadow: 'var(--bento-card-shadow)',
+              marginBottom: 'var(--bento-spacing-sm, 8px)',
+            }}
+          >
+            <StatusChip label="Solo Meseros" tone="warning" />
+            <h2
+              style={{
+                margin: 0,
+                fontSize: '1.15rem',
+                fontWeight: 700,
+                color: 'var(--bento-text)',
+                fontFamily: 'var(--bento-font-heading)',
+              }}
+            >
+              El pedido por celular está desactivado. Un mesero tomará su orden.
+            </h2>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--bento-text-muted)' }}>
+              Puedes explorar la carta, pero la orden debe ser tomada por el personal de sala.
+            </p>
+          </section>
+        )}
+
+        {/* Lista de órdenes de la sesión (U04) */}
+        {sessionOrders.length > 0 ? (
+          <section
+            aria-label="Órdenes de la sesión"
+            data-testid="session-orders-list"
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--bento-spacing-sm, 8px)',
+              marginBottom: 'var(--bento-spacing-sm, 8px)',
+            }}
+          >
+            {sessionOrders.map((ord) => (
+              <OrderConfirmationCard
+                key={ord.id}
+                order={ord}
+                onOrderUpdate={(updated) => {
+                  setSessionOrders((prev) =>
+                    prev.map((o) => (o.id === updated.id ? updated : o))
+                  );
+                }}
+                onAddAnotherOrder={() => {
+                  const el = document.getElementById('catalogo-section');
+                  if (el) {
+                    el.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
+              />
+            ))}
+          </section>
+        ) : confirmedOrder ? (
           <div style={{ width: '100%', boxSizing: 'border-box', marginBottom: 'var(--bento-spacing-sm, 8px)' }}>
             <OrderConfirmationCard
               order={confirmedOrder}
               onOrderUpdate={(updated) => setConfirmedOrder(updated)}
+              onAddAnotherOrder={() => {
+                const el = document.getElementById('catalogo-section');
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}
             />
+          </div>
+        ) : null}
+
+        {waiterMessage && (
+          <div
+            role="status"
+            aria-live="polite"
+            data-testid="waiter-status-banner"
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              padding: '16px',
+              borderRadius: 'var(--bento-card-radius)',
+              backgroundColor: 'var(--bento-papel)',
+              border: '1px solid var(--bento-border)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '8px',
+              color: 'var(--bento-text)',
+              fontWeight: 700,
+              textAlign: 'center',
+              boxShadow: 'var(--bento-card-shadow)',
+              fontFamily: 'var(--bento-font-body)',
+            }}
+          >
+            <StatusChip label="Mesero avisado" tone="ok" />
+            <span>{waiterMessage}</span>
           </div>
         )}
 
         {billRequested && (
           <div
             role="status"
+            aria-live="polite"
+            data-testid="bill-status-banner"
             style={{
               width: '100%',
               boxSizing: 'border-box',
@@ -291,27 +517,65 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
             <div data-testid="bill-status-chip">
               <StatusChip label="Cuenta solicitada" tone="ok" />
             </div>
-            <span>La cuenta fue solicitada, un mesero pasará por tu mesa.</span>
+            <span>Cuenta pedida. Un mesero se acercará con la cuenta</span>
+            {hasOrderInProgress && (
+              <span data-testid="order-in-progress-notice" style={{ fontSize: '0.9rem', color: 'var(--bento-text-muted)' }}>
+                Mesero avisado. Tu pedido sigue en preparación
+              </span>
+            )}
+            <p
+              data-testid="bill-blocked-notice"
+              style={{
+                margin: 0,
+                fontSize: '0.875rem',
+                color: 'var(--bento-destructive, #c53030)',
+                fontWeight: 600,
+              }}
+            >
+              La cuenta ya fue solicitada y no se pueden agregar más pedidos.
+            </p>
           </div>
         )}
 
         {billError && (
           <div
             role="alert"
+            data-testid="bill-error-banner"
             style={{
               width: '100%',
               boxSizing: 'border-box',
               padding: '12px 16px',
               borderRadius: 'var(--bento-card-radius)',
               backgroundColor: 'var(--bento-papel)',
-              border: '1px solid var(--bento-destructive)',
-              color: 'var(--bento-destructive)',
+              border: '1px solid var(--bento-destructive, #c53030)',
+              color: 'var(--bento-destructive, #c53030)',
               fontWeight: 600,
               textAlign: 'center',
               fontFamily: 'var(--bento-font-body)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '8px',
             }}
           >
-            {billError}
+            <span>{billError}</span>
+            <button
+              type="button"
+              onClick={handleRequestBill}
+              style={{
+                minHeight: '36px',
+                padding: '0 16px',
+                borderRadius: 'var(--bento-pill-radius)',
+                backgroundColor: 'transparent',
+                border: '1px solid currentColor',
+                color: 'inherit',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'var(--bento-font-body)',
+              }}
+            >
+              Reintentar
+            </button>
           </div>
         )}
 
@@ -340,12 +604,13 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
                   paddingBottom: '4px',
                 }}
               >
-                <Skeleton width="80px" height="36px" radius="var(--bento-pill-radius)" />
-                <Skeleton width="100px" height="36px" radius="var(--bento-pill-radius)" />
-                <Skeleton width="90px" height="36px" radius="var(--bento-pill-radius)" />
+                <Skeleton width="80px" height="44px" radius="var(--bento-pill-radius)" />
+                <Skeleton width="100px" height="44px" radius="var(--bento-pill-radius)" />
+                <Skeleton width="90px" height="44px" radius="var(--bento-pill-radius)" />
               </div>
             ) : categoryTabs.length > 0 ? (
               <header
+                data-component="category-tabs"
                 style={{
                   width: '100%',
                   maxWidth: '100%',
@@ -365,6 +630,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
             ) : null}
 
             <section
+              id="catalogo-section"
               aria-label="Catálogo"
               style={{
                 width: '100%',
@@ -452,9 +718,80 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
             gap: '8px',
           }}
         >
-          {/* B7: Pedir la cuenta con estados solicitando / solicitada / error */}
+          {/* Acción Llamar al mesero (U03, N15) */}
+          <section aria-label="Mesero" style={{ width: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <input
+              type="text"
+              placeholder="Mensaje opcional para el mesero..."
+              value={waiterCustomNote}
+              onChange={(e) => setWaiterCustomNote(e.target.value)}
+              aria-label="Mensaje para el mesero"
+              data-testid="call-waiter-note-input"
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                padding: '6px 12px',
+                borderRadius: 'var(--bento-pill-radius)',
+                border: '1px solid var(--bento-border)',
+                background: 'var(--bento-papel)',
+                color: 'var(--bento-text)',
+                fontSize: '0.85rem',
+                fontFamily: 'var(--bento-font-body)',
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => handleCallWaiter(waiterCustomNote)}
+              disabled={callingWaiter}
+              data-testid="call-waiter-btn"
+              style={{
+                minHeight: 'var(--bento-touch-target, 44px)',
+                width: '100%',
+                boxSizing: 'border-box',
+                backgroundColor: 'var(--bento-papel)',
+                color: 'var(--bento-text)',
+                border: '1px solid var(--bento-border)',
+                borderRadius: 'var(--bento-pill-radius)',
+                fontWeight: 600,
+                cursor: callingWaiter ? 'not-allowed' : 'pointer',
+                fontFamily: 'var(--bento-font-body)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+              }}
+            >
+              {callingWaiter ? 'Avisando al mesero...' : 'Llamar al mesero'}
+            </button>
+          </section>
+
+          {/* Acción Pedir la cuenta con estados visibles (R10) */}
           <section aria-label="Cuenta" style={{ width: '100%', boxSizing: 'border-box' }}>
-            {!billRequested && (
+            {billRequested ? (
+              <button
+                type="button"
+                disabled
+                aria-disabled="true"
+                style={{
+                  minHeight: 'var(--bento-touch-target, 44px)',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  backgroundColor: 'var(--bento-papel)',
+                  color: 'var(--bento-text-muted, #718096)',
+                  border: '1px solid var(--bento-border)',
+                  borderRadius: 'var(--bento-pill-radius)',
+                  fontWeight: 600,
+                  cursor: 'default',
+                  fontFamily: 'var(--bento-font-body)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
+              >
+                <span>Cuenta pedida</span>
+              </button>
+            ) : (
               <button
                 type="button"
                 onClick={handleRequestBill}
@@ -463,42 +800,41 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
                   minHeight: 'var(--bento-touch-target, 44px)',
                   width: '100%',
                   boxSizing: 'border-box',
-                  backgroundColor: 'var(--bento-tinta)',
-                  color: 'var(--bento-papel)',
+                  backgroundColor: requestingBill ? 'var(--bento-subtle, #f0f0f0)' : 'var(--bento-tinta)',
+                  color: requestingBill ? 'var(--bento-text-muted, #718096)' : 'var(--bento-papel)',
                   border: '1px solid var(--bento-tinta)',
                   borderRadius: 'var(--bento-pill-radius)',
                   fontWeight: 600,
                   cursor: requestingBill ? 'not-allowed' : 'pointer',
                   fontFamily: 'var(--bento-font-body)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
                 }}
               >
-                {requestingBill ? 'Solicitando cuenta...' : 'Pedir la cuenta'}
+                {requestingBill ? (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      data-testid="bill-request-spinner"
+                      style={{
+                        display: 'inline-block',
+                        width: '14px',
+                        height: '14px',
+                        border: '2px solid currentColor',
+                        borderTopColor: 'transparent',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                      }}
+                    />
+                    <span>Solicitando cuenta...</span>
+                  </>
+                ) : (
+                  'Pedir la cuenta'
+                )}
               </button>
             )}
-          </section>
-
-          {/* B8: Pago guest tras FeatureGuard payments */}
-          <section aria-label="Pago" style={{ width: '100%', boxSizing: 'border-box' }}>
-            <FeatureGuard flag="payments">
-              <button
-                type="button"
-                onClick={handleGuestCheckout}
-                style={{
-                  minHeight: 'var(--bento-touch-target, 44px)',
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  backgroundColor: 'var(--bento-lima)',
-                  color: 'var(--bento-tinta)',
-                  border: '1px solid var(--bento-tinta)',
-                  borderRadius: 'var(--bento-pill-radius)',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  fontFamily: 'var(--bento-font-body)',
-                }}
-              >
-                Pagar
-              </button>
-            </FeatureGuard>
           </section>
         </footer>
 
@@ -507,6 +843,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
           product={selectedProduct}
           onClose={() => setSelectedProduct(null)}
           onAddToCart={handleAddToCart}
+          isOrderable={!billRequested && operatingMode !== 'waiter_only'}
         />
 
         <CartFab
@@ -523,6 +860,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
           isConfirming={isConfirming}
           onUpdateQuantity={handleUpdateQuantity}
           onRemoveItem={handleRemoveItem}
+          isOrderable={!billRequested && operatingMode !== 'waiter_only'}
         />
       </main>
     </GuestSessionGuard>

@@ -45,7 +45,7 @@ describe('Bloque 2: Auth Admin Real (Tests Rojo)', () => {
 
     try {
       render(<LoginPage />);
-      const emailInput = screen.getByLabelText(/correo|email/i);
+      const emailInput = screen.getByLabelText(/correo|usuario|email/i);
       const passwordInput = screen.getByLabelText(/contraseña|password/i);
       const submitBtn = screen.getByRole('button', { name: /iniciar sesión|entrar/i });
 
@@ -69,6 +69,14 @@ describe('Bloque 2: Auth Admin Real (Tests Rojo)', () => {
     }
   });
 
+  test('Login input de usuario o correo tiene type="text", label "Usuario o Correo" y placeholder descriptivo', () => {
+    render(<LoginPage />);
+    const input = screen.getByLabelText('Usuario o Correo');
+    expect(input).toBeInTheDocument();
+    expect(input).toHaveAttribute('type', 'text');
+    expect(input).toHaveAttribute('placeholder', 'admin o ejemplo@resto.com');
+  });
+
   test('Login muestra mensaje de error visible con role="alert" ante 401', async () => {
     const originalFetch = global.fetch;
     global.fetch = jest.fn(async () => ({
@@ -80,7 +88,7 @@ describe('Bloque 2: Auth Admin Real (Tests Rojo)', () => {
 
     try {
       render(<LoginPage />);
-      const emailInput = screen.getByLabelText(/correo|email/i);
+      const emailInput = screen.getByLabelText(/correo|usuario|email/i);
       const passwordInput = screen.getByLabelText(/contraseña|password/i);
       const submitBtn = screen.getByRole('button', { name: /iniciar sesión|entrar/i });
 
@@ -141,7 +149,7 @@ describe('Bloque 2: Auth Admin Real (Tests Rojo)', () => {
 
     try {
       render(<LoginPage />);
-      const emailInput = screen.getByLabelText(/correo|email/i);
+      const emailInput = screen.getByLabelText(/correo|usuario|email/i);
       const passwordInput = screen.getByLabelText(/contraseña|password/i);
       const submitBtn = screen.getByRole('button', { name: /iniciar sesión|entrar/i });
 
@@ -191,6 +199,67 @@ describe('Bloque 2: Auth Admin Real (Tests Rojo)', () => {
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent(/registrado|conflicto/i);
       expect(mockPush).not.toHaveBeenCalled();
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('Register maneja NETWORK_ERROR con mensaje descriptivo, ofrece botón Reintentar y preserva los datos del formulario', async () => {
+    const originalFetch = global.fetch;
+    let attempt = 0;
+    const fetchMock = jest.fn(async () => {
+      attempt++;
+      if (attempt === 1) {
+        throw new TypeError('Failed to fetch');
+      }
+      return {
+        ok: true,
+        status: 201,
+        headers: { get: () => 'application/json' },
+        json: async () => ({
+          tokens: { accessToken: 'retry-access-token', refreshToken: 'retry-refresh-token' },
+        }),
+      };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      render(<RegisterPage />);
+      const nameInput = screen.getByLabelText(/nombre del restaurante|restaurante/i);
+      const emailInput = screen.getByLabelText(/correo|email/i);
+      const passwordInput = screen.getByLabelText(/contraseña|password/i);
+      const slugInput = screen.getByLabelText(/slug/i);
+
+      fireEvent.change(nameInput, { target: { value: 'Bistro Central' } });
+      fireEvent.change(emailInput, { target: { value: 'bistro@central.com' } });
+      fireEvent.change(passwordInput, { target: { value: 'Secret123!' } });
+      fireEvent.change(slugInput, { target: { value: 'bistro-central' } });
+
+      const submitBtn = screen.getByRole('button', { name: /registrar|crear cuenta/i });
+      fireEvent.click(submitBtn);
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent(
+        'No pudimos conectar con el servidor. Revisa que esté encendido e inténtalo de nuevo.'
+      );
+
+      // Los campos del formulario deben permanecer intactos
+      expect(nameInput).toHaveValue('Bistro Central');
+      expect(emailInput).toHaveValue('bistro@central.com');
+      expect(passwordInput).toHaveValue('Secret123!');
+      expect(slugInput).toHaveValue('bistro-central');
+
+      // Botón de reintento visible
+      const retryBtn = screen.getByRole('button', { name: /reintentar/i });
+      expect(retryBtn).toBeInTheDocument();
+
+      // Al reintentar, se ejecuta la petición y se completa el registro
+      fireEvent.click(retryBtn);
+
+      await waitFor(() => {
+        expect(localStorage.getItem('resto_access_token')).toBe('retry-access-token');
+        expect(mockPush).toHaveBeenCalledWith('/menu');
+      });
     } finally {
       global.fetch = originalFetch;
     }

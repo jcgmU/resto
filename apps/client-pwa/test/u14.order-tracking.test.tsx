@@ -245,7 +245,7 @@ describe('U14: B6 seguimiento/polling + B7 pedir cuenta + B8 pago guest', () => 
           json: async () => ({ tenantId: 't-1', sessionId: 's-1', items: [], total: 0 }),
         };
       }
-      if (urlStr.includes('/v1/service-calls') && opts?.method === 'POST') {
+      if (urlStr.includes('/bill-request') && opts?.method === 'POST') {
         callCount++;
         if (callCount === 1) {
           // Primer intento falla
@@ -253,15 +253,15 @@ describe('U14: B6 seguimiento/polling + B7 pedir cuenta + B8 pago guest', () => 
             ok: false,
             status: 500,
             headers: { get: () => 'application/json' },
-            json: async () => ({ message: 'Error de conexión con cocina' }),
+            json: async () => ({ message: 'Error de conexión con el servicio de sesión' }),
           };
         }
         // Segundo intento triunfa
         return {
           ok: true,
-          status: 201,
+          status: 200,
           headers: { get: () => 'application/json' },
-          json: async () => ({ callId: 'sc-1', status: 'pending' }),
+          json: async () => ({ id: 's-1', status: 'billRequested' }),
         };
       }
       return { ok: true, status: 200, json: async () => ({}) };
@@ -282,12 +282,12 @@ describe('U14: B6 seguimiento/polling + B7 pedir cuenta + B8 pago guest', () => 
       expect(alert).toHaveTextContent(/error/i);
 
       // Clic 2: éxito -> estado solicitada con StatusChip
-      const retryBtn = screen.getByRole('button', { name: /pedir la cuenta|reintentar/i });
+      const retryBtn = screen.getByRole('button', { name: /reintentar/i });
       fireEvent.click(retryBtn);
 
       await waitFor(() => {
         expect(
-          screen.getByText(/la cuenta fue solicitada, un mesero pasará por tu mesa/i)
+          screen.getByText(/cuenta pedida\. un mesero se acercará con la cuenta/i)
         ).toBeInTheDocument();
       });
 
@@ -299,7 +299,7 @@ describe('U14: B6 seguimiento/polling + B7 pedir cuenta + B8 pago guest', () => 
     }
   });
 
-  test('U14.7 B8 Pago guest: con flag payments off muestra Proximamente; con payments on muestra CTA Pagar', () => {
+  test('U14.7 R10 Cobro solo por personal: el cliente/guest no tiene botón ni opción de Pagar independientemente de las flags', () => {
     // Caso 1: Flag payments off (default)
     const providerOff = new StaticFeatureFlagProvider({ payments: false });
     const { unmount } = render(
@@ -308,8 +308,8 @@ describe('U14: B6 seguimiento/polling + B7 pedir cuenta + B8 pago guest', () => 
       </FeatureFlagProviderRoot>
     );
 
-    expect(screen.getByTestId('proximamente')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^pagar$/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/^pagar$/i)).not.toBeInTheDocument();
     unmount();
 
     // Caso 2: Flag payments on
@@ -320,6 +320,8 @@ describe('U14: B6 seguimiento/polling + B7 pedir cuenta + B8 pago guest', () => 
       </FeatureFlagProviderRoot>
     );
 
-    expect(screen.getByRole('button', { name: /^pagar$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^pagar$/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/^pagar$/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /pedir la cuenta/i })).toBeInTheDocument();
   });
 });

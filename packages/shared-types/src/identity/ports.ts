@@ -6,12 +6,18 @@ import {
   AccessTokenClaims,
   RegisterTenantRequest,
   RegisterTenantResult,
+  OperatingMode,
 } from './dtos';
+
+export interface IdentitySettingsPort {
+  getOperatingMode(tenantId: string): Promise<OperatingMode>;
+}
 
 export interface TenantRepository {
   findById(id: string): Promise<TenantDTO | null>;
   findBySlug(slug: string): Promise<TenantDTO | null>;
   save(tenant: TenantDTO): Promise<TenantDTO>;
+  updateSettings(id: string, settings: { operatingMode?: string; estimatedPrepMinutes?: number }): Promise<TenantDTO>;
 }
 
 export interface UserRepository {
@@ -26,6 +32,10 @@ export interface RefreshTokenRepository {
   save(userId: string, tokenHash: string, expiresAt: Date): Promise<void>;
   findValidByHash(tokenHash: string): Promise<{ id: string; userId: string } | null>;
   revoke(id: string): Promise<void>;
+  rotate(
+    oldTokenHash: string,
+    newToken: { tokenHash: string; expiresAt: Date }
+  ): Promise<{ userId: string }>;
 }
 
 export interface PasswordHasher {

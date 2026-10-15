@@ -16,7 +16,7 @@ jest.mock('next/navigation', () => ({
 
 const appDir = path.join(__dirname, '..', 'src', 'app');
 
-describe('U4: layout (panel) con SidebarRail + PageHeader', () => {
+describe('U4: layout (panel) con SidebarRail + PageHeader (Línea Suite)', () => {
   beforeEach(() => {
     localStorage.clear();
     ApiClient.token = null;
@@ -25,7 +25,7 @@ describe('U4: layout (panel) con SidebarRail + PageHeader', () => {
     mockPathname = '/kds';
   });
 
-  test('con token muestra la navegación con los 7 destinos y el contenido', async () => {
+  test('con token muestra la navegación con los destinos Suite (N19) y el contenido', async () => {
     ApiClient.token = 'tok';
     render(
       <PanelLayout>
@@ -33,21 +33,22 @@ describe('U4: layout (panel) con SidebarRail + PageHeader', () => {
       </PanelLayout>,
     );
     expect(await screen.findByText('Contenido KDS')).toBeInTheDocument();
-    const nav = screen.getByRole('navigation');
+    const nav = screen.getByRole('navigation', { name: /Módulos del panel/i });
     const expected: Record<string, string> = {
-      Dashboard: '/dashboard',
-      Menu: '/menu',
-      Mesas: '/mesas',
-      KDS: '/kds',
-      Checkout: '/checkout',
-      Pagos: '/pagos',
-      Ajustes: '/ajustes',
+      'Resumen y Mesas': '/dashboard',
+      'Monitor de Cocina': '/kds',
+      'Terminal de Meseros': '/meseros',
+      'Gestión del Menú': '/menu',
+      'Checkout': '/checkout',
+      'Ajustes': '/ajustes',
     };
     for (const [label, href] of Object.entries(expected)) {
       const link = nav.querySelector(`a[href="${href}"]`);
       expect(link).not.toBeNull();
       expect(link).toHaveTextContent(label);
     }
+    // Verifica también la presencia del rail flotante oscuro
+    expect(screen.getByRole('navigation', { name: /Navegación principal/i })).toBeInTheDocument();
   });
 
   test('marca activo el destino de la ruta actual y usa PageHeader con su título', async () => {
@@ -59,7 +60,7 @@ describe('U4: layout (panel) con SidebarRail + PageHeader', () => {
       </PanelLayout>,
     );
     await screen.findByText('x');
-    const active = screen.getByRole('navigation').querySelector('a[aria-current="page"]');
+    const active = screen.getByRole('navigation', { name: /Módulos del panel/i }).querySelector('a[aria-current="page"]');
     expect(active).toHaveAttribute('href', '/checkout');
     expect(screen.getByRole('banner')).toHaveTextContent('Checkout');
   });
@@ -83,7 +84,19 @@ describe('U4: layout (panel) con SidebarRail + PageHeader', () => {
     );
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/login'));
     expect(screen.queryByText('Panel Secreto')).not.toBeInTheDocument();
-    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+    expect(screen.queryAllByRole('navigation')).toHaveLength(0);
+  });
+
+  test('renderiza los 3 puntos pastel de ventana y el modo de operación', async () => {
+    ApiClient.token = 'tok';
+    render(
+      <PanelLayout>
+        <div>Contenido</div>
+      </PanelLayout>,
+    );
+    await screen.findByText('Contenido');
+    expect(screen.getByTestId('pastel-dots')).toBeInTheDocument();
+    expect(screen.getByText('Híbrido (QR + Meseros)')).toBeInTheDocument();
   });
 
   test('exporta metadata', () => {

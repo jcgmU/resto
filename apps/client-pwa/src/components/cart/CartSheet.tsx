@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CartDTO } from '@packages/shared-types';
 import { CartLineItem } from './CartLineItem';
 import { CartEmptyState } from './CartEmptyState';
@@ -8,11 +8,12 @@ export interface CartSheetProps {
   isOpen: boolean;
   onClose: () => void;
   cart?: CartDTO | null;
-  onConfirm?: () => Promise<void>;
+  onConfirm?: (notes?: string) => Promise<void>;
   error?: string | null;
   onUpdateQuantity?: (cartItemId: string, quantity: number) => void;
   onRemoveItem?: (cartItemId: string) => void;
   isConfirming?: boolean;
+  isOrderable?: boolean;
 }
 
 const FOCUSABLE_SELECTOR =
@@ -27,14 +28,17 @@ export function CartSheet({
   onUpdateQuantity,
   onRemoveItem,
   isConfirming,
+  isOrderable = true,
 }: CartSheetProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const [generalNotes, setGeneralNotes] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       previousFocusRef.current = document.activeElement as HTMLElement;
       dialogRef.current?.focus();
+      setGeneralNotes('');
     } else {
       if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
         previousFocusRef.current.focus();
@@ -195,6 +199,23 @@ export function CartSheet({
           </div>
         )}
 
+        {!isOrderable && (
+          <div
+            role="alert"
+            data-testid="cart-order-blocked-alert"
+            style={{
+              padding: 'var(--bento-spacing-sm) var(--bento-spacing-md)',
+              backgroundColor: 'var(--bento-destructive-subtle, rgba(239, 68, 68, 0.1))',
+              color: 'var(--bento-destructive)',
+              fontWeight: 600,
+              fontSize: '0.9rem',
+              fontFamily: 'var(--bento-font-body)',
+            }}
+          >
+            La cuenta ya fue solicitada y no se pueden agregar más pedidos.
+          </div>
+        )}
+
         <div
           style={{
             padding: 'var(--bento-spacing-md)',
@@ -219,10 +240,47 @@ export function CartSheet({
           )}
         </div>
 
+        {hasItems && (
+          <div style={{ padding: '0 var(--bento-spacing-md) var(--bento-spacing-sm)' }}>
+            <label
+              htmlFor="cart-general-notes"
+              style={{
+                display: 'block',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                color: 'var(--bento-text)',
+                marginBottom: '4px',
+              }}
+            >
+              Otras solicitudes
+            </label>
+            <textarea
+              id="cart-general-notes"
+              data-testid="cart-general-notes-textarea"
+              placeholder="Otras solicitudes para el pedido en general..."
+              value={generalNotes}
+              onChange={(e) => setGeneralNotes(e.target.value.slice(0, 280))}
+              maxLength={280}
+              rows={2}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                padding: '8px 12px',
+                borderRadius: 'var(--bento-card-radius, 8px)',
+                border: '1px solid var(--bento-border, #ccc)',
+                background: 'var(--bento-bg, #fff)',
+                color: 'var(--bento-text, #333)',
+                fontSize: '0.85rem',
+                resize: 'none',
+              }}
+            />
+          </div>
+        )}
+
         <CartSummaryBar
           total={cart?.total || 0}
-          onConfirm={onConfirm}
-          disabled={!hasItems}
+          onConfirm={() => onConfirm?.(generalNotes.trim() || undefined)}
+          disabled={!hasItems || !isOrderable}
           isConfirming={isConfirming}
         />
       </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ProductDTO } from '@packages/shared-types';
+import { ProductDTO, formatCOP } from '@packages/shared-types';
 import { BentoCard, KpiValue } from '@packages/ui-components';
 
 export interface ProductListCardProps {
@@ -8,19 +8,62 @@ export interface ProductListCardProps {
 }
 
 export function ProductListCard({ product, onSelect }: ProductListCardProps) {
+  const isAvailable = product.isAvailable !== false;
+
   return (
-    <BentoCard onClick={onSelect} interactive>
-      {product.imageUrl && (
+    <BentoCard
+      onClick={isAvailable ? onSelect : undefined}
+      interactive={isAvailable}
+      style={{
+        opacity: isAvailable ? 1 : 0.65,
+        cursor: isAvailable ? 'pointer' : 'not-allowed',
+      }}
+    >
+      {product.imageUrl ? (
         <div style={{ marginBottom: 'var(--bento-spacing-sm)' }}>
           <img
             src={product.imageUrl}
             alt={product.name}
+            data-testid="product-image"
             style={{
               width: '100%',
+              height: '130px',
+              objectFit: 'cover',
               borderRadius: 'var(--bento-card-radius)',
               display: 'block',
             }}
           />
+        </div>
+      ) : (
+        <div
+          data-testid="product-image-fallback"
+          style={{
+            marginBottom: 'var(--bento-spacing-sm)',
+            height: '90px',
+            borderRadius: 'var(--bento-card-radius)',
+            backgroundColor: 'var(--bento-subtle, rgba(0, 0, 0, 0.03))',
+            border: '1px solid var(--bento-border, rgba(0, 0, 0, 0.06))',
+            boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.04)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--bento-text-muted, #888)',
+          }}
+        >
+          <svg
+            aria-hidden="true"
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 6v6l4 2" />
+          </svg>
         </div>
       )}
 
@@ -41,17 +84,19 @@ export function ProductListCard({ product, onSelect }: ProductListCardProps) {
         >
           {product.name}
         </h3>
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-          width="16"
-          height="16"
-          stroke="currentColor"
-          fill="none"
-          strokeWidth="2"
-        >
-          <path d="M9 18l6-6-6-6" />
-        </svg>
+        {isAvailable && (
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            stroke="currentColor"
+            fill="none"
+            strokeWidth="2"
+          >
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        )}
       </div>
 
       <div
@@ -64,18 +109,24 @@ export function ProductListCard({ product, onSelect }: ProductListCardProps) {
       >
         <KpiValue
           label="Precio"
-          value={`$${product.price.toFixed(2)}`}
+          value={formatCOP(product.price)}
           tone="accent"
         />
 
-        {!product.isAvailable && (
+        {!isAvailable && (
           <span
+            data-testid="badge-agotado"
             style={{
-              color: 'var(--bento-destructive)',
-              fontWeight: 600,
+              color: 'var(--bento-destructive, #ef4444)',
+              backgroundColor: 'var(--bento-destructive-subtle, rgba(239, 68, 68, 0.1))',
+              border: '1px solid var(--bento-destructive, #ef4444)',
+              borderRadius: 'var(--bento-pill-radius, 12px)',
+              padding: '2px 8px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
             }}
           >
-            No disponible
+            Agotado <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>(No disponible)</span>
           </span>
         )}
       </div>

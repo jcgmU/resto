@@ -35,17 +35,19 @@ describe('B. Ordering — integración tiempo real y sockets (Tests 8-13)', () =
       .post('/service-calls')
       .set('x-tenant-id', 't-1')
       .set('x-session-id', 's-1')
-      .send({ tableId: 'tb-3', note: 'Agua por favor' });
+      .send({ tableId: 'tb-3', type: 'WAITER_CALL', note: 'Agua por favor' });
 
     expect(res.status).toBe(201);
     expect(res.body.status).toBe('pending');
     expect(res.body.tableId).toBe('tb-3');
+    expect(res.body.type).toBe('WAITER_CALL');
 
     const published = sharedEventPublisher.serviceCallEvents.find(
       (e) => e.tenantId === 't-1' && e.event.type === 'service-call.created'
     );
     expect(published).toBeDefined();
     expect(published?.event.call.tableId).toBe('tb-3');
+    expect(published?.event.call.type).toBe('WAITER_CALL');
   });
 
   test('10. PATCH /service-calls/:id/resolve (staff) -> evento service-call.resolved; GET /service-calls?status=pending ya no lo lista', async () => {

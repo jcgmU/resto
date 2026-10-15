@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { ProductDTO } from '@packages/shared-types';
+import { ProductDTO, formatCOP } from '@packages/shared-types';
 import { ModifierGroupPicker } from './ModifierGroupPicker';
 import { QuantityStepper } from './cart/QuantityStepper';
 
@@ -7,7 +7,8 @@ export interface ProductDetailSheetProps {
   product: ProductDTO | null;
   isOpen: boolean;
   onClose: () => void;
-  onAddToCart?: (product: ProductDTO, selectedModifiers: any[], quantity: number) => void;
+  onAddToCart?: (product: ProductDTO, selectedModifiers: any[], quantity: number, notes?: string) => void;
+  isOrderable?: boolean;
 }
 
 const FOCUSABLE_SELECTOR =
@@ -18,11 +19,13 @@ export function ProductDetailSheet({
   isOpen,
   onClose,
   onAddToCart,
+  isOrderable = true,
 }: ProductDetailSheetProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const [selectedModifiers, setSelectedModifiers] = useState<Record<string, string[]>>({});
   const [quantity, setQuantity] = useState(1);
+  const [itemNotes, setItemNotes] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -30,6 +33,7 @@ export function ProductDetailSheet({
       dialogRef.current?.focus();
       setSelectedModifiers({});
       setQuantity(1);
+      setItemNotes('');
     } else {
       if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
         previousFocusRef.current.focus();
@@ -93,8 +97,10 @@ export function ProductDetailSheet({
     }));
   };
 
+  const isAvailable = product.isAvailable !== false;
+
   const handleAdd = () => {
-    if (!isModifierValid) {
+    if (!isModifierValid || !isOrderable || !isAvailable) {
       return;
     }
 
@@ -115,7 +121,12 @@ export function ProductDetailSheet({
       });
     });
 
-    onAddToCart?.(product, formattedMods, quantity);
+    const trimmedNotes = itemNotes.trim();
+    if (trimmedNotes) {
+      onAddToCart?.(product, formattedMods, quantity, trimmedNotes);
+    } else {
+      onAddToCart?.(product, formattedMods, quantity);
+    }
     onClose();
   };
 
@@ -177,6 +188,54 @@ export function ProductDetailSheet({
           boxShadow: 'var(--bento-card-shadow)',
         }}
       >
+        {product.imageUrl ? (
+          <div style={{ marginBottom: 'var(--bento-spacing-sm)', overflow: 'hidden', borderRadius: 'var(--bento-card-radius)' }}>
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              data-testid="product-detail-image"
+              style={{
+                width: '100%',
+                maxHeight: '180px',
+                objectFit: 'cover',
+                borderRadius: 'var(--bento-card-radius)',
+                display: 'block',
+              }}
+            />
+          </div>
+        ) : (
+          <div
+            data-testid="product-detail-image-fallback"
+            style={{
+              marginBottom: 'var(--bento-spacing-sm)',
+              height: '90px',
+              borderRadius: 'var(--bento-card-radius)',
+              backgroundColor: 'var(--bento-subtle, rgba(0, 0, 0, 0.03))',
+              border: '1px solid var(--bento-border, rgba(0, 0, 0, 0.06))',
+              boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.04)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--bento-text-muted, #888)',
+            }}
+          >
+            <svg
+              aria-hidden="true"
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 6v6l4 2" />
+            </svg>
+          </div>
+        )}
+
         <div
           style={{
             display: 'flex',
@@ -216,9 +275,28 @@ export function ProductDetailSheet({
           </button>
         </div>
 
-        <p style={{ color: 'var(--bento-accent-strong)', fontWeight: 700, margin: '0 0 var(--bento-spacing-md) 0', fontSize: '1.25rem' }}>
-          ${product.price.toFixed(2)}
-        </p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--bento-spacing-md)' }}>
+          <p style={{ color: 'var(--bento-accent-strong)', fontWeight: 700, margin: 0, fontSize: '1.25rem' }}>
+            {formatCOP(product.price)}
+          </p>
+
+          {!isAvailable && (
+            <span
+              data-testid="badge-agotado"
+              style={{
+                color: 'var(--bento-destructive, #ef4444)',
+                backgroundColor: 'var(--bento-destructive-subtle, rgba(239, 68, 68, 0.1))',
+                border: '1px solid var(--bento-destructive, #ef4444)',
+                borderRadius: 'var(--bento-pill-radius, 12px)',
+                padding: '2px 8px',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+              }}
+            >
+              Agotado <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>(No disponible)</span>
+            </span>
+          )}
+        </div>
 
         {product.modifierGroups && product.modifierGroups.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--bento-spacing-sm)' }}>
@@ -232,6 +310,40 @@ export function ProductDetailSheet({
             ))}
           </div>
         )}
+
+        <div style={{ marginTop: 'var(--bento-spacing-sm)' }}>
+          <label
+            htmlFor="product-detail-notes"
+            style={{
+              display: 'block',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              color: 'var(--bento-text)',
+              marginBottom: '4px',
+            }}
+          >
+            Instrucciones de preparación
+          </label>
+          <input
+            id="product-detail-notes"
+            type="text"
+            placeholder="Instrucciones de preparación (ej. Sin cebolla)"
+            value={itemNotes}
+            onChange={(e) => setItemNotes(e.target.value)}
+            maxLength={140}
+            data-testid="item-notes-input"
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              padding: '8px 12px',
+              borderRadius: 'var(--bento-card-radius, 8px)',
+              border: '1px solid var(--bento-border, #ccc)',
+              background: 'var(--bento-bg, #fff)',
+              color: 'var(--bento-text, #333)',
+              fontSize: '0.875rem',
+            }}
+          />
+        </div>
 
         <div
           style={{
@@ -252,7 +364,33 @@ export function ProductDetailSheet({
           />
         </div>
 
-        {!isModifierValid && (
+        {!isAvailable ? (
+          <p
+            role="alert"
+            data-testid="product-unavailable-notice"
+            style={{
+              margin: 'var(--bento-spacing-sm) 0 0 0',
+              color: 'var(--bento-destructive)',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+            }}
+          >
+            Este producto se encuentra agotado.
+          </p>
+        ) : !isOrderable ? (
+          <p
+            role="alert"
+            data-testid="order-blocked-sheet-notice"
+            style={{
+              margin: 'var(--bento-spacing-sm) 0 0 0',
+              color: 'var(--bento-destructive)',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+            }}
+          >
+            La cuenta ya fue solicitada y no se pueden agregar más pedidos.
+          </p>
+        ) : !isModifierValid ? (
           <p
             role="alert"
             style={{
@@ -264,27 +402,27 @@ export function ProductDetailSheet({
           >
             Selecciona las opciones obligatorias para continuar.
           </p>
-        )}
+        ) : null}
 
         <div style={{ marginTop: 'var(--bento-spacing-md)', display: 'flex', gap: 'var(--bento-spacing-sm)' }}>
           <button
             type="button"
             onClick={handleAdd}
-            disabled={!isModifierValid}
+            disabled={!isModifierValid || !isOrderable || !isAvailable}
             style={{
               minHeight: 'var(--bento-touch-target)',
               width: '100%',
-              backgroundColor: isModifierValid ? 'var(--bento-accent-strong)' : 'var(--bento-papel)',
-              color: isModifierValid ? 'var(--bento-card-bg)' : 'var(--bento-text-muted)',
+              backgroundColor: isModifierValid && isOrderable && isAvailable ? 'var(--bento-accent-strong)' : 'var(--bento-papel)',
+              color: isModifierValid && isOrderable && isAvailable ? 'var(--bento-card-bg)' : 'var(--bento-text-muted)',
               borderRadius: 'var(--bento-card-radius)',
-              border: isModifierValid ? 'none' : '1px solid var(--bento-border)',
+              border: isModifierValid && isOrderable && isAvailable ? 'none' : '1px solid var(--bento-border)',
               fontWeight: 700,
               fontSize: '1rem',
-              cursor: isModifierValid ? 'pointer' : 'not-allowed',
-              opacity: isModifierValid ? 1 : 0.6,
+              cursor: isModifierValid && isOrderable && isAvailable ? 'pointer' : 'not-allowed',
+              opacity: isModifierValid && isOrderable && isAvailable ? 1 : 0.6,
             }}
           >
-            Añadir al carrito
+            {!isAvailable ? 'Agotado' : !isOrderable ? 'Cuenta solicitada' : 'Añadir al carrito'}
           </button>
         </div>
       </div>

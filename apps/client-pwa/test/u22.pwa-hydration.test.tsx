@@ -34,14 +34,14 @@ describe('U22 / H4: PWA Hidratación y Layout 375px', () => {
     expect(container.querySelectorAll('style').length).toBe(0);
   });
 
-  test('H4 (b): CartFab tiene posición fija a bottom 84px, right 16px y z-index 40 para no superponer chips ni footer a 375px', () => {
+  test('H4 (b): CartFab tiene posición fija a bottom 140px, right 16px y z-index 40 para no superponer chips ni footer a 375px', () => {
     const { getByRole } = render(<CartFab itemCount={2} onClick={() => {}} />);
     const btn = getByRole('button', { name: /Carrito con 2 productos/i });
 
     expect(btn).toHaveStyle({
       position: 'fixed',
       right: '16px',
-      bottom: '84px',
+      bottom: '140px',
       zIndex: 40,
     });
   });

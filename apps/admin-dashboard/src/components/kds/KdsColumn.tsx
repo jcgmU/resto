@@ -1,5 +1,10 @@
 import React from 'react';
-import { OrderDTO, OrderStatus, TableDTO } from '@packages/shared-types';
+import {
+  OrderDTO,
+  OrderStatus,
+  OrderHistoryEventDTO,
+  TableDTO,
+} from '@packages/shared-types';
 import { KdsOrderCard } from './KdsOrderCard';
 
 export interface KdsColumnProps {
@@ -9,6 +14,9 @@ export interface KdsColumnProps {
   tables?: TableDTO[];
   onAdvanceStatus?: (orderId: string, nextStatus: OrderStatus) => void;
   updatingOrderId?: string | null;
+  tenantSlaMinutes?: number;
+  onUpdateDelay?: (orderId: string, delayMinutes: number) => void;
+  onFetchHistory?: (orderId: string) => Promise<OrderHistoryEventDTO[]>;
 }
 
 export function KdsColumn({
@@ -18,8 +26,19 @@ export function KdsColumn({
   tables,
   onAdvanceStatus,
   updatingOrderId,
+  tenantSlaMinutes,
+  onUpdateDelay,
+  onFetchHistory,
 }: KdsColumnProps) {
-  const columnOrders = orders.filter((o) => o.status === status);
+  // Ordenadas siempre por más tiempo transcurrido primero (createdAt asc)
+  const columnOrders = orders
+    .filter((o) => o.status === status)
+    .sort((a, b) => {
+      const timeA = new Date(a.createdAt).getTime();
+      const timeB = new Date(b.createdAt).getTime();
+      return timeA - timeB;
+    });
+
   const countText = `${columnOrders.length} orden${columnOrders.length === 1 ? '' : 'es'}`;
 
   return (
@@ -105,6 +124,9 @@ export function KdsColumn({
               tables={tables}
               onAdvanceStatus={onAdvanceStatus}
               isUpdating={updatingOrderId === order.id}
+              tenantSlaMinutes={tenantSlaMinutes}
+              onUpdateDelay={onUpdateDelay}
+              onFetchHistory={onFetchHistory}
             />
           ))
         )}

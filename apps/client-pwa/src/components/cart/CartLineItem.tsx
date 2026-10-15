@@ -1,5 +1,5 @@
 import React from 'react';
-import { CartItemDTO } from '@packages/shared-types';
+import { CartItemDTO, formatCOP } from '@packages/shared-types';
 import { BentoCard, KpiValue } from '@packages/ui-components';
 import { QuantityStepper } from './QuantityStepper';
 import { AddedByBadge } from './AddedByBadge';
@@ -43,6 +43,19 @@ export function CartLineItem({
               {modifiersSummary}
             </p>
           )}
+          {item.notes && (
+            <p
+              data-testid="cart-item-notes"
+              style={{
+                margin: 'var(--bento-spacing-xs) 0 0 0',
+                color: 'var(--bento-text-muted)',
+                fontSize: '0.85rem',
+                fontStyle: 'italic',
+              }}
+            >
+              Nota: {item.notes}
+            </p>
+          )}
           {item.addedBy && (
             <div style={{ marginTop: 'var(--bento-spacing-xs)' }}>
               <AddedByBadge addedBy={item.addedBy} />
@@ -52,7 +65,7 @@ export function CartLineItem({
 
         <KpiValue
           label="Subtotal"
-          value={`$${item.lineTotal.toFixed(2)}`}
+          value={formatCOP(item.lineTotal)}
           tone="accent"
         />
       </div>

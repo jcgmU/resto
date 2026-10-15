@@ -7,6 +7,7 @@ import {
   PaymentMethodPicker,
   ConfirmPaymentButton,
   PaymentSuccessCard,
+  ReleaseTableModal,
 } from '../src/components/checkout';
 import CheckoutPage from '../src/app/(panel)/checkout/page';
 import {
@@ -105,17 +106,17 @@ describe('C. Admin Dashboard — Vista de Checkout (Tests 13-19)', () => {
 
     const kpi = container.querySelector('[data-component="kpi-value"][data-tone="accent"]');
     expect(kpi).toBeInTheDocument();
-    expect(kpi).toHaveTextContent('$65');
+    expect(kpi).toHaveTextContent(/\$\s*65/);
   });
 
-  test('15. PaymentMethodPicker es radiogroup accesible con 3 opciones con label visible; sin selección, el CTA está disabled', () => {
+  test('15. PaymentMethodPicker es radiogroup accesible con opciones con label visible (solo Efectivo en UI); sin selección, el CTA está disabled', () => {
     render(<PaymentMethodPicker selectedMethod={null} onSelect={jest.fn()} />);
     const group = screen.getByRole('radiogroup');
     expect(group).toBeInTheDocument();
 
     expect(screen.getByRole('radio', { name: /efectivo/i })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: /tarjeta/i })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: /otro/i })).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /tarjeta/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /otro/i })).not.toBeInTheDocument();
 
     render(<ConfirmPaymentButton disabled={true} onConfirm={jest.fn()} />);
     const btn = screen.getByRole('button', { name: /cobrar|registrar cobro/i });
@@ -303,24 +304,24 @@ describe('C. Admin Dashboard — Vista de Checkout (Tests 13-19)', () => {
     expect(screen.getByText(/Sesión #222222/i)).toBeInTheDocument();
   });
 
-  test('H9 (c) Etiquetas de métodos de pago en español (Efectivo, Tarjeta, Otro) en picker y modal', () => {
+  test('H9 (c) Etiquetas de métodos de pago en español en picker y modal (solo Efectivo en picker UI)', () => {
     const onSelect = jest.fn();
-    const { rerender } = render(<PaymentMethodPicker selectedMethod="CARD" onSelect={onSelect} />);
+    const { rerender } = render(<PaymentMethodPicker selectedMethod="CASH" onSelect={onSelect} />);
 
     expect(screen.getByRole('radio', { name: 'Efectivo' })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'Tarjeta' })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'Otro' })).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: 'Tarjeta' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: 'Otro' })).not.toBeInTheDocument();
 
     rerender(
       <ConfirmPaymentButton
         total={120}
-        method="CARD"
+        method="CASH"
         onConfirm={jest.fn()}
       />
     );
     fireEvent.click(screen.getByRole('button', { name: /registrar cobro/i }));
     const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText('Tarjeta')).toBeInTheDocument();
+    expect(within(dialog).getByText('Efectivo')).toBeInTheDocument();
 
     const tables: TableDTO[] = [
       {
@@ -331,7 +332,94 @@ describe('C. Admin Dashboard — Vista de Checkout (Tests 13-19)', () => {
         createdAt: new Date().toISOString(),
       },
     ];
-    rerender(<PaymentSuccessCard tableId="tbl-1" amount={120} method="CARD" tables={tables} />);
-    expect(screen.getByText(/Mesa Central • Total: \$120 • Medio: Tarjeta/i)).toBeInTheDocument();
+    rerender(<PaymentSuccessCard tableId="tbl-1" amount={120} method="CASH" tables={tables} />);
+    expect(screen.getByText(/Mesa Central • Total:\s*\$\s*120\s*• Medio:\s*Efectivo/i)).toBeInTheDocument();
+  });
+
+  test('N16 (a) ReleaseTableModal bloquea acción y muestra saldo pendiente cuando total > 0', () => {
+    const onConfirm = jest.fn();
+    const onClose = jest.fn();
+
+    render(
+      <ReleaseTableModal
+        open={true}
+        tableName="Mesa Terraza"
+        pendingAmount={4500}
+        onConfirm={onConfirm}
+        onClose={onClose}
+      />
+    );
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText(/acción bloqueada/i)).toBeInTheDocument();
+    expect(within(dialog).getAllByText(/\$\s*4\.500/i).length).toBeGreaterThanOrEqual(1);
+
+    const confirmBtn = within(dialog).getByRole('button', { name: /confirmar liberación/i });
+    expect(confirmBtn).toBeDisabled();
+
+    // Confirm no debe ser llamado
+    fireEvent.click(confirmBtn);
+    expect(onConfirm).not.toHaveBeenCalled();
+
+    // Cancelar cierra el modal
+    const cancelBtn = within(dialog).getByRole('button', { name: /cancelar/i });
+    fireEvent.click(cancelBtn);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  test('N16 (b) ReleaseTableModal permite confirmar cuando no hay saldo pendiente ($0)', () => {
+    const onConfirm = jest.fn();
+    const onClose = jest.fn();
+
+    render(
+      <ReleaseTableModal
+        open={true}
+        tableName="Mesa 3"
+        pendingAmount={0}
+        onConfirm={onConfirm}
+        onClose={onClose}
+      />
+    );
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText(/está al día/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/\$\s*0/i)).toBeInTheDocument();
+
+    const confirmBtn = within(dialog).getByRole('button', { name: /confirmar liberación/i });
+    expect(confirmBtn).not.toBeDisabled();
+
+    fireEvent.click(confirmBtn);
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  test('N16 (c) ReleaseTableModal muestra error SESSION_CLOSE_FAILED y botón de reintento', () => {
+    const onRetry = jest.fn();
+
+    render(
+      <ReleaseTableModal
+        open={true}
+        tableName="Mesa 4"
+        pendingAmount={0}
+        error="SESSION_CLOSE_FAILED"
+        onConfirm={jest.fn()}
+        onClose={jest.fn()}
+        onRetry={onRetry}
+      />
+    );
+
+    expect(screen.getByText(/error al cerrar la sesión en el servidor/i)).toBeInTheDocument();
+    const retryBtn = screen.getByRole('button', { name: /reintentar cierre/i });
+    fireEvent.click(retryBtn);
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  test('N17 (a) BillSummaryCard muestra errores comprensibles para BILL_EMPTY y BILL_NOT_FOUND', () => {
+    const { rerender } = render(<BillSummaryCard bill={sampleBill} error="BILL_EMPTY" />);
+    expect(screen.getByText(/la mesa no tiene pedidos registrados para cobrar/i)).toBeInTheDocument();
+
+    rerender(<BillSummaryCard bill={sampleBill} error="BILL_NOT_FOUND" />);
+    expect(screen.getByText(/no se encontró cuenta para esta sesión/i)).toBeInTheDocument();
   });
 });

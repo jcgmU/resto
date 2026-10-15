@@ -2,11 +2,28 @@ export type TenantStatus = 'ACTIVE' | 'SUSPENDED';
 export type UserRole = 'ADMIN' | 'MANAGER' | 'STAFF' | 'CUSTOMER';
 export type UserStatus = 'ACTIVE' | 'INVITED' | 'SUSPENDED';
 
+export type OperatingMode = 'hybrid' | 'waiter_only';
+
+export interface PublicTenantSettingsDTO {
+  operatingMode: OperatingMode;
+}
+
+export interface TenantSettingsDTO extends PublicTenantSettingsDTO {
+  estimatedPrepMinutes: number;
+}
+
+export interface UpdateTenantSettingsRequest {
+  operatingMode?: OperatingMode;
+  estimatedPrepMinutes?: number;
+}
+
 export interface TenantDTO {
   id: string;
   name: string;
   slug: string;
   status: TenantStatus;
+  operatingMode?: OperatingMode;
+  estimatedPrepMinutes?: number;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -9,7 +9,7 @@ export function CartFab({ itemCount = 0, onClick }: CartFabProps) {
   const inlineStyle: any = {
     position: 'fixed',
     right: '16px',
-    bottom: '84px',
+    bottom: '140px',
     minHeight: 'var(--bento-touch-target)',
     minWidth: 'var(--bento-touch-target)',
     padding: '0 16px',

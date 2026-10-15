@@ -14,6 +14,7 @@ import {
 } from '../../application/ProductUseCases';
 import { CreateModifierGroupUseCaseImpl } from '../../application/ModifierGroupUseCases';
 import { CatalogContext } from './context';
+import { requireRole } from './authz';
 
 export function createResolvers(deps: {
   categoryRepo: CategoryRepository;
@@ -80,6 +81,7 @@ export function createResolvers(deps: {
 
     Mutation: {
       createCategory: async (_parent: any, { input }: any, context: CatalogContext) => {
+        requireRole(context, ['ADMIN', 'MANAGER']);
         try {
           return await createCategoryUseCase.execute({ tenantId: context.tenantId, ...input });
         } catch (err) {
@@ -87,6 +89,7 @@ export function createResolvers(deps: {
         }
       },
       updateCategory: async (_parent: any, { id, input }: any, context: CatalogContext) => {
+        requireRole(context, ['ADMIN', 'MANAGER']);
         try {
           const existing = await categoryRepo.findById(context.tenantId, id);
           if (!existing) throw new DomainError('NOT_FOUND', `Categoría ${id} no encontrada`);
@@ -97,6 +100,7 @@ export function createResolvers(deps: {
         }
       },
       deleteCategory: async (_parent: any, { id }: any, context: CatalogContext) => {
+        requireRole(context, ['ADMIN', 'MANAGER']);
         try {
           await deleteCategoryUseCase.execute({ tenantId: context.tenantId, id });
           return true;
@@ -105,6 +109,7 @@ export function createResolvers(deps: {
         }
       },
       createProduct: async (_parent: any, { input }: any, context: CatalogContext) => {
+        requireRole(context, ['ADMIN', 'MANAGER']);
         try {
           const p = await createProductUseCase.execute({ tenantId: context.tenantId, ...input });
           return { ...p, price: Number(p.price) };
@@ -113,6 +118,7 @@ export function createResolvers(deps: {
         }
       },
       updateProduct: async (_parent: any, { id, input }: any, context: CatalogContext) => {
+        requireRole(context, ['ADMIN', 'MANAGER']);
         try {
           const p = await updateProductUseCase.execute({ tenantId: context.tenantId, id, ...input });
           return { ...p, price: Number(p.price) };
@@ -121,6 +127,7 @@ export function createResolvers(deps: {
         }
       },
       deleteProduct: async (_parent: any, { id }: any, context: CatalogContext) => {
+        requireRole(context, ['ADMIN', 'MANAGER']);
         try {
           await productRepo.delete(context.tenantId, id);
           return true;
@@ -129,6 +136,7 @@ export function createResolvers(deps: {
         }
       },
       setProductAvailability: async (_parent: any, { id, isAvailable }: any, context: CatalogContext) => {
+        requireRole(context, ['ADMIN', 'MANAGER']);
         try {
           const p = await setProductAvailabilityUseCase.execute({ tenantId: context.tenantId, id, isAvailable });
           return { ...p, price: Number(p.price) };
@@ -137,6 +145,7 @@ export function createResolvers(deps: {
         }
       },
       createModifierGroup: async (_parent: any, { input }: any, context: CatalogContext) => {
+        requireRole(context, ['ADMIN', 'MANAGER']);
         try {
           return await createModifierGroupUseCase.execute({ tenantId: context.tenantId, ...input });
         } catch (err) {
@@ -144,6 +153,7 @@ export function createResolvers(deps: {
         }
       },
       updateModifierGroup: async (_parent: any, { id, input }: any, context: CatalogContext) => {
+        requireRole(context, ['ADMIN', 'MANAGER']);
         try {
           const existing = await modifierGroupRepo.findById(context.tenantId, id);
           if (!existing) throw new DomainError('NOT_FOUND', `Grupo ${id} no encontrado`);
@@ -154,6 +164,7 @@ export function createResolvers(deps: {
         }
       },
       deleteModifierGroup: async (_parent: any, { id }: any, context: CatalogContext) => {
+        requireRole(context, ['ADMIN', 'MANAGER']);
         try {
           await modifierGroupRepo.delete(context.tenantId, id);
           return true;
@@ -162,6 +173,7 @@ export function createResolvers(deps: {
         }
       },
       addModifierOption: async (_parent: any, { groupId, input }: any, context: CatalogContext) => {
+        requireRole(context, ['ADMIN', 'MANAGER']);
         try {
           const option = {
             id: `opt-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -176,6 +188,7 @@ export function createResolvers(deps: {
         }
       },
       removeModifierOption: async (_parent: any, { id }: any, context: CatalogContext) => {
+        requireRole(context, ['ADMIN', 'MANAGER']);
         try {
           await modifierGroupRepo.removeOption(context.tenantId, id);
           return true;
@@ -184,6 +197,7 @@ export function createResolvers(deps: {
         }
       },
       attachModifierGroup: async (_parent: any, { productId, groupId }: any, context: CatalogContext) => {
+        requireRole(context, ['ADMIN', 'MANAGER']);
         try {
           await attachModifierGroupUseCase.execute({ tenantId: context.tenantId, productId, groupId });
           const p = await productRepo.findById(context.tenantId, productId);
@@ -194,6 +208,7 @@ export function createResolvers(deps: {
         }
       },
       detachModifierGroup: async (_parent: any, { productId, groupId }: any, context: CatalogContext) => {
+        requireRole(context, ['ADMIN', 'MANAGER']);
         try {
           await productRepo.detachModifierGroup(context.tenantId, productId, groupId);
           const p = await productRepo.findById(context.tenantId, productId);
@@ -223,6 +238,8 @@ export function createResolvers(deps: {
         return [];
       },
       price: (parent: any) => Number(parent.price),
+      prepTimeMinutes: (parent: any) => (parent.prepTimeMinutes != null ? Number(parent.prepTimeMinutes) : null),
+      imageUrl: (parent: any) => parent.imageUrl || null,
     },
 
     Category: {

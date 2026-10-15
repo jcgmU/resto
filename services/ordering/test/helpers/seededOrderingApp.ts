@@ -6,6 +6,7 @@ import {
   InMemoryEventPublisher,
   InMemoryServiceCallRepository,
   InMemoryPaymentRepository,
+  InMemorySessionServiceAdapter,
 } from '../../src/infrastructure/fakes/InMemoryOrderingAdapters';
 import { HttpSessionServiceAdapter } from '../../src/infrastructure/session/HttpSessionServiceAdapter';
 import { config } from '../../src/config';
@@ -16,7 +17,10 @@ export const sharedCatalogValidation = new InMemoryCatalogValidationAdapter();
 export const sharedServiceCallRepo = new InMemoryServiceCallRepository();
 export const sharedEventPublisher = new InMemoryEventPublisher();
 export const sharedPaymentRepo = new InMemoryPaymentRepository();
-export const sharedSessionService = new HttpSessionServiceAdapter(config.sessionInternalUrl);
+export const sharedSessionService = new InMemorySessionServiceAdapter({
+  autoCreateActive: true,
+  httpDelegate: new HttpSessionServiceAdapter(config.sessionInternalUrl),
+});
 
 export function createSeededOrderingTestApp() {
 

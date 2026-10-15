@@ -21,24 +21,27 @@ model Category {
 
   @@unique([tenantId, name])
   @@index([tenantId])
+  @@index([tenantId, sortOrder])
 }
 
 model Product {
-  id             String                 @id @default(uuid())
-  tenantId       String                 // referencia lógica, sin FK
-  categoryId     String
-  category       Category               @relation(fields: [categoryId], references: [id])
-  name           String
-  description    String?
-  price          Decimal                @db.Decimal(10, 2)
-  imageUrl       String?
-  isAvailable    Boolean                @default(true)
-  sortOrder      Int                    @default(0)
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
-  modifierGroups ProductModifierGroup[]
+  id              String                 @id @default(uuid())
+  tenantId        String                 // referencia lógica, sin FK
+  categoryId      String
+  category        Category               @relation(fields: [categoryId], references: [id])
+  name            String
+  description     String?
+  price           Decimal                @db.Decimal(10, 2)
+  imageUrl        String?
+  isAvailable     Boolean                @default(true)
+  sortOrder       Int                    @default(0)
+  prepTimeMinutes Int?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  modifierGroups  ProductModifierGroup[]
 
   @@index([tenantId, categoryId])
+  @@index([tenantId, sortOrder])
 }
 
 model ModifierGroup {

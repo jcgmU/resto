@@ -19,6 +19,7 @@ export interface ProductDTO {
   imageUrl?: string | null;
   isAvailable: boolean;
   sortOrder: number;
+  prepTimeMinutes?: number | null;
   createdAt?: Date;
   updatedAt?: Date;
   category?: CategoryDTO;

@@ -5,28 +5,50 @@ import {
   ResolveServiceCallUseCase,
   ServiceCallDTO,
   ServiceCallRepository,
+  SessionServicePort,
 } from '@packages/shared-types';
-import { ServiceCallNotFoundError } from '../domain/errors';
+import {
+  ServiceCallNotFoundError,
+  SessionNotOrderableError,
+  TableMismatchError,
+} from '../domain/errors';
+import { createServiceCallEntity } from '../domain/serviceCall';
 import { config } from '../config';
 
 export class ServiceCallUseCases {
   constructor(
     private readonly serviceCallRepo: ServiceCallRepository,
-    private readonly eventPublisher?: EventPublisher
+    private readonly eventPublisher?: EventPublisher,
+    private readonly sessionService?: SessionServicePort
   ) {}
 
   createServiceCall: CreateServiceCallUseCase = {
     execute: async (input) => {
+      let effectiveTableId = input.tableId || '';
+      if (this.sessionService) {
+        const session = await this.sessionService.getSession(input.tenantId, input.sessionId);
+        if (!session || session.status === 'closed') {
+          throw new SessionNotOrderableError('La sesión no admite llamadas de servicio en su estado actual');
+        }
+        if (input.tableId && session.tableId && session.tableId !== '*' && input.tableId !== session.tableId) {
+          throw new TableMismatchError('La mesa indicada no coincide con la mesa de la sesión');
+        }
+        effectiveTableId = (session.tableId && session.tableId !== '*') ? session.tableId : (input.tableId || 'default-table');
+      }
+      if (!effectiveTableId) {
+        effectiveTableId = 'default-table';
+      }
+
       const callId = `call-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-      const call: ServiceCallDTO = {
+      const call: ServiceCallDTO = createServiceCallEntity({
         callId,
         tenantId: input.tenantId,
         sessionId: input.sessionId,
-        tableId: input.tableId,
+        tableId: effectiveTableId,
+        type: input.type,
         note: input.note,
-        status: 'pending',
         createdAt: new Date().toISOString(),
-      };
+      });
 
       const saved = await this.serviceCallRepo.save(
         input.tenantId,

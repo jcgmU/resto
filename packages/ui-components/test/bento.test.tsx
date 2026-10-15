@@ -63,31 +63,65 @@ describe('E.2 Estructura visual Bento Box (Tests 37-44)', () => {
     expect(styleAttr).not.toMatch(/#[0-9a-fA-F]{3,6}/);
   });
 
-  test('39. Tokens (test unitario puro): paleta Lima & Tinta (tinta #0E100B, lima #D7F35C, hueso #ECEEE6, papel #FAFAF6), radios y espaciado', () => {
-    expect(BENTO_TOKENS['--bento-page-bg']).toBe('#ECEEE6');
-    expect(BENTO_TOKENS['--bento-card-bg']).toBe('#FAFAF6');
-    expect(BENTO_TOKENS['--bento-text']).toBe('#0E100B');
-    expect(BENTO_TOKENS['--bento-accent']).toBe('#D7F35C');
-    expect(BENTO_TOKENS['--bento-card-radius']).toBe('24px');
-    expect(BENTO_TOKENS['--bento-inner-radius']).toBe('16px');
+  test('39. Tokens (test unitario puro): paleta Suite (page-bg #d0d3d6, text #3a3c3e, primary #5c6784, rail-bg #1d1f22, status occupied #e0a6a6, reserved #dcc98a, available #8fbf95, info #a5b9c6), radios (card 2rem, inner 1.5rem) y sombras neumorfas', () => {
+    expect(BENTO_TOKENS['--bento-page-bg']).toBe('#d0d3d6');
+    expect(BENTO_TOKENS['--bento-card-bg']).toBe('rgba(255, 255, 255, 0.65)');
+    expect(BENTO_TOKENS['--bento-text']).toBe('#3a3c3e');
+    expect(BENTO_TOKENS['--bento-text-muted']).toBe('#666666');
+    expect(BENTO_TOKENS['--bento-primary']).toBe('#5c6784');
+    expect(BENTO_TOKENS['--bento-primary-hover']).toBe('#4a536b');
+    expect(BENTO_TOKENS['--bento-rail-bg']).toBe('#1d1f22');
+    expect(BENTO_TOKENS['--bento-rail-active']).toBe('#a5b9c6');
+    expect(BENTO_TOKENS['--bento-rail-inactive']).toBe('#6b7280');
+    expect(BENTO_TOKENS['--bento-status-occupied']).toBe('#e0a6a6');
+    expect(BENTO_TOKENS['--bento-status-reserved']).toBe('#dcc98a');
+    expect(BENTO_TOKENS['--bento-status-available']).toBe('#8fbf95');
+    expect(BENTO_TOKENS['--bento-info']).toBe('#a5b9c6');
+    expect(BENTO_TOKENS['--bento-card-radius']).toBe('2rem');
+    expect(BENTO_TOKENS['--bento-inner-radius']).toBe('1.5rem');
+    expect(BENTO_TOKENS['--bento-pill-radius']).toBe('9999px');
     expect(BENTO_TOKENS['--bento-grid-gap']).toBe('16px');
-    expect(BENTO_TOKENS['--bento-card-shadow']).toBe('0 4px 6px rgba(0,0,0,0.05)');
+    expect(BENTO_TOKENS['--bento-card-shadow']).toBe(
+      '4px 6px 30px rgba(150, 155, 160, 0.2), -4px -4px 20px rgba(255, 255, 255, 0.8)'
+    );
+
+    // Alias deprecados (conservar una oleada)
+    expect(BENTO_TOKENS['--bento-lima']).toBe('#a5b9c6');
+    expect(BENTO_TOKENS['--bento-tinta']).toBe('#1d1f22');
+    expect(BENTO_TOKENS['--bento-hueso']).toBe('#d0d3d6');
+    expect(BENTO_TOKENS['--bento-papel']).toBe('#ffffff');
   });
 
-  test('40. Contraste (test unitario puro, función WCAG sobre los hex de los tokens): --bento-text y --bento-text-muted sobre --bento-card-bg >= 4.5:1; tinta sobre lima >= 4.5:1 (lima solo como fondo); lima sobre papel < 3:1 (invalido como texto)', () => {
-    const textRatio = getContrastRatio(BENTO_TOKENS['--bento-text'], BENTO_TOKENS['--bento-card-bg']);
+  test('40. Contraste (test unitario puro, función WCAG sobre los hex de los tokens): texto y textos asociados a estados pastel cumplen ratio AA (>= 4.5:1)', () => {
+    // Texto principal sobre papel (#ffffff) y sobre fondo de página (#d0d3d6)
+    const textRatio = getContrastRatio(BENTO_TOKENS['--bento-text'], '#ffffff');
     expect(textRatio).toBeGreaterThanOrEqual(4.5);
 
-    const mutedRatio = getContrastRatio(BENTO_TOKENS['--bento-text-muted'], BENTO_TOKENS['--bento-card-bg']);
+    const pageTextRatio = getContrastRatio(BENTO_TOKENS['--bento-text'], BENTO_TOKENS['--bento-page-bg']);
+    expect(pageTextRatio).toBeGreaterThanOrEqual(4.5);
+
+    // Texto secundario sobre fondo papel
+    const mutedRatio = getContrastRatio(BENTO_TOKENS['--bento-text-muted'], '#ffffff');
     expect(mutedRatio).toBeGreaterThanOrEqual(4.5);
 
-    // Lima (#D7F35C) SOLO como fondo con texto tinta (#0E100B) encima: ratio >= 4.5:1 (WCAG AA/AAA)
-    const tintaOnLimaRatio = getContrastRatio(BENTO_TOKENS['--bento-text'], BENTO_TOKENS['--bento-accent']);
-    expect(tintaOnLimaRatio).toBeGreaterThanOrEqual(4.5);
+    // Primario con texto blanco
+    const primaryRatio = getContrastRatio('#ffffff', BENTO_TOKENS['--bento-primary']);
+    expect(primaryRatio).toBeGreaterThanOrEqual(4.5);
 
-    // Verificación de la regla: texto lima sobre fondo papel NO pasa contraste (< 3:1), por eso nunca se usa como texto
-    const limaOnPaperRatio = getContrastRatio(BENTO_TOKENS['--bento-accent'], BENTO_TOKENS['--bento-card-bg']);
-    expect(limaOnPaperRatio).toBeLessThan(3.0);
+    // Estados pastel: textos asociados oscuros garantizan contraste AA (>= 4.5:1)
+    const occupiedTextRatio = getContrastRatio(BENTO_TOKENS['--bento-status-occupied-text'], '#ffffff');
+    expect(occupiedTextRatio).toBeGreaterThanOrEqual(4.5);
+
+    const reservedTextRatio = getContrastRatio(BENTO_TOKENS['--bento-status-reserved-text'], '#ffffff');
+    expect(reservedTextRatio).toBeGreaterThanOrEqual(4.5);
+
+    const availableTextRatio = getContrastRatio(BENTO_TOKENS['--bento-status-available-text'], '#ffffff');
+    expect(availableTextRatio).toBeGreaterThanOrEqual(4.5);
+
+    // Los colores pastel solos sobre blanco tienen bajo contraste (< 3:1), por lo que siempre requieren texto oscuro asociado
+    expect(getContrastRatio(BENTO_TOKENS['--bento-status-occupied'], '#ffffff')).toBeLessThan(3.0);
+    expect(getContrastRatio(BENTO_TOKENS['--bento-status-reserved'], '#ffffff')).toBeLessThan(3.0);
+    expect(getContrastRatio(BENTO_TOKENS['--bento-status-available'], '#ffffff')).toBeLessThan(3.0);
   });
 
   test('41. Acento vibrante solo en datos clave: en una tarjeta renderizada con precio y estado, el ÚNICO elemento con data-tone="accent" es el KpiValue del precio', () => {
@@ -146,17 +180,21 @@ describe('E.2 Estructura visual Bento Box (Tests 37-44)', () => {
     expect(styleAttr).not.toContain('var(--bento-focus-ring)');
   });
 
-  test('44. Responsive + motion y stylesheet Lima & Tinta: BentoGrid declara el colapso 4->2->1, hover scale/transiciones desactivados bajo prefers-reduced-motion, y stylesheet contiene los 4 hex y fuentes', () => {
+  test('44. Responsive + motion y stylesheet Suite: BentoGrid declara el colapso 4->2->1, hover scale/transiciones desactivados bajo prefers-reduced-motion, y stylesheet contiene tokens Suite y fuentes', () => {
     expect(BENTO_STYLESHEET).toContain('@media (max-width: 1024px)');
     expect(BENTO_STYLESHEET).toContain('@media (max-width: 640px)');
     expect(BENTO_STYLESHEET).not.toContain('@media (min-width: 640px)');
     expect(BENTO_STYLESHEET).toContain('@media (prefers-reduced-motion: reduce)');
     expect(BENTO_STYLESHEET).toContain('transform: none !important');
-    // Verificación de los 4 hex Lima & Tinta y tipografía en stylesheet
-    expect(BENTO_STYLESHEET).toContain('#0E100B');
-    expect(BENTO_STYLESHEET).toContain('#D7F35C');
-    expect(BENTO_STYLESHEET).toContain('#ECEEE6');
-    expect(BENTO_STYLESHEET).toContain('#FAFAF6');
+    // Verificación de los hex clave de la paleta Suite y tipografía en stylesheet
+    expect(BENTO_STYLESHEET).toContain('#d0d3d6');
+    expect(BENTO_STYLESHEET).toContain('#3a3c3e');
+    expect(BENTO_STYLESHEET).toContain('#5c6784');
+    expect(BENTO_STYLESHEET).toContain('#1d1f22');
+    expect(BENTO_STYLESHEET).toContain('#a5b9c6');
+    expect(BENTO_STYLESHEET).toContain('#e0a6a6');
+    expect(BENTO_STYLESHEET).toContain('#dcc98a');
+    expect(BENTO_STYLESHEET).toContain('#8fbf95');
     expect(BENTO_STYLESHEET).toContain('Bricolage Grotesque');
     expect(BENTO_STYLESHEET).toContain('DM Sans');
   });
@@ -202,5 +240,13 @@ describe('E.2 Estructura visual Bento Box (Tests 37-44)', () => {
     expect(styleAttr).toContain('cursor: pointer');
     expect(styleAttr).not.toContain('outline');
     expect(styleAttr).not.toContain('var(--bento-focus-ring)');
+  });
+
+  test('48. D9.3: .bento-tabs__tab tiene min-height: var(--bento-touch-target) sincronizado en bento.css y BENTO_STYLESHEET', () => {
+    const cssPath = path.resolve(__dirname, '../src/bento/bento.css');
+    const cssContent = fs.readFileSync(cssPath, 'utf8');
+
+    expect(cssContent).toMatch(/\.bento-tabs__tab\s*\{[^}]*min-height:\s*var\(--bento-touch-target\);/s);
+    expect(BENTO_STYLESHEET).toMatch(/\.bento-tabs__tab\s*\{[^}]*min-height:\s*var\(--bento-touch-target\);/s);
   });
 });

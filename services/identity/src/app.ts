@@ -10,11 +10,13 @@ import { PrismaClient } from './generated/client';
 import { PrismaTenantRepository } from './infrastructure/prisma/PrismaTenantRepository';
 import { PrismaUserRepository } from './infrastructure/prisma/PrismaUserRepository';
 import { PrismaRefreshTokenRepository } from './infrastructure/prisma/PrismaRefreshTokenRepository';
+import { internalAuthMiddleware } from './interfaces/http/internalAuth.middleware';
 
 export interface IdentityAppDeps {
   tenantRepo?: TenantRepository;
   userRepo?: UserRepository;
   refreshTokenRepo?: RefreshTokenRepository;
+  prisma?: PrismaClient;
 }
 
 let prismaClient: PrismaClient | null = null;
@@ -30,7 +32,7 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
   app.use(express.json());
 
   const usePrisma = !deps?.tenantRepo || !deps?.userRepo || !deps?.refreshTokenRepo;
-  const prisma = usePrisma ? getPrisma() : null;
+  const prisma = deps?.prisma || (usePrisma ? getPrisma() : null);
 
   const tenantRepo = deps?.tenantRepo || new PrismaTenantRepository(prisma!);
   const userRepo = deps?.userRepo || new PrismaUserRepository(prisma!);
@@ -63,9 +65,18 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
   const inviteUser = new InviteUserUseCaseImpl(userRepo);
 
   // Health
-  app.get('/health', (_req: Request, res: Response) => {
-    res.status(200).json({ status: 'ok' });
+  app.get('/health', async (_req: Request, res: Response) => {
+    try {
+      if (prisma) {
+        await prisma.$queryRaw`SELECT 1`;
+      }
+      res.status(200).json({ status: 'ok', postgres: 'up' });
+    } catch {
+      res.status(503).json({ status: 'error', postgres: 'down' });
+    }
   });
+
+  app.use(internalAuthMiddleware);
 
   // Auth routes
   app.post('/auth/register', async (req: Request, res: Response, next: NextFunction) => {
@@ -161,6 +172,137 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
       next(err);
     }
   });
+
+  // Tenant Settings routes
+  const getTenantSettings = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = (req.headers['x-tenant-id'] as string) || (req.query.tenantId as string);
+      if (!tenantId) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Cabecera x-tenant-id o parámetro tenantId requerido',
+          },
+        });
+      }
+
+      const tenant = await tenantRepo.findById(tenantId);
+      if (!tenant) {
+        return res.status(404).json({
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Tenant no encontrado',
+          },
+        });
+      }
+
+      const role = (req.headers['x-user-role'] as string || '').toUpperCase();
+      const isStaff = ['ADMIN', 'MANAGER', 'STAFF', 'WAITER'].includes(role);
+
+      if (isStaff) {
+        return res.status(200).json({
+          operatingMode: tenant.operatingMode ?? 'hybrid',
+          estimatedPrepMinutes: tenant.estimatedPrepMinutes ?? 18,
+        });
+      }
+
+      // Guest o no-staff: únicamente campos públicos permitidos. GUEST NUNCA DEBE VER estimatedPrepMinutes
+      return res.status(200).json({
+        operatingMode: tenant.operatingMode ?? 'hybrid',
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  const patchTenantSettings = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = (req.headers['x-tenant-id'] as string) || (req.query.tenantId as string);
+      if (!tenantId) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Cabecera x-tenant-id o parámetro tenantId requerido',
+          },
+        });
+      }
+
+      const role = (req.headers['x-user-role'] as string || '').toUpperCase();
+      if (role !== 'ADMIN' && role !== 'MANAGER') {
+        return res.status(403).json({
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Permiso denegado. Se requiere rol ADMIN o MANAGER',
+          },
+        });
+      }
+
+      const tenant = await tenantRepo.findById(tenantId);
+      if (!tenant) {
+        return res.status(404).json({
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Tenant no encontrado',
+          },
+        });
+      }
+
+      const { operatingMode, estimatedPrepMinutes } = req.body || {};
+
+      if (operatingMode === undefined && estimatedPrepMinutes === undefined) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Se requiere al menos un campo a actualizar: operatingMode o estimatedPrepMinutes',
+          },
+        });
+      }
+
+      if (operatingMode !== undefined) {
+        if (operatingMode !== 'hybrid' && operatingMode !== 'waiter_only') {
+          return res.status(400).json({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: "operatingMode debe ser 'hybrid' o 'waiter_only'",
+            },
+          });
+        }
+      }
+
+      if (estimatedPrepMinutes !== undefined) {
+        if (
+          typeof estimatedPrepMinutes !== 'number' ||
+          !Number.isInteger(estimatedPrepMinutes) ||
+          estimatedPrepMinutes < 5 ||
+          estimatedPrepMinutes > 120
+        ) {
+          return res.status(400).json({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'estimatedPrepMinutes debe ser un entero entre 5 y 120',
+            },
+          });
+        }
+      }
+
+      const updated = await tenantRepo.updateSettings(tenantId, {
+        operatingMode,
+        estimatedPrepMinutes,
+      });
+
+      return res.status(200).json({
+        operatingMode: updated.operatingMode ?? 'hybrid',
+        estimatedPrepMinutes: updated.estimatedPrepMinutes ?? 18,
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  app.get('/tenant/settings', getTenantSettings);
+  app.get('/v1/tenant/settings', getTenantSettings);
+  app.patch('/tenant/settings', patchTenantSettings);
+  app.patch('/v1/tenant/settings', patchTenantSettings);
 
   // Error middleware
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

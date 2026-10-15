@@ -98,7 +98,7 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
       // Debe cargar el bill y mostrar el total
       await waitFor(() => {
         expect(screen.getByText(/Total a Cobrar/i)).toBeInTheDocument();
-        expect(screen.getByText(/\$1500/i)).toBeInTheDocument();
+        expect(screen.getByText(/\$\s*1\.500/i)).toBeInTheDocument();
       });
 
       // Seleccionar método de pago Efectivo
@@ -214,7 +214,7 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
       fireEvent.click(screen.getByText('Mesa 5'));
 
       await waitFor(() => {
-        expect(screen.getByText(/\$200/i)).toBeInTheDocument();
+        expect(screen.getByText(/\$\s*200/i)).toBeInTheDocument();
       });
 
       const cashBtn = screen.getByRole('radio', { name: /efectivo/i });
@@ -339,11 +339,11 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
           status: 201,
           headers: { get: () => 'application/json' },
           json: async () => ({
-            paymentId: 'pay-card-1',
+            paymentId: 'pay-cash-1',
             sessionId: 'sess-gemela-111111',
             tableId: 'tbl-vip-77',
             amount: 3500,
-            method: 'CARD',
+            method: 'CASH',
             status: 'COMPLETED',
           }),
         };
@@ -379,20 +379,415 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
         expect(screen.getByText(/Orden #334444/i)).toBeInTheDocument();
       });
 
-      // (c) Elegir Tarjeta
-      const cardRadio = screen.getByRole('radio', { name: 'Tarjeta' });
-      fireEvent.click(cardRadio);
+      // (c) Elegir Efectivo
+      const cashRadio = screen.getByRole('radio', { name: 'Efectivo' });
+      fireEvent.click(cashRadio);
 
       // Confirmar cobro
       fireEvent.click(screen.getByRole('button', { name: /registrar cobro/i }));
       const dialog = screen.getByRole('dialog');
-      expect(within(dialog).getByText('Tarjeta')).toBeInTheDocument();
+      expect(within(dialog).getByText('Efectivo')).toBeInTheDocument();
 
       fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar cobro' }));
 
       // Tarjeta de éxito muestra nombre real y método en español
       await waitFor(() => {
-        expect(screen.getByText(/Mesa VIP 77 • Total: \$3500 • Medio: Tarjeta/i)).toBeInTheDocument();
+        expect(screen.getByText(/Mesa VIP 77 • Total:\s*\$\s*3\.500\s*• Medio:\s*Efectivo/i)).toBeInTheDocument();
+      });
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('V12 (a): Cobro CASH con respuesta backend anidada { bill, payment } envía monto y registra confirmación', async () => {
+    const originalFetch = global.fetch;
+    let confirmBody: any = null;
+
+    const fetchMock = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+
+      if (urlStr.includes('/v1/sessions?status=active')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-cash-nested',
+              tenantId: 't-1',
+              tableId: 'Mesa 8',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/sess-cash-nested')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            bill: {
+              sessionId: 'sess-cash-nested',
+              tableId: 'Mesa 8',
+              ordersCount: 1,
+              total: 5400,
+              payment: null,
+              orders: [],
+            },
+          }),
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/confirm') && opts?.method === 'POST') {
+        confirmBody = JSON.parse(opts.body);
+        return {
+          ok: true,
+          status: 201,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            bill: {
+              sessionId: 'sess-cash-nested',
+              tableId: 'Mesa 8',
+              total: 5400,
+              ordersCount: 1,
+              orders: [],
+            },
+            payment: {
+              id: 'pay-nested-8',
+              amount: 5400,
+              method: 'CASH',
+              status: 'COMPLETED',
+            },
+          }),
+        };
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <CheckoutPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesa 8')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Mesa 8'));
+
+      await waitFor(() => {
+        expect(screen.getByText(/\$\s*5\.400/i)).toBeInTheDocument();
+      });
+
+      const cashRadio = screen.getByRole('radio', { name: /efectivo/i });
+      fireEvent.click(cashRadio);
+
+      const registrarBtn = screen.getByRole('button', { name: /registrar cobro/i });
+      fireEvent.click(registrarBtn);
+
+      const dialog = screen.getByRole('dialog');
+      const confirmBtn = within(dialog).getByRole('button', { name: 'Confirmar cobro' });
+      fireEvent.click(confirmBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText(/cobro registrado\. mesa liberada\./i)).toBeInTheDocument();
+        expect(screen.getByText(/\$\s*5\.400/i)).toBeInTheDocument();
+      });
+
+      expect(confirmBody).toEqual({
+        sessionId: 'sess-cash-nested',
+        tableId: 'Mesa 8',
+        method: 'CASH',
+        amount: 5400,
+      });
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('V12 (b): Error con respuesta anidada { error: { code, message } } (ej. BILL_EMPTY) visible fuera de bill && con botón de reintento', async () => {
+    let attempt = 0;
+    const originalFetch = global.fetch;
+
+    const fetchMock = jest.fn(async (url: any) => {
+      const urlStr = url.toString();
+
+      if (urlStr.includes('/v1/sessions?status=active')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-empty-1',
+              tenantId: 't-1',
+              tableId: 'Mesa 12',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/sess-empty-1')) {
+        attempt += 1;
+        if (attempt === 1) {
+          return {
+            ok: false,
+            status: 400,
+            headers: { get: () => 'application/json' },
+            json: async () => ({
+              error: {
+                code: 'BILL_EMPTY',
+                message: 'No hay pedidos activos',
+              },
+            }),
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            sessionId: 'sess-empty-1',
+            tableId: 'Mesa 12',
+            ordersCount: 1,
+            total: 100,
+            payment: null,
+            orders: [],
+          }),
+        };
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <CheckoutPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesa 12')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Mesa 12'));
+
+      // Error banner fuera de bill && debe ser visible
+      await waitFor(() => {
+        const errorBanner = screen.getByTestId('bill-error-banner');
+        expect(errorBanner).toBeInTheDocument();
+        expect(within(errorBanner).getByText(/BILL_EMPTY/i)).toBeInTheDocument();
+        expect(within(errorBanner).getByText(/la mesa no tiene pedidos registrados para cobrar/i)).toBeInTheDocument();
+        expect(within(errorBanner).getByRole('button', { name: /reintentar/i })).toBeInTheDocument();
+      });
+
+      // Click en Reintentar
+      const retryBtn = within(screen.getByTestId('bill-error-banner')).getByRole('button', { name: /reintentar/i });
+      fireEvent.click(retryBtn);
+
+      // Segundo intento carga exitosamente la cuenta
+      await waitFor(() => {
+        expect(screen.getByText(/\$\s*100/i)).toBeInTheDocument();
+        expect(screen.queryByTestId('bill-error-banner')).not.toBeInTheDocument();
+      });
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('V12 (c): Política N16: Liberar mesa bloqueada cuando hay consumo pendiente sin pagar', async () => {
+    const originalFetch = global.fetch;
+
+    const fetchMock = jest.fn(async (url: any) => {
+      const urlStr = url.toString();
+
+      if (urlStr.includes('/v1/sessions?status=active')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-pending-1',
+              tenantId: 't-1',
+              tableId: 'Mesa 15',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/sess-pending-1')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            sessionId: 'sess-pending-1',
+            tableId: 'Mesa 15',
+            ordersCount: 2,
+            total: 7800,
+            payment: null,
+            orders: [],
+          }),
+        };
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <CheckoutPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesa 15')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Mesa 15'));
+
+      await waitFor(() => {
+        expect(screen.getByText(/\$\s*7\.800/i)).toBeInTheDocument();
+      });
+
+      // Botón "Liberar mesa"
+      const releaseBtn = screen.getByRole('button', { name: /liberar mesa/i });
+      fireEvent.click(releaseBtn);
+
+      // Modal N16 se abre
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toBeInTheDocument();
+
+      // Debe indicar Acción bloqueada y mostrar el saldo pendiente
+      expect(within(dialog).getByText(/acción bloqueada/i)).toBeInTheDocument();
+      expect(within(dialog).getAllByText(/\$\s*7\.800/i).length).toBeGreaterThanOrEqual(1);
+
+      // Botón de confirmación debe estar estrictamente BLOQUEADO (disabled)
+      const confirmReleaseBtn = within(dialog).getByRole('button', { name: /confirmar liberación/i });
+      expect(confirmReleaseBtn).toBeDisabled();
+
+      // Cerrar modal
+      const cancelBtn = within(dialog).getByRole('button', { name: /cancelar/i });
+      fireEvent.click(cancelBtn);
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('V12 (d): Política N16: Liberar mesa permitida cuando no hay saldo pendiente ($0) y cierra sesión exitosamente', async () => {
+    let closedSessionCalled = false;
+    const originalFetch = global.fetch;
+
+    const fetchMock = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+
+      if (urlStr.includes('/v1/sessions?status=active')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-free-1',
+              tenantId: 't-1',
+              tableId: 'Mesa 20',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/sess-free-1')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            sessionId: 'sess-free-1',
+            tableId: 'Mesa 20',
+            ordersCount: 0,
+            total: 0,
+            payment: null,
+            orders: [],
+          }),
+        };
+      }
+
+      if (urlStr.includes('/v1/sessions/sess-free-1/close') && opts?.method === 'PATCH') {
+        closedSessionCalled = true;
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            sessionId: 'sess-free-1',
+            status: 'closed',
+            closedAt: new Date().toISOString(),
+          }),
+        };
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <CheckoutPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesa 20')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Mesa 20'));
+
+      await waitFor(() => {
+        expect(screen.getByText(/\$\s*0/i)).toBeInTheDocument();
+      });
+
+      // Click en Liberar mesa
+      const releaseBtn = screen.getByRole('button', { name: /liberar mesa/i });
+      fireEvent.click(releaseBtn);
+
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toBeInTheDocument();
+      expect(within(dialog).getByText(/está al día/i)).toBeInTheDocument();
+
+      // Botón debe estar HABILITADO
+      const confirmReleaseBtn = within(dialog).getByRole('button', { name: /confirmar liberación/i });
+      expect(confirmReleaseBtn).not.toBeDisabled();
+
+      fireEvent.click(confirmReleaseBtn);
+
+      await waitFor(() => {
+        expect(closedSessionCalled).toBe(true);
+        expect(screen.getByText(/mesa liberada exitosamente\./i)).toBeInTheDocument();
       });
     } finally {
       global.fetch = originalFetch;

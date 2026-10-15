@@ -7,6 +7,7 @@ import {
   CheckoutCompletedEvent,
   OrderDTO,
   OrderEvent,
+  OrderHistoryEventDTO,
   OrderStatus,
   PaymentDTO,
   PaymentMethod,
@@ -14,13 +15,17 @@ import {
   ServiceCallEvent,
   ServiceCallStatus,
 } from './dtos';
+import { TableSessionDTO } from '../session/dtos';
 
 export interface CartRepository {
   get(tenantId: string, sessionId: string, ttlSeconds: number): Promise<CartDTO>;
   upsertItem(tenantId: string, sessionId: string, item: CartItemDTO, ttlSeconds: number): Promise<CartDTO>;
+  addItem?(tenantId: string, sessionId: string, item: CartItemDTO, ttlSeconds: number): Promise<CartDTO>;
   setQuantity(tenantId: string, sessionId: string, cartItemId: string, quantity: number, ttlSeconds: number): Promise<CartDTO>;
   removeItem(tenantId: string, sessionId: string, cartItemId: string, ttlSeconds: number): Promise<CartDTO>;
   clear(tenantId: string, sessionId: string): Promise<void>;
+  takeSnapshot?(tenantId: string, sessionId: string): Promise<CartDTO>;
+  restoreCart?(tenantId: string, sessionId: string, cart: CartDTO, ttlSeconds: number): Promise<void>;
 }
 
 export interface OrderRepository {
@@ -30,6 +35,8 @@ export interface OrderRepository {
   listBySession(tenantId: string, sessionId: string): Promise<OrderDTO[]>;
   cancel(tenantId: string, id: string, cancelledAt: Date): Promise<OrderDTO>;
   updateStatus(tenantId: string, id: string, status: OrderStatus, updatedAt: Date): Promise<OrderDTO>;
+  updateDelay?(tenantId: string, id: string, delayMinutes: number): Promise<OrderDTO>;
+  getOrderHistory?(tenantId: string, orderId: string): Promise<OrderHistoryEventDTO[]>;
 }
 
 export interface EventPublisher {
@@ -95,6 +102,7 @@ export type AddCartItemUseCase = UseCase<
     quantity: number;
     notes?: string;
     addedBy?: string;
+    userRole?: string;
     display: {
       productName: string;
       unitPrice: number;
@@ -131,7 +139,10 @@ export type ConfirmOrderUseCase = UseCase<
   {
     tenantId: string;
     sessionId: string;
-    tableId: string;
+    tableId?: string;
+    notes?: string;
+    estimatedMinutes?: number;
+    userRole?: string;
   },
   OrderDTO
 >;
@@ -167,6 +178,27 @@ export type GetOrderUseCase = UseCase<
   OrderDTO
 >;
 
+export type GetOrderHistoryUseCase = UseCase<
+  {
+    tenantId: string;
+    orderId: string;
+    requester: {
+      role: string;
+      sessionId?: string;
+    };
+  },
+  OrderHistoryEventDTO[]
+>;
+
+export type UpdateOrderDelayUseCase = UseCase<
+  {
+    tenantId: string;
+    orderId: string;
+    delayMinutes: number;
+  },
+  OrderDTO
+>;
+
 export type CancelOrderUseCase = UseCase<
   {
     tenantId: string;
@@ -188,7 +220,8 @@ export type CreateServiceCallUseCase = UseCase<
   {
     tenantId: string;
     sessionId: string;
-    tableId: string;
+    tableId?: string;
+    type?: string;
     note?: string;
   },
   ServiceCallDTO
@@ -219,6 +252,7 @@ export interface PaymentRepository {
 
 export interface SessionServicePort {
   closeSession(tenantId: string, sessionId: string, requester: { userId: string; role: string }): Promise<void>;
+  getSession(tenantId: string, sessionId: string): Promise<TableSessionDTO | null>;
 }
 
 export type GetBillUseCase = UseCase<{ tenantId: string; sessionId: string }, BillDTO>;

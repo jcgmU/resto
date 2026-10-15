@@ -5,6 +5,7 @@ export function createServiceCallEntity(params: {
   tenantId: string;
   sessionId: string;
   tableId: string;
+  type?: 'WAITER_CALL' | 'BILL_REQUEST' | 'GENERIC' | string;
   note?: string;
   createdAt?: string;
 }): ServiceCallDTO {
@@ -13,6 +14,7 @@ export function createServiceCallEntity(params: {
     tenantId: params.tenantId,
     sessionId: params.sessionId,
     tableId: params.tableId,
+    type: params.type || 'GENERIC',
     note: params.note,
     status: 'pending',
     createdAt: params.createdAt || new Date().toISOString(),

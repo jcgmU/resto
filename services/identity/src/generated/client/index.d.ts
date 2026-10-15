@@ -1126,8 +1126,18 @@ export namespace Prisma {
 
   export type AggregateTenant = {
     _count: TenantCountAggregateOutputType | null
+    _avg: TenantAvgAggregateOutputType | null
+    _sum: TenantSumAggregateOutputType | null
     _min: TenantMinAggregateOutputType | null
     _max: TenantMaxAggregateOutputType | null
+  }
+
+  export type TenantAvgAggregateOutputType = {
+    estimatedPrepMinutes: number | null
+  }
+
+  export type TenantSumAggregateOutputType = {
+    estimatedPrepMinutes: number | null
   }
 
   export type TenantMinAggregateOutputType = {
@@ -1135,6 +1145,8 @@ export namespace Prisma {
     name: string | null
     slug: string | null
     status: $Enums.TenantStatus | null
+    operatingMode: string | null
+    estimatedPrepMinutes: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1144,6 +1156,8 @@ export namespace Prisma {
     name: string | null
     slug: string | null
     status: $Enums.TenantStatus | null
+    operatingMode: string | null
+    estimatedPrepMinutes: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1153,17 +1167,29 @@ export namespace Prisma {
     name: number
     slug: number
     status: number
+    operatingMode: number
+    estimatedPrepMinutes: number
     createdAt: number
     updatedAt: number
     _all: number
   }
 
 
+  export type TenantAvgAggregateInputType = {
+    estimatedPrepMinutes?: true
+  }
+
+  export type TenantSumAggregateInputType = {
+    estimatedPrepMinutes?: true
+  }
+
   export type TenantMinAggregateInputType = {
     id?: true
     name?: true
     slug?: true
     status?: true
+    operatingMode?: true
+    estimatedPrepMinutes?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1173,6 +1199,8 @@ export namespace Prisma {
     name?: true
     slug?: true
     status?: true
+    operatingMode?: true
+    estimatedPrepMinutes?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1182,6 +1210,8 @@ export namespace Prisma {
     name?: true
     slug?: true
     status?: true
+    operatingMode?: true
+    estimatedPrepMinutes?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -1225,6 +1255,18 @@ export namespace Prisma {
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
+     * Select which fields to average
+    **/
+    _avg?: TenantAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: TenantSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
      * Select which fields to find the minimum value
     **/
     _min?: TenantMinAggregateInputType
@@ -1255,6 +1297,8 @@ export namespace Prisma {
     take?: number
     skip?: number
     _count?: TenantCountAggregateInputType | true
+    _avg?: TenantAvgAggregateInputType
+    _sum?: TenantSumAggregateInputType
     _min?: TenantMinAggregateInputType
     _max?: TenantMaxAggregateInputType
   }
@@ -1264,9 +1308,13 @@ export namespace Prisma {
     name: string
     slug: string
     status: $Enums.TenantStatus
+    operatingMode: string
+    estimatedPrepMinutes: number
     createdAt: Date
     updatedAt: Date
     _count: TenantCountAggregateOutputType | null
+    _avg: TenantAvgAggregateOutputType | null
+    _sum: TenantSumAggregateOutputType | null
     _min: TenantMinAggregateOutputType | null
     _max: TenantMaxAggregateOutputType | null
   }
@@ -1290,6 +1338,8 @@ export namespace Prisma {
     name?: boolean
     slug?: boolean
     status?: boolean
+    operatingMode?: boolean
+    estimatedPrepMinutes?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     users?: boolean | Tenant$usersArgs<ExtArgs>
@@ -1301,6 +1351,8 @@ export namespace Prisma {
     name?: boolean
     slug?: boolean
     status?: boolean
+    operatingMode?: boolean
+    estimatedPrepMinutes?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["tenant"]>
@@ -1310,6 +1362,8 @@ export namespace Prisma {
     name?: boolean
     slug?: boolean
     status?: boolean
+    operatingMode?: boolean
+    estimatedPrepMinutes?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -1330,6 +1384,8 @@ export namespace Prisma {
       name: string
       slug: string
       status: $Enums.TenantStatus
+      operatingMode: string
+      estimatedPrepMinutes: number
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["tenant"]>
@@ -1730,6 +1786,8 @@ export namespace Prisma {
     readonly name: FieldRef<"Tenant", 'String'>
     readonly slug: FieldRef<"Tenant", 'String'>
     readonly status: FieldRef<"Tenant", 'TenantStatus'>
+    readonly operatingMode: FieldRef<"Tenant", 'String'>
+    readonly estimatedPrepMinutes: FieldRef<"Tenant", 'Int'>
     readonly createdAt: FieldRef<"Tenant", 'DateTime'>
     readonly updatedAt: FieldRef<"Tenant", 'DateTime'>
   }
@@ -4051,6 +4109,8 @@ export namespace Prisma {
     name: 'name',
     slug: 'slug',
     status: 'status',
+    operatingMode: 'operatingMode',
+    estimatedPrepMinutes: 'estimatedPrepMinutes',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -4143,6 +4203,20 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'Int'
+   */
+  export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
+    
+
+
+  /**
+   * Reference to a field of type 'Int[]'
+   */
+  export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
+    
+
+
+  /**
    * Reference to a field of type 'DateTime'
    */
   export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
@@ -4185,16 +4259,16 @@ export namespace Prisma {
 
 
   /**
-   * Reference to a field of type 'Int'
+   * Reference to a field of type 'Float'
    */
-  export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
+  export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
     
 
 
   /**
-   * Reference to a field of type 'Int[]'
+   * Reference to a field of type 'Float[]'
    */
-  export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
+  export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>
     
   /**
    * Deep Input Types
@@ -4209,6 +4283,8 @@ export namespace Prisma {
     name?: StringFilter<"Tenant"> | string
     slug?: StringFilter<"Tenant"> | string
     status?: EnumTenantStatusFilter<"Tenant"> | $Enums.TenantStatus
+    operatingMode?: StringFilter<"Tenant"> | string
+    estimatedPrepMinutes?: IntFilter<"Tenant"> | number
     createdAt?: DateTimeFilter<"Tenant"> | Date | string
     updatedAt?: DateTimeFilter<"Tenant"> | Date | string
     users?: UserListRelationFilter
@@ -4219,6 +4295,8 @@ export namespace Prisma {
     name?: SortOrder
     slug?: SortOrder
     status?: SortOrder
+    operatingMode?: SortOrder
+    estimatedPrepMinutes?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     users?: UserOrderByRelationAggregateInput
@@ -4232,6 +4310,8 @@ export namespace Prisma {
     NOT?: TenantWhereInput | TenantWhereInput[]
     name?: StringFilter<"Tenant"> | string
     status?: EnumTenantStatusFilter<"Tenant"> | $Enums.TenantStatus
+    operatingMode?: StringFilter<"Tenant"> | string
+    estimatedPrepMinutes?: IntFilter<"Tenant"> | number
     createdAt?: DateTimeFilter<"Tenant"> | Date | string
     updatedAt?: DateTimeFilter<"Tenant"> | Date | string
     users?: UserListRelationFilter
@@ -4242,11 +4322,15 @@ export namespace Prisma {
     name?: SortOrder
     slug?: SortOrder
     status?: SortOrder
+    operatingMode?: SortOrder
+    estimatedPrepMinutes?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: TenantCountOrderByAggregateInput
+    _avg?: TenantAvgOrderByAggregateInput
     _max?: TenantMaxOrderByAggregateInput
     _min?: TenantMinOrderByAggregateInput
+    _sum?: TenantSumOrderByAggregateInput
   }
 
   export type TenantScalarWhereWithAggregatesInput = {
@@ -4257,6 +4341,8 @@ export namespace Prisma {
     name?: StringWithAggregatesFilter<"Tenant"> | string
     slug?: StringWithAggregatesFilter<"Tenant"> | string
     status?: EnumTenantStatusWithAggregatesFilter<"Tenant"> | $Enums.TenantStatus
+    operatingMode?: StringWithAggregatesFilter<"Tenant"> | string
+    estimatedPrepMinutes?: IntWithAggregatesFilter<"Tenant"> | number
     createdAt?: DateTimeWithAggregatesFilter<"Tenant"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Tenant"> | Date | string
   }
@@ -4405,6 +4491,8 @@ export namespace Prisma {
     name: string
     slug: string
     status?: $Enums.TenantStatus
+    operatingMode?: string
+    estimatedPrepMinutes?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     users?: UserCreateNestedManyWithoutTenantInput
@@ -4415,6 +4503,8 @@ export namespace Prisma {
     name: string
     slug: string
     status?: $Enums.TenantStatus
+    operatingMode?: string
+    estimatedPrepMinutes?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
@@ -4425,6 +4515,8 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     slug?: StringFieldUpdateOperationsInput | string
     status?: EnumTenantStatusFieldUpdateOperationsInput | $Enums.TenantStatus
+    operatingMode?: StringFieldUpdateOperationsInput | string
+    estimatedPrepMinutes?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     users?: UserUpdateManyWithoutTenantNestedInput
@@ -4435,6 +4527,8 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     slug?: StringFieldUpdateOperationsInput | string
     status?: EnumTenantStatusFieldUpdateOperationsInput | $Enums.TenantStatus
+    operatingMode?: StringFieldUpdateOperationsInput | string
+    estimatedPrepMinutes?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
@@ -4445,6 +4539,8 @@ export namespace Prisma {
     name: string
     slug: string
     status?: $Enums.TenantStatus
+    operatingMode?: string
+    estimatedPrepMinutes?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -4454,6 +4550,8 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     slug?: StringFieldUpdateOperationsInput | string
     status?: EnumTenantStatusFieldUpdateOperationsInput | $Enums.TenantStatus
+    operatingMode?: StringFieldUpdateOperationsInput | string
+    estimatedPrepMinutes?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4463,6 +4561,8 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     slug?: StringFieldUpdateOperationsInput | string
     status?: EnumTenantStatusFieldUpdateOperationsInput | $Enums.TenantStatus
+    operatingMode?: StringFieldUpdateOperationsInput | string
+    estimatedPrepMinutes?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4638,6 +4738,17 @@ export namespace Prisma {
     not?: NestedEnumTenantStatusFilter<$PrismaModel> | $Enums.TenantStatus
   }
 
+  export type IntFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntFilter<$PrismaModel> | number
+  }
+
   export type DateTimeFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
@@ -4664,8 +4775,14 @@ export namespace Prisma {
     name?: SortOrder
     slug?: SortOrder
     status?: SortOrder
+    operatingMode?: SortOrder
+    estimatedPrepMinutes?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+  }
+
+  export type TenantAvgOrderByAggregateInput = {
+    estimatedPrepMinutes?: SortOrder
   }
 
   export type TenantMaxOrderByAggregateInput = {
@@ -4673,6 +4790,8 @@ export namespace Prisma {
     name?: SortOrder
     slug?: SortOrder
     status?: SortOrder
+    operatingMode?: SortOrder
+    estimatedPrepMinutes?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -4682,8 +4801,14 @@ export namespace Prisma {
     name?: SortOrder
     slug?: SortOrder
     status?: SortOrder
+    operatingMode?: SortOrder
+    estimatedPrepMinutes?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+  }
+
+  export type TenantSumOrderByAggregateInput = {
+    estimatedPrepMinutes?: SortOrder
   }
 
   export type StringWithAggregatesFilter<$PrismaModel = never> = {
@@ -4712,6 +4837,22 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumTenantStatusFilter<$PrismaModel>
     _max?: NestedEnumTenantStatusFilter<$PrismaModel>
+  }
+
+  export type IntWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedIntFilter<$PrismaModel>
+    _min?: NestedIntFilter<$PrismaModel>
+    _max?: NestedIntFilter<$PrismaModel>
   }
 
   export type DateTimeWithAggregatesFilter<$PrismaModel = never> = {
@@ -4902,6 +5043,14 @@ export namespace Prisma {
     set?: $Enums.TenantStatus
   }
 
+  export type IntFieldUpdateOperationsInput = {
+    set?: number
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
   export type DateTimeFieldUpdateOperationsInput = {
     set?: Date | string
   }
@@ -5037,6 +5186,17 @@ export namespace Prisma {
     not?: NestedEnumTenantStatusFilter<$PrismaModel> | $Enums.TenantStatus
   }
 
+  export type NestedIntFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntFilter<$PrismaModel> | number
+  }
+
   export type NestedDateTimeFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
@@ -5065,17 +5225,6 @@ export namespace Prisma {
     _max?: NestedStringFilter<$PrismaModel>
   }
 
-  export type NestedIntFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel>
-    in?: number[] | ListIntFieldRefInput<$PrismaModel>
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntFilter<$PrismaModel> | number
-  }
-
   export type NestedEnumTenantStatusWithAggregatesFilter<$PrismaModel = never> = {
     equals?: $Enums.TenantStatus | EnumTenantStatusFieldRefInput<$PrismaModel>
     in?: $Enums.TenantStatus[] | ListEnumTenantStatusFieldRefInput<$PrismaModel>
@@ -5084,6 +5233,33 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumTenantStatusFilter<$PrismaModel>
     _max?: NestedEnumTenantStatusFilter<$PrismaModel>
+  }
+
+  export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedIntFilter<$PrismaModel>
+    _min?: NestedIntFilter<$PrismaModel>
+    _max?: NestedIntFilter<$PrismaModel>
+  }
+
+  export type NestedFloatFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatFilter<$PrismaModel> | number
   }
 
   export type NestedDateTimeWithAggregatesFilter<$PrismaModel = never> = {
@@ -5240,6 +5416,8 @@ export namespace Prisma {
     name: string
     slug: string
     status?: $Enums.TenantStatus
+    operatingMode?: string
+    estimatedPrepMinutes?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -5249,6 +5427,8 @@ export namespace Prisma {
     name: string
     slug: string
     status?: $Enums.TenantStatus
+    operatingMode?: string
+    estimatedPrepMinutes?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -5300,6 +5480,8 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     slug?: StringFieldUpdateOperationsInput | string
     status?: EnumTenantStatusFieldUpdateOperationsInput | $Enums.TenantStatus
+    operatingMode?: StringFieldUpdateOperationsInput | string
+    estimatedPrepMinutes?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -5309,6 +5491,8 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     slug?: StringFieldUpdateOperationsInput | string
     status?: EnumTenantStatusFieldUpdateOperationsInput | $Enums.TenantStatus
+    operatingMode?: StringFieldUpdateOperationsInput | string
+    estimatedPrepMinutes?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

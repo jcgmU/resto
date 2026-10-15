@@ -59,6 +59,37 @@ export const ORDER_STATUS_TRANSITIONS: Readonly<Record<OrderStatus, readonly Ord
   CANCELLED: [],
 };
 
+export interface OrderHistoryEventDTO {
+  id: string;
+  orderId: string;
+  fromStatus: string;
+  toStatus: string;
+  occurredAt: string;
+}
+
+export function computeOrderOverdue(
+  order: {
+    status: OrderStatus;
+    createdAt: string | Date;
+    estimatedMinutes?: number | null;
+    delayMinutes?: number | null;
+  },
+  now: number = Date.now()
+): boolean {
+  const activeStatuses: OrderStatus[] = ['PLACED', 'IN_KITCHEN', 'READY'];
+  if (!activeStatuses.includes(order.status)) {
+    return false;
+  }
+  if (order.estimatedMinutes == null) {
+    return false;
+  }
+  const createdTime =
+    order.createdAt instanceof Date ? order.createdAt.getTime() : new Date(order.createdAt).getTime();
+  const totalMinutes = order.estimatedMinutes + (order.delayMinutes || 0);
+  const allowedMs = totalMinutes * 60000;
+  return now - createdTime > allowedMs;
+}
+
 export interface OrderDTO {
   id: string;
   tenantId: string;
@@ -67,6 +98,10 @@ export interface OrderDTO {
   status: OrderStatus;
   total: number;
   items: OrderItemDTO[];
+  notes?: string;
+  estimatedMinutes?: number;
+  delayMinutes?: number;
+  overdue?: boolean;
   createdAt: string;
   cancelledAt?: string;
 }
@@ -80,11 +115,14 @@ export interface OrderEvent {
 }
 
 export type ServiceCallStatus = 'pending' | 'resolved';
+export type ServiceCallType = 'WAITER_CALL' | 'BILL_REQUEST' | 'GENERIC' | string;
+
 export interface ServiceCallDTO {
   callId: string;
   tenantId: string;
   sessionId: string;
   tableId: string;
+  type?: ServiceCallType;
   note?: string;
   status: ServiceCallStatus;
   createdAt: string;

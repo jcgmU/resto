@@ -18,11 +18,15 @@ import {
   InMemoryProductRepository,
   InMemoryModifierGroupRepository,
 } from './infrastructure/fakes/InMemoryCatalogAdapters';
+import { internalAuthMiddleware } from './interfaces/http/internalAuth.middleware';
+import { createUploadsRouter } from './interfaces/http/uploads.routes';
 
 export interface CatalogAppDeps {
   categoryRepo?: CategoryRepository;
   productRepo?: ProductRepository;
   modifierGroupRepo?: ModifierGroupRepository;
+  prisma?: PrismaClient;
+  uploadDir?: string;
 }
 
 let defaultPrismaClient: PrismaClient | null = null;
@@ -38,14 +42,26 @@ export async function createCatalogApp(deps?: CatalogAppDeps): Promise<express.A
   const app: express.Application = express();
   app.use(express.json());
 
-  app.get('/health', (_req, res) => {
-    res.status(200).json({ status: 'ok' });
+  const usePrisma = !deps?.categoryRepo || !deps?.productRepo || !deps?.modifierGroupRepo;
+  const prisma = deps?.prisma || (usePrisma ? getPrismaClient() : null);
+
+  app.get('/health', async (_req, res) => {
+    try {
+      if (prisma) {
+        await prisma.$queryRaw`SELECT 1`;
+      }
+      res.status(200).json({ status: 'ok', postgres: 'up' });
+    } catch {
+      res.status(503).json({ status: 'error', postgres: 'down' });
+    }
   });
 
-  const prisma = getPrismaClient();
-  const categoryRepo = deps?.categoryRepo || new PrismaCategoryRepository(prisma);
-  const productRepo = deps?.productRepo || new PrismaProductRepository(prisma);
-  const modifierGroupRepo = deps?.modifierGroupRepo || new PrismaModifierGroupRepository(prisma);
+  app.use(internalAuthMiddleware);
+  app.use('/uploads', createUploadsRouter({ uploadDir: deps?.uploadDir }));
+
+  const categoryRepo = deps?.categoryRepo || new PrismaCategoryRepository(prisma!);
+  const productRepo = deps?.productRepo || new PrismaProductRepository(prisma!);
+  const modifierGroupRepo = deps?.modifierGroupRepo || new PrismaModifierGroupRepository(prisma!);
 
   const resolvers = createResolvers({
     categoryRepo,

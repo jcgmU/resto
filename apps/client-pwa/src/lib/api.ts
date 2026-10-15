@@ -50,6 +50,29 @@ export class PwaApiClient {
   private static _guestToken: string | null = getStoredGuestToken();
   private static _session: any | null = getStoredSession();
 
+  private static authListeners = new Set<(hasToken: boolean) => void>();
+
+  static subscribeAuth(listener: (hasToken: boolean) => void): () => void {
+    this.authListeners.add(listener);
+    return () => {
+      this.authListeners.delete(listener);
+    };
+  }
+
+  static notifyAuthChange(): void {
+    const hasToken = Boolean(this.guestToken);
+    this.authListeners.forEach((listener) => {
+      try {
+        listener(hasToken);
+      } catch {
+        // ignore listener errors
+      }
+    });
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('resto:guest-auth-change', { detail: { hasToken } }));
+    }
+  }
+
   static get guestToken(): string | null {
     if (this._guestToken === null && typeof window !== 'undefined' && window.sessionStorage) {
       this._guestToken = window.sessionStorage.getItem(GUEST_TOKEN_KEY);
@@ -66,6 +89,7 @@ export class PwaApiClient {
         window.sessionStorage.removeItem(GUEST_TOKEN_KEY);
       }
     }
+    this.notifyAuthChange();
   }
 
   static get session(): any | null {
@@ -96,12 +120,14 @@ export class PwaApiClient {
   static clearAuth(): void {
     this.guestToken = null;
     this.session = null;
+    this.notifyAuthChange();
   }
 
   static checkAuthExpired(res: { status: number }): void {
     if (res.status === 401) {
       PwaApiClient.guestToken = null;
       PwaApiClient.session = null;
+      PwaApiClient.notifyAuthChange();
       const err: any = new Error('Tu sesión ha expirado. Por favor, escanea nuevamente el código QR de tu mesa.');
       err.status = 401;
       err.code = 'UNAUTHORIZED';
@@ -295,7 +321,10 @@ export class PwaApiClient {
     return res.json();
   }
 
-  static async confirmOrder(tableId: string): Promise<any> {
+  static async confirmOrder(paramsOrTableId: string | { tableId?: string; notes?: string }): Promise<any> {
+    const body = typeof paramsOrTableId === 'string'
+      ? { tableId: paramsOrTableId }
+      : { tableId: paramsOrTableId?.tableId, ...(paramsOrTableId?.notes ? { notes: paramsOrTableId.notes } : {}) };
     const baseUrl = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:4000';
     const res = await fetch(`${baseUrl}/v1/cart/confirm`, {
       method: 'POST',
@@ -303,12 +332,12 @@ export class PwaApiClient {
         'Content-Type': 'application/json',
         ...(PwaApiClient.guestToken ? { Authorization: `Bearer ${PwaApiClient.guestToken}` } : {}),
       },
-      body: JSON.stringify({ tableId }),
+      body: JSON.stringify(body),
     });
     PwaApiClient.checkAuthExpired(res);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      const err = new Error(data.message || 'Error al confirmar pedido');
+      const err = new Error(data.message || data.error?.message || 'Error al confirmar pedido');
       (err as any).status = res.status;
       throw err;
     }
@@ -339,27 +368,36 @@ export class PwaApiClient {
     return res.json();
   }
 
-  static async requestBill(tableId: string): Promise<any> {
+  static async requestBill(sessionIdOrTableId?: string): Promise<any> {
+    const effectiveSessionId = PwaApiClient.session?.sessionId || sessionIdOrTableId;
+    if (!effectiveSessionId) {
+      throw new Error('No hay una sesión activa para solicitar la cuenta');
+    }
     const baseUrl = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:4000';
-    const res = await fetch(`${baseUrl}/v1/service-calls`, {
+    const res = await fetch(`${baseUrl}/v1/sessions/${encodeURIComponent(effectiveSessionId)}/bill-request`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(PwaApiClient.guestToken ? { Authorization: `Bearer ${PwaApiClient.guestToken}` } : {}),
       },
-      body: JSON.stringify({
-        tableId,
-        note: 'Cuenta por favor',
-      }),
+      body: JSON.stringify({}),
     });
     PwaApiClient.checkAuthExpired(res);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       const err = new Error(data.message || data.error?.message || 'Error al solicitar la cuenta');
       (err as any).status = res.status;
+      (err as any).code = data.code || data.error?.code || 'UNKNOWN';
       throw err;
     }
-    return res.json();
+    const data = await res.json().catch(() => ({}));
+    if (PwaApiClient.session) {
+      PwaApiClient.session = {
+        ...PwaApiClient.session,
+        status: 'billRequested',
+      };
+    }
+    return data;
   }
 
   static async getOrder(orderId: string): Promise<any> {
@@ -378,6 +416,74 @@ export class PwaApiClient {
       throw err;
     }
     return res.json();
+  }
+
+  static async getOrders(): Promise<any[]> {
+    const baseUrl = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:4000';
+    const res = await fetch(`${baseUrl}/v1/orders`, {
+      method: 'GET',
+      headers: {
+        ...(PwaApiClient.guestToken ? { Authorization: `Bearer ${PwaApiClient.guestToken}` } : {}),
+      },
+    });
+    PwaApiClient.checkAuthExpired(res);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const err = new Error(data.message || data.error?.message || 'Error al obtener órdenes');
+      (err as any).status = res.status;
+      (err as any).code = data.code || data.error?.code || 'UNKNOWN';
+      throw err;
+    }
+    const data = await res.json().catch(() => []);
+    return Array.isArray(data) ? data : [];
+  }
+
+  static async getTenantSettings(): Promise<{ operatingMode?: string; [key: string]: any }> {
+    const baseUrl = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:4000';
+    try {
+      const res = await fetch(`${baseUrl}/v1/tenant/settings`, {
+        method: 'GET',
+        headers: {
+          ...(PwaApiClient.guestToken ? { Authorization: `Bearer ${PwaApiClient.guestToken}` } : {}),
+        },
+      });
+      if (!res.ok) {
+        return { operatingMode: 'hybrid' };
+      }
+      return await res.json().catch(() => ({ operatingMode: 'hybrid' }));
+    } catch {
+      return { operatingMode: 'hybrid' };
+    }
+  }
+
+  static async createServiceCall(params?: { type?: string; note?: string; tableId?: string }): Promise<any> {
+    const baseUrl = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:4000';
+    const body: Record<string, any> = {
+      type: params?.type || 'WAITER_CALL',
+      ...(params?.note ? { note: params.note } : {}),
+      ...(params?.tableId ? { tableId: params.tableId } : {}),
+    };
+    const res = await fetch(`${baseUrl}/v1/service-calls`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(PwaApiClient.guestToken ? { Authorization: `Bearer ${PwaApiClient.guestToken}` } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+    PwaApiClient.checkAuthExpired(res);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const err = new Error(data.message || data.error?.message || 'Error al llamar al mesero');
+      (err as any).status = res.status;
+      (err as any).code = data.code || data.error?.code || 'UNKNOWN';
+      throw err;
+    }
+    return res.json().catch(() => ({}));
+  }
+
+  static async callWaiter(reason?: string): Promise<any> {
+    return PwaApiClient.createServiceCall({ type: 'WAITER_CALL', note: reason });
   }
 
   static async request(url: string, options: any = {}): Promise<any> {

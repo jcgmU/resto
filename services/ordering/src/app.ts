@@ -1,5 +1,6 @@
 import express, { Express } from 'express';
 import { requireGatewayIdentity } from './interfaces/http/middleware/requireGatewayIdentity';
+import { internalAuthMiddleware } from './interfaces/http/internalAuth.middleware';
 import { errorHandler } from './interfaces/http/middleware/errorHandler';
 import { createCartRouter } from './interfaces/http/cart.routes';
 import { createOrdersRouter } from './interfaces/http/orders.routes';
@@ -29,7 +30,9 @@ import {
   PaymentRepository,
   ServiceCallRepository,
   SessionServicePort,
+  IdentitySettingsPort,
 } from '@packages/shared-types';
+import { HttpIdentitySettingsAdapter } from './infrastructure/identity/HttpIdentitySettingsAdapter';
 import { CatalogUnreachableError } from './domain/errors';
 
 export interface AppDependencies {
@@ -40,6 +43,9 @@ export interface AppDependencies {
   eventPublisher?: EventPublisher;
   paymentRepo?: PaymentRepository;
   sessionService?: SessionServicePort;
+  identitySettings?: IdentitySettingsPort;
+  prisma?: PrismaClient;
+  redis?: Redis;
 }
 
 let prismaClient: PrismaClient | null = null;
@@ -58,20 +64,63 @@ function getRedis(): Redis {
   return redisClient;
 }
 
+export async function closeDefaultAppConnections(): Promise<void> {
+  if (redisClient) {
+    try {
+      await redisClient.quit();
+    } catch {
+      redisClient.disconnect();
+    }
+    redisClient.disconnect();
+    redisClient = null;
+  }
+  if (prismaClient) {
+    await prismaClient.$disconnect().catch(() => {});
+    prismaClient = null;
+  }
+}
+
 export function createOrderingApp(deps?: AppDependencies): Express {
   const app = express();
   app.use(express.json());
 
-  // Health
-  app.get('/health', (_req, res) => {
-    res.json({ status: 'ok' });
-  });
-
   const usePrisma = !deps?.orderRepo || !deps?.paymentRepo;
-  const prisma = usePrisma ? getPrisma() : null;
+  const prisma = deps?.prisma || (usePrisma ? getPrisma() : null);
 
   const useRedis = !deps?.cartRepo || !deps?.serviceCallRepo || !deps?.eventPublisher;
-  const redis = useRedis ? getRedis() : null;
+  const redis = deps?.redis || (useRedis ? getRedis() : null);
+
+  // Health
+  app.get('/health', async (_req, res) => {
+    let postgresStatus = 'down';
+    let redisStatus = 'down';
+
+    try {
+      if (prisma) {
+        await prisma.$queryRaw`SELECT 1`;
+      }
+      postgresStatus = 'up';
+    } catch {
+      postgresStatus = 'down';
+    }
+
+    try {
+      if (redis) {
+        await redis.ping();
+      }
+      redisStatus = 'up';
+    } catch {
+      redisStatus = 'down';
+    }
+
+    if (postgresStatus === 'up' && redisStatus === 'up') {
+      res.status(200).json({ status: 'ok', postgres: 'up', redis: 'up' });
+    } else {
+      res.status(503).json({ status: 'error', postgres: postgresStatus, redis: redisStatus });
+    }
+  });
+
+  app.use(internalAuthMiddleware);
 
   const cartRepo = deps?.cartRepo || new RedisCartRepository(redis!);
   const orderRepo = deps?.orderRepo || new PrismaOrderRepository(prisma!);
@@ -80,6 +129,8 @@ export function createOrderingApp(deps?: AppDependencies): Express {
   const eventPublisher = deps?.eventPublisher || new RedisEventPublisher(redis!);
   const paymentRepo = deps?.paymentRepo || new PrismaPaymentRepository(prisma!);
   const sessionService = deps?.sessionService || new HttpSessionServiceAdapter(config.sessionInternalUrl);
+  const identitySettings =
+    deps?.identitySettings || new HttpIdentitySettingsAdapter(config.identityInternalUrl);
 
   // Wrapped catalog validation intercepting simulated network failures
   const wrappedCatalogValidation: CatalogValidationPort = {
@@ -88,7 +139,12 @@ export function createOrderingApp(deps?: AppDependencies): Express {
     },
   };
 
-  const cartUseCases = new CartUseCases(cartRepo);
+  const cartUseCases = new CartUseCases(
+    cartRepo,
+    sessionService,
+    wrappedCatalogValidation,
+    identitySettings
+  );
   const orderUseCases = new OrderUseCases(
     orderRepo,
     cartRepo,
@@ -97,9 +153,15 @@ export function createOrderingApp(deps?: AppDependencies): Express {
         return wrappedCatalogValidation.getOrderableProducts(tenantId, productIds);
       },
     },
-    eventPublisher
+    eventPublisher,
+    sessionService,
+    identitySettings
   );
-  const serviceCallUseCases = new ServiceCallUseCases(serviceCallRepo, eventPublisher);
+  const serviceCallUseCases = new ServiceCallUseCases(
+    serviceCallRepo,
+    eventPublisher,
+    sessionService
+  );
   const checkoutUseCases = new CheckoutUseCases(
     orderRepo,
     paymentRepo,
