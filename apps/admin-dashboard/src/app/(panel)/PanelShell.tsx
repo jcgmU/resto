@@ -6,7 +6,18 @@ import type { SidebarRailItem } from '@packages/ui-components';
 import { ApiClient } from '../../lib/api';
 
 const Svg = ({ children }: { children: React.ReactNode }) => (
-  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.75}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width="100%"
+    height="100%"
+    aria-hidden="true"
+    focusable="false"
+  >
     {children}
   </svg>
 );

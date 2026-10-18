@@ -276,6 +276,7 @@ export class InMemoryReservationRepository implements ReservationRepository {
 
 export class InMemoryIdentitySettingsAdapter implements IdentitySettingsPort {
   public modes = new Map<string, OperatingMode>();
+  public prepMinutes = new Map<string, number>();
 
   setOperatingMode(tenantId: string, mode: OperatingMode): void {
     this.modes.set(tenantId, mode);
@@ -283,6 +284,10 @@ export class InMemoryIdentitySettingsAdapter implements IdentitySettingsPort {
 
   async getOperatingMode(tenantId: string): Promise<OperatingMode> {
     return this.modes.get(tenantId) || 'hybrid';
+  }
+
+  async getEstimatedPrepMinutes(tenantId: string): Promise<number> {
+    return this.prepMinutes.get(tenantId) ?? 18;
   }
 }
 

@@ -48,11 +48,23 @@ export const BENTO_TOKENS: Record<string, string> = {
   '--bento-success': 'var(--bento-status-available)',
   '--bento-destructive': 'var(--bento-status-occupied)',
 
-  // Alias deprecados (conservar una oleada)
-  '--bento-lima': '#a5b9c6',
-  '--bento-tinta': '#1d1f22',
-  '--bento-hueso': '#d0d3d6',
-  '--bento-papel': '#ffffff',
+  // Notas, paneles y superficies funcionales Suite
+  '--bento-note-item-bg': '#fbeaea',
+  '--bento-note-item-border': 'rgba(122, 48, 48, 0.2)',
+  '--bento-note-general-bg': '#fdf6e7',
+  '--bento-note-general-border': 'rgba(138, 107, 50, 0.2)',
+  '--bento-panel-bg': 'rgba(224, 227, 229, 0.5)',
+  '--bento-overlay-dark': 'rgba(34, 34, 34, 0.95)',
+  '--bento-subtle': 'rgba(0, 0, 0, 0.03)',
+
+  // Textos y estados extendidos
+  '--bento-danger-text': '#a05a5a',
+  '--bento-status-reserved-soft-text': '#9a8542',
+  '--bento-status-available-strong': '#2d5a31',
+  '--bento-status-occupied-strong': '#8a2b2b',
+  '--bento-text-strong': '#222222',
+  '--bento-text-secondary': '#555555',
+  '--bento-status-disabled': '#9ca3af',
 
   // Foco y tipografía
   '--bento-focus-ring': '2px solid #5c6784',
@@ -110,10 +122,20 @@ export const BENTO_STYLESHEET = `
   --bento-warning: var(--bento-status-reserved);
   --bento-success: var(--bento-status-available);
   --bento-destructive: var(--bento-status-occupied);
-  --bento-lima: #a5b9c6;
-  --bento-tinta: #1d1f22;
-  --bento-hueso: #d0d3d6;
-  --bento-papel: #ffffff;
+  --bento-note-item-bg: #fbeaea;
+  --bento-note-item-border: rgba(122, 48, 48, 0.2);
+  --bento-note-general-bg: #fdf6e7;
+  --bento-note-general-border: rgba(138, 107, 50, 0.2);
+  --bento-panel-bg: rgba(224, 227, 229, 0.5);
+  --bento-overlay-dark: rgba(34, 34, 34, 0.95);
+  --bento-subtle: rgba(0, 0, 0, 0.03);
+  --bento-danger-text: #a05a5a;
+  --bento-status-reserved-soft-text: #9a8542;
+  --bento-status-available-strong: #2d5a31;
+  --bento-status-occupied-strong: #8a2b2b;
+  --bento-text-strong: #222222;
+  --bento-text-secondary: #555555;
+  --bento-status-disabled: #9ca3af;
   --bento-focus-ring: 2px solid #5c6784;
   --bento-font-heading: var(--font-bricolage, 'Bricolage Grotesque', sans-serif);
   --bento-font-body: var(--font-dm-sans, 'DM Sans', sans-serif);

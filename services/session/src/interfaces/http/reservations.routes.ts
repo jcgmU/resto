@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { requireStaffRole } from './middleware/requireStaffRole';
 import {
   CreateReservationUseCaseImpl,
+  UpdateReservationUseCaseImpl,
   ListReservationsUseCaseImpl,
   CancelReservationUseCaseImpl,
   SeatReservationUseCaseImpl,
@@ -17,6 +18,7 @@ export function createReservationsRouter(deps: {
   tableRepo: TableRepository;
   sessionRepo: TableSessionRepository;
   createReservationUseCase?: CreateReservationUseCaseImpl;
+  updateReservationUseCase?: UpdateReservationUseCaseImpl;
   listReservationsUseCase?: ListReservationsUseCaseImpl;
   cancelReservationUseCase?: CancelReservationUseCaseImpl;
   seatReservationUseCase?: SeatReservationUseCaseImpl;
@@ -27,6 +29,7 @@ export function createReservationsRouter(deps: {
     tableRepo,
     sessionRepo,
     createReservationUseCase = new CreateReservationUseCaseImpl(reservationRepo, tableRepo),
+    updateReservationUseCase = new UpdateReservationUseCaseImpl(reservationRepo, tableRepo),
     listReservationsUseCase = new ListReservationsUseCaseImpl(reservationRepo),
     cancelReservationUseCase = new CancelReservationUseCaseImpl(reservationRepo),
     seatReservationUseCase = new SeatReservationUseCaseImpl(reservationRepo, sessionRepo),
@@ -89,6 +92,30 @@ export function createReservationsRouter(deps: {
           reservationId: req.params.id,
         });
         res.status(200).json(cancelled);
+      } catch (err) {
+        next(err);
+      }
+    }
+  );
+
+  // PATCH /reservations/:id -> staff+
+  router.patch(
+    '/:id',
+    requireStaffRole(['staff', 'manager', 'admin']),
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const tenantId = req.headers['x-tenant-id'] as string;
+        const updated = await updateReservationUseCase.execute({
+          tenantId,
+          reservationId: req.params.id,
+          customerName: req.body.customerName,
+          phone: req.body.phone,
+          partySize: req.body.partySize,
+          reservedFor: req.body.reservedFor,
+          notes: req.body.notes,
+          tableId: req.body.tableId,
+        });
+        res.status(200).json(updated);
       } catch (err) {
         next(err);
       }

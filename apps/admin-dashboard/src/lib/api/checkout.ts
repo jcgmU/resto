@@ -40,12 +40,13 @@ export function parseCheckoutError(err: any): FormattedCheckoutError {
 }
 
 export async function fetchActiveSessions(): Promise<TableSessionDTO[]> {
-  const res = await ApiClient.request('/v1/sessions?status=active');
+  const res = await ApiClient.request('/v1/sessions');
   const payload = res?.data ?? res;
-  if (Array.isArray(payload)) return payload;
-  if (payload && Array.isArray(payload.sessions)) return payload.sessions;
-  if (payload && Array.isArray(payload.data)) return payload.data;
-  return [];
+  let list: TableSessionDTO[] = [];
+  if (Array.isArray(payload)) list = payload;
+  else if (payload && Array.isArray(payload.sessions)) list = payload.sessions;
+  else if (payload && Array.isArray(payload.data)) list = payload.data;
+  return list.filter((s) => s && s.status !== 'closed');
 }
 
 export async function fetchTables(): Promise<TableDTO[]> {

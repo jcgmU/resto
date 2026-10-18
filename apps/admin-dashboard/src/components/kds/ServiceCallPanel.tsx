@@ -92,7 +92,7 @@ export function ServiceCallPanel({ calls, tables, onResolve }: ServiceCallPanelP
                   padding: '12px',
                   borderRadius: 'var(--bento-inner-radius)',
                   border: '1px solid var(--bento-border)',
-                  backgroundColor: 'var(--bento-papel)',
+                  backgroundColor: 'var(--bento-card-bg-solid)',
                   boxShadow: 'var(--bento-card-shadow)',
                   gap: '8px',
                 }}
@@ -121,7 +121,7 @@ export function ServiceCallPanel({ calls, tables, onResolve }: ServiceCallPanelP
                       style={{
                         fontSize: '11px',
                         fontWeight: 600,
-                        color: 'var(--bento-primary, #5c6784)',
+                        color: 'var(--bento-primary)',
                         backgroundColor: 'rgba(92, 103, 132, 0.1)',
                         padding: '2px 8px',
                         borderRadius: 'var(--bento-pill-radius, 9999px)',
@@ -169,7 +169,7 @@ export function ServiceCallPanel({ calls, tables, onResolve }: ServiceCallPanelP
                       fontSize: '12px',
                       fontWeight: 600,
                       borderRadius: 'var(--bento-pill-radius)',
-                      backgroundColor: 'var(--bento-hueso)',
+                      backgroundColor: 'var(--bento-page-bg)',
                       color: 'var(--bento-text)',
                       border: '1px solid var(--bento-border)',
                       cursor: 'pointer',

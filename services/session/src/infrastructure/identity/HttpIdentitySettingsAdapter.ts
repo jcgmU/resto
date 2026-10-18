@@ -5,6 +5,7 @@ import { IdentitySettingsPort, OperatingMode } from '@packages/shared-types';
 
 interface CacheEntry {
   operatingMode: OperatingMode;
+  estimatedPrepMinutes: number;
   expiresAt: number;
 }
 
@@ -21,37 +22,59 @@ export class HttpIdentitySettingsAdapter implements IdentitySettingsPort {
   }
 
   setCachedMode(tenantId: string, operatingMode: OperatingMode, ttlMs?: number): void {
+    const existing = this.cache.get(tenantId);
     const expiresAt = Date.now() + (ttlMs ?? this.cacheTtlMs);
-    this.cache.set(tenantId, { operatingMode, expiresAt });
+    this.cache.set(tenantId, {
+      operatingMode,
+      estimatedPrepMinutes: existing?.estimatedPrepMinutes ?? 18,
+      expiresAt,
+    });
   }
 
   async getOperatingMode(tenantId: string): Promise<OperatingMode> {
+    const settings = await this.getSettings(tenantId);
+    return settings.operatingMode;
+  }
+
+  async getEstimatedPrepMinutes(tenantId: string): Promise<number> {
+    const settings = await this.getSettings(tenantId);
+    return settings.estimatedPrepMinutes;
+  }
+
+  private async getSettings(tenantId: string): Promise<{ operatingMode: OperatingMode; estimatedPrepMinutes: number }> {
     const now = Date.now();
     const cached = this.cache.get(tenantId);
     if (cached && cached.expiresAt > now) {
-      return cached.operatingMode;
+      return {
+        operatingMode: cached.operatingMode,
+        estimatedPrepMinutes: cached.estimatedPrepMinutes,
+      };
     }
 
     try {
-      const mode = await this.fetchOperatingModeFromIdentity(tenantId);
+      const settings = await this.fetchSettingsFromIdentity(tenantId);
       this.cache.set(tenantId, {
-        operatingMode: mode,
+        operatingMode: settings.operatingMode,
+        estimatedPrepMinutes: settings.estimatedPrepMinutes,
         expiresAt: now + this.cacheTtlMs,
       });
-      return mode;
-    } catch {
-      // Fallback seguro a hybrid ante fallos transitorios de red o servicios no levantados
-      return 'hybrid';
+      return settings;
+    } catch (err: any) {
+      console.warn(`[HttpIdentitySettingsAdapter] Fallo al consultar settings de Identity para tenant ${tenantId}. Fallback availability-first a 'hybrid' y 18m: ${err?.message || String(err)}`);
+      return {
+        operatingMode: 'hybrid',
+        estimatedPrepMinutes: 18,
+      };
     }
   }
 
-  private fetchOperatingModeFromIdentity(tenantId: string): Promise<OperatingMode> {
-    const fullUrl = `${this.identityBaseUrl.replace(/\/$/, '')}/tenant/settings`;
+  private fetchSettingsFromIdentity(tenantId: string): Promise<{ operatingMode: OperatingMode; estimatedPrepMinutes: number }> {
+    const fullUrl = `${this.identityBaseUrl.replace(/\/$/, '')}/internal/tenant/${encodeURIComponent(tenantId)}/settings`;
     const parsed = new URL(fullUrl);
     const isHttps = parsed.protocol === 'https:';
     const transport = isHttps ? https : http;
 
-    return new Promise<OperatingMode>((resolve, reject) => {
+    return new Promise<{ operatingMode: OperatingMode; estimatedPrepMinutes: number }>((resolve, reject) => {
       const req = transport.request(
         {
           protocol: parsed.protocol,
@@ -62,7 +85,9 @@ export class HttpIdentitySettingsAdapter implements IdentitySettingsPort {
           headers: {
             'content-type': 'application/json',
             'x-tenant-id': tenantId,
-            'x-internal-token': process.env.INTERNAL_SHARED_SECRET || 'resto-internal-shared-secret-dev-2026',
+            ...(process.env.INTERNAL_SHARED_SECRET
+              ? { 'x-internal-token': process.env.INTERNAL_SHARED_SECRET }
+              : {}),
           },
         },
         (res) => {
@@ -75,7 +100,8 @@ export class HttpIdentitySettingsAdapter implements IdentitySettingsPort {
               try {
                 const parsedBody = JSON.parse(data);
                 const mode: OperatingMode = parsedBody.operatingMode === 'waiter_only' ? 'waiter_only' : 'hybrid';
-                resolve(mode);
+                const prepMinutes: number = typeof parsedBody.estimatedPrepMinutes === 'number' ? parsedBody.estimatedPrepMinutes : 18;
+                resolve({ operatingMode: mode, estimatedPrepMinutes: prepMinutes });
               } catch (parseErr) {
                 reject(new Error(`Failed to parse settings JSON: ${(parseErr as Error).message}`));
               }

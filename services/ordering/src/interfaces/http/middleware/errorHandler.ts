@@ -24,7 +24,8 @@ export function errorHandler(
       code === 'INVALID_STATUS_TRANSITION' ||
       code === 'SESSION_NOT_ORDERABLE' ||
       code === 'TABLE_MISMATCH' ||
-      code === 'PRODUCT_UNAVAILABLE'
+      code === 'PRODUCT_UNAVAILABLE' ||
+      code === 'ORDER_ALREADY_TERMINAL'
     )
       statusCode = 409;
     else if (code === 'CATALOG_UNREACHABLE' || code === 'SESSION_CLOSE_FAILED') statusCode = 502;

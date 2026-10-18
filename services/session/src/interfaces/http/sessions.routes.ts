@@ -109,13 +109,15 @@ export function createSessionsRouter(deps: {
 
       const isStaff = ['staff', 'manager', 'admin'].includes(userRole);
 
-      if (!isStaff && guestSessionId && guestSessionId !== req.params.id) {
-        return res.status(403).json({
-          error: {
-            code: 'FORBIDDEN',
-            message: 'No autorizado para acceder a esta sesión',
-          },
-        });
+      if (!isStaff) {
+        if (!guestSessionId || guestSessionId !== req.params.id) {
+          return res.status(403).json({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'No autorizado para solicitar la cuenta de esta sesión',
+            },
+          });
+        }
       }
 
       const result = await requestBillSessionUseCase.execute({

@@ -8,14 +8,15 @@ agent_name = "claude"
 kind = "claude"
 version = "2.1.296"
 
+# 2026-10-17: kimi sin presupuesto (429). Planificador TEMPORAL = claude por decision del usuario (via Hermes); volver a kimi cuando recupere cuota.
 [roles.planner]
 agent_name = "kimi"
 kind = "kimi"
 version = "2.1.1"
-last_session_id = "session_7949faf1-8b87-48f5-80c4-8303e66b5df9"
+last_session_id = "session_1fd392dc-2898-4304-9065-d6547ba24d2a"
 
 [roles.executor]
 agent_name = "agy"
 kind = "agy"
-version = "1.3.5"
+version = "1.4.0"
 last_session_id = ""

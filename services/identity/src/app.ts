@@ -90,6 +90,22 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
 
   app.post('/auth/login', async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const { email, password } = req.body || {};
+      if (
+        !email ||
+        !password ||
+        typeof email !== 'string' ||
+        typeof password !== 'string' ||
+        !email.trim() ||
+        !password.trim()
+      ) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Email y contraseña requeridos',
+          },
+        });
+      }
       const result = await login.execute(req.body);
       res.status(200).json(result);
     } catch (err) {
@@ -176,12 +192,24 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
   // Tenant Settings routes
   const getTenantSettings = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const tenantId = (req.headers['x-tenant-id'] as string) || (req.query.tenantId as string);
+      const headerTenantId = req.headers['x-tenant-id'] as string | undefined;
+      const queryTenantId = req.query.tenantId as string | undefined;
+
+      if (queryTenantId && (!headerTenantId || queryTenantId !== headerTenantId)) {
+        return res.status(400).json({
+          error: {
+            code: 'TENANT_MISMATCH',
+            message: 'El parámetro tenantId no coincide con la cabecera x-tenant-id',
+          },
+        });
+      }
+
+      const tenantId = headerTenantId;
       if (!tenantId) {
         return res.status(400).json({
           error: {
             code: 'VALIDATION_ERROR',
-            message: 'Cabecera x-tenant-id o parámetro tenantId requerido',
+            message: 'Cabecera x-tenant-id requerida',
           },
         });
       }
@@ -217,12 +245,24 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
 
   const patchTenantSettings = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const tenantId = (req.headers['x-tenant-id'] as string) || (req.query.tenantId as string);
+      const headerTenantId = req.headers['x-tenant-id'] as string | undefined;
+      const queryTenantId = req.query.tenantId as string | undefined;
+
+      if (queryTenantId && (!headerTenantId || queryTenantId !== headerTenantId)) {
+        return res.status(400).json({
+          error: {
+            code: 'TENANT_MISMATCH',
+            message: 'El parámetro tenantId no coincide con la cabecera x-tenant-id',
+          },
+        });
+      }
+
+      const tenantId = headerTenantId;
       if (!tenantId) {
         return res.status(400).json({
           error: {
             code: 'VALIDATION_ERROR',
-            message: 'Cabecera x-tenant-id o parámetro tenantId requerido',
+            message: 'Cabecera x-tenant-id requerida',
           },
         });
       }
@@ -303,6 +343,39 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
   app.get('/v1/tenant/settings', getTenantSettings);
   app.patch('/tenant/settings', patchTenantSettings);
   app.patch('/v1/tenant/settings', patchTenantSettings);
+
+  // Internal endpoint: returns complete settings without role filtering
+  app.get('/internal/tenant/:tenantId/settings', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = req.params.tenantId;
+      if (!tenantId) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'tenantId requerido',
+          },
+        });
+      }
+
+      const tenant = await tenantRepo.findById(tenantId);
+      if (!tenant) {
+        return res.status(404).json({
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Tenant no encontrado',
+          },
+        });
+      }
+
+      return res.status(200).json({
+        operatingMode: tenant.operatingMode ?? 'hybrid',
+        estimatedPrepMinutes: tenant.estimatedPrepMinutes ?? 18,
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
 
   // Error middleware
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

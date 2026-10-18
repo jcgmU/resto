@@ -369,6 +369,8 @@ export class InMemorySessionServiceAdapter implements SessionServicePort {
   public closedSessions: { tenantId: string; sessionId: string; requester: { userId: string; role: string } }[] = [];
   public sessions = new Map<string, TableSessionDTO>();
   public shouldFail = false;
+  public shouldFailClose = false;
+  public shouldFailGet = false;
   public autoCreateActive = true;
   public httpDelegate?: SessionServicePort;
 
@@ -384,7 +386,7 @@ export class InMemorySessionServiceAdapter implements SessionServicePort {
   }
 
   async getSession(tenantId: string, sessionId: string): Promise<TableSessionDTO | null> {
-    if (this.shouldFail) {
+    if (this.shouldFailGet) {
       throw new Error('Session service unavailable');
     }
     const key = `${tenantId}:${sessionId}`;
@@ -427,14 +429,24 @@ export class InMemorySessionServiceAdapter implements SessionServicePort {
 
 export class InMemoryIdentitySettingsAdapter implements IdentitySettingsPort {
   public modes = new Map<string, OperatingMode>();
+  public prepMinutes = new Map<string, number>();
 
   setOperatingMode(tenantId: string, mode: OperatingMode): void {
     this.modes.set(tenantId, mode);
   }
 
+  setEstimatedPrepMinutes(tenantId: string, minutes: number): void {
+    this.prepMinutes.set(tenantId, minutes);
+  }
+
   async getOperatingMode(tenantId: string): Promise<OperatingMode> {
     return this.modes.get(tenantId) || 'hybrid';
   }
+
+  async getEstimatedPrepMinutes(tenantId: string): Promise<number> {
+    return this.prepMinutes.get(tenantId) ?? 18;
+  }
 }
+
 
 

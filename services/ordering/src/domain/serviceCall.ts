@@ -1,11 +1,11 @@
-import { ServiceCallDTO } from '@packages/shared-types';
+import { ServiceCallDTO, ServiceCallType } from '@packages/shared-types';
 
 export function createServiceCallEntity(params: {
   callId: string;
   tenantId: string;
   sessionId: string;
   tableId: string;
-  type?: 'WAITER_CALL' | 'BILL_REQUEST' | 'GENERIC' | string;
+  type?: ServiceCallType;
   note?: string;
   createdAt?: string;
 }): ServiceCallDTO {

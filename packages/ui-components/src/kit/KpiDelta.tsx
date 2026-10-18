@@ -59,16 +59,16 @@ export function KpiDelta({ label, value, delta, trend = 'up', context, className
               fontWeight: 600,
               fontVariantNumeric: 'tabular-nums',
               '--kit-chip-bg': isUp
-                ? 'var(--bento-lima)'
+                ? 'var(--bento-status-available)'
                 : isNeutral
-                ? 'var(--bento-hueso)'
+                ? 'var(--bento-page-bg)'
                 : 'var(--bento-destructive)',
               background: 'var(--kit-chip-bg)',
               '--kit-chip-fg': isNeutral
                 ? 'var(--bento-text)'
                 : isUp
-                ? 'var(--bento-tinta)'
-                : 'var(--bento-papel)',
+                ? 'var(--bento-status-available-strong)'
+                : 'var(--bento-card-bg-solid)',
               color: 'var(--kit-chip-fg)',
             } as React.CSSProperties}
           >

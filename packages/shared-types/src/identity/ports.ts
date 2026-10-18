@@ -11,6 +11,7 @@ import {
 
 export interface IdentitySettingsPort {
   getOperatingMode(tenantId: string): Promise<OperatingMode>;
+  getEstimatedPrepMinutes(tenantId: string): Promise<number>;
 }
 
 export interface TenantRepository {

@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { FeatureGuard, BentoCard, Skeleton, getTableDisplayName } from '@packages/ui-components';
 import { BillDTO, PaymentMethod, TableSessionDTO, TableDTO } from '@packages/shared-types';
 import {
@@ -20,7 +21,10 @@ import {
   FormattedCheckoutError,
 } from '../../../lib/api/checkout';
 
-export default function CheckoutPage() {
+function CheckoutContent() {
+  const searchParams = useSearchParams();
+  const tableIdParam = searchParams.get('tableId');
+  const autoSelectedRef = useRef(false);
   const [sessions, setSessions] = useState<TableSessionDTO[]>([]);
   const [tables, setTables] = useState<TableDTO[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
@@ -73,6 +77,15 @@ export default function CheckoutPage() {
     fetchActiveSessions();
     fetchTables();
   }, []);
+
+  useEffect(() => {
+    if (!tableIdParam || autoSelectedRef.current || sessions.length === 0) return;
+    const match = sessions.find((s) => s.tableId === tableIdParam && s.status !== 'closed');
+    if (match) {
+      autoSelectedRef.current = true;
+      handleSelectSession(match);
+    }
+  }, [tableIdParam, sessions]);
 
   const handleSelectSession = async (session: TableSessionDTO) => {
     setSelectedSession(session);
@@ -225,7 +238,7 @@ export default function CheckoutPage() {
 
         <BentoCard
           style={{
-            backgroundColor: 'var(--bento-papel)',
+            backgroundColor: 'var(--bento-card-bg-solid)',
             padding: '24px',
             marginBottom: '24px',
           }}
@@ -288,7 +301,7 @@ export default function CheckoutPage() {
                   padding: '0 16px',
                   borderRadius: 'var(--bento-pill-radius)',
                   background: 'var(--bento-destructive)',
-                  color: 'var(--bento-papel)',
+                  color: 'var(--bento-card-bg-solid)',
                   border: 'none',
                   cursor: 'pointer',
                   fontFamily: 'var(--bento-font-body)',
@@ -363,7 +376,7 @@ export default function CheckoutPage() {
                   padding: '0 16px',
                   borderRadius: 'var(--bento-pill-radius)',
                   background: 'var(--bento-destructive)',
-                  color: 'var(--bento-papel)',
+                  color: 'var(--bento-card-bg-solid)',
                   border: 'none',
                   cursor: 'pointer',
                   fontFamily: 'var(--bento-font-body)',
@@ -380,7 +393,7 @@ export default function CheckoutPage() {
                     minHeight: '44px',
                     padding: '0 16px',
                     borderRadius: 'var(--bento-pill-radius)',
-                    background: 'var(--bento-papel)',
+                    background: 'var(--bento-card-bg-solid)',
                     color: 'var(--bento-text)',
                     border: '1px solid var(--bento-border)',
                     cursor: 'pointer',
@@ -446,5 +459,13 @@ export default function CheckoutPage() {
         )}
       </div>
     </FeatureGuard>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={null}>
+      <CheckoutContent />
+    </Suspense>
   );
 }

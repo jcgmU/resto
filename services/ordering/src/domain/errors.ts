@@ -108,4 +108,11 @@ export class TableMismatchError extends DomainError {
   }
 }
 
+export class OrderAlreadyTerminalError extends DomainError {
+  constructor(message = 'No se puede actualizar una orden en estado terminal') {
+    super('ORDER_ALREADY_TERMINAL', message);
+  }
+}
+
+
 

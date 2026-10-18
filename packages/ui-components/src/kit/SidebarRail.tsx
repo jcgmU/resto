@@ -21,7 +21,7 @@ export interface SidebarRailProps {
 }
 
 const CSS = `
-.bento-rail{display:flex;flex-direction:column;align-items:center;gap:var(--bento-grid-gap);width:4.5rem;box-sizing:border-box;padding:2rem 0;background:var(--bento-rail-bg, var(--bento-tinta));border-radius:var(--bento-pill-radius);color:var(--bento-rail-inactive);font-family:var(--bento-font-body);box-shadow:0 20px 25px -5px rgba(0,0,0,0.25),0 8px 10px -6px rgba(0,0,0,0.25);height:calc(100vh - 3rem);position:sticky;top:1.5rem;flex-shrink:0}
+.bento-rail{display:flex;flex-direction:column;align-items:center;gap:var(--bento-grid-gap);width:4.5rem;box-sizing:border-box;padding:2rem 0;background:var(--bento-rail-bg, var(--bento-accent-strong));border-radius:var(--bento-pill-radius);color:var(--bento-rail-inactive);font-family:var(--bento-font-body);box-shadow:0 20px 25px -5px rgba(0,0,0,0.25),0 8px 10px -6px rgba(0,0,0,0.25);height:calc(100vh - 3rem);position:sticky;top:1.5rem;flex-shrink:0}
 .bento-rail__list{display:flex;flex-direction:column;align-items:center;gap:1rem;margin:0;padding:0;list-style:none}
 .bento-rail__item{position:relative;display:flex;align-items:center;justify-content:center;width:3rem;height:3rem;border:0;border-radius:var(--bento-inner-radius);background:transparent;color:var(--bento-rail-inactive);cursor:pointer;text-decoration:none;transition:background-color .15s ease,color .15s ease}
 .bento-rail__item:hover{background:rgba(165,185,198,0.1);color:var(--bento-rail-active)}

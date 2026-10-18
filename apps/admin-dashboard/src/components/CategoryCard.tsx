@@ -49,7 +49,7 @@ export function CategoryCard({
                   aria-label={`Subir categoría ${category.name}`}
                   style={{
                     padding: '4px 10px',
-                    backgroundColor: 'var(--bento-papel)',
+                    backgroundColor: 'var(--bento-card-bg-solid)',
                     color: canMoveUp ? 'var(--bento-text)' : 'var(--bento-text-muted)',
                     borderRadius: 'var(--bento-pill-radius)',
                     border: '1px solid var(--bento-border)',
@@ -71,7 +71,7 @@ export function CategoryCard({
                   aria-label={`Bajar categoría ${category.name}`}
                   style={{
                     padding: '4px 10px',
-                    backgroundColor: 'var(--bento-papel)',
+                    backgroundColor: 'var(--bento-card-bg-solid)',
                     color: canMoveDown ? 'var(--bento-text)' : 'var(--bento-text-muted)',
                     borderRadius: 'var(--bento-pill-radius)',
                     border: '1px solid var(--bento-border)',
@@ -107,7 +107,7 @@ export function CategoryCard({
                 style={{
                   flex: 1,
                   padding: '6px 12px',
-                  backgroundColor: 'var(--bento-papel)',
+                  backgroundColor: 'var(--bento-card-bg-solid)',
                   color: 'var(--bento-text)',
                   borderRadius: 'var(--bento-pill-radius)',
                   border: '1px solid var(--bento-border)',

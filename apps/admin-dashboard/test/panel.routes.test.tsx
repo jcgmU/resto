@@ -132,7 +132,7 @@ describe('U10: Admin Dashboard, Pagos y Ajustes', () => {
         expect(screen.getByText('3')).toBeInTheDocument();
       });
 
-      // H2: Los KPIs están envueltos en BentoCard con fondo var(--bento-papel)
+      // H2: Los KPIs están envueltos en BentoCard con fondo var(--bento-card-bg-solid)
       const kpis = container.querySelectorAll('[data-component="kpi-delta"]');
       expect(kpis.length).toBeGreaterThanOrEqual(2);
       expect(kpis[0].closest('[data-component="bento-card"]')).not.toBeNull();

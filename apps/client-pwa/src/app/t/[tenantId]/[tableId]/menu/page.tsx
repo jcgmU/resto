@@ -44,7 +44,6 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
   });
   const [requestingBill, setRequestingBill] = useState<boolean>(false);
   const [billError, setBillError] = useState<string | null>(null);
-  const [waiterCalled, setWaiterCalled] = useState<boolean>(false);
   const [callingWaiter, setCallingWaiter] = useState<boolean>(false);
   const [waiterMessage, setWaiterMessage] = useState<string | null>(null);
 
@@ -202,7 +201,6 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
         tableId: params.tableId,
         note: customNote || undefined,
       });
-      setWaiterCalled(true);
       if (hasOrderInProgress) {
         setWaiterMessage('Mesero avisado. Tu pedido sigue en preparación');
       } else {
@@ -351,7 +349,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
           flexDirection: 'column',
           gap: 'var(--bento-spacing-md, 16px)',
           minHeight: '100vh',
-          backgroundColor: 'var(--bento-hueso)',
+          backgroundColor: 'var(--bento-page-bg-pwa)',
           paddingBottom: 'calc(140px + env(safe-area-inset-bottom, 0px))',
         }}
       >
@@ -369,7 +367,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
               lineHeight: 1.25,
               fontFamily: 'var(--bento-font-heading)',
               fontWeight: 700,
-              color: 'var(--bento-tinta)',
+              color: 'var(--bento-text-strong)',
             }}
           >
             Carta
@@ -387,7 +385,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
               boxSizing: 'border-box',
               padding: '24px 16px',
               borderRadius: 'var(--bento-card-radius)',
-              backgroundColor: 'var(--bento-papel)',
+              backgroundColor: 'var(--bento-card-bg-solid)',
               border: '1px solid var(--bento-border)',
               display: 'flex',
               flexDirection: 'column',
@@ -473,7 +471,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
               boxSizing: 'border-box',
               padding: '16px',
               borderRadius: 'var(--bento-card-radius)',
-              backgroundColor: 'var(--bento-papel)',
+              backgroundColor: 'var(--bento-card-bg-solid)',
               border: '1px solid var(--bento-border)',
               display: 'flex',
               flexDirection: 'column',
@@ -501,7 +499,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
               boxSizing: 'border-box',
               padding: '16px',
               borderRadius: 'var(--bento-card-radius)',
-              backgroundColor: 'var(--bento-papel)',
+              backgroundColor: 'var(--bento-card-bg-solid)',
               border: '1px solid var(--bento-border)',
               display: 'flex',
               flexDirection: 'column',
@@ -528,7 +526,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
               style={{
                 margin: 0,
                 fontSize: '0.875rem',
-                color: 'var(--bento-destructive, #c53030)',
+                color: 'var(--bento-destructive)',
                 fontWeight: 600,
               }}
             >
@@ -546,9 +544,9 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
               boxSizing: 'border-box',
               padding: '12px 16px',
               borderRadius: 'var(--bento-card-radius)',
-              backgroundColor: 'var(--bento-papel)',
-              border: '1px solid var(--bento-destructive, #c53030)',
-              color: 'var(--bento-destructive, #c53030)',
+              backgroundColor: 'var(--bento-card-bg-solid)',
+              border: '1px solid var(--bento-destructive)',
+              color: 'var(--bento-destructive)',
               fontWeight: 600,
               textAlign: 'center',
               fontFamily: 'var(--bento-font-body)',
@@ -643,7 +641,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
                     <BentoCard
                       key={n}
                       style={{
-                        backgroundColor: 'var(--bento-papel)',
+                        backgroundColor: 'var(--bento-card-bg-solid)',
                         padding: 'var(--bento-spacing-md, 16px)',
                         display: 'flex',
                         flexDirection: 'column',
@@ -673,8 +671,8 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
                         minHeight: 'var(--bento-touch-target)',
                         padding: '0 16px',
                         borderRadius: 'var(--bento-pill-radius)',
-                        backgroundColor: 'var(--bento-tinta)',
-                        color: 'var(--bento-papel)',
+                        backgroundColor: 'var(--bento-primary)',
+                        color: 'var(--bento-card-bg-solid)',
                         border: 'none',
                         fontWeight: 600,
                         cursor: 'pointer',
@@ -711,7 +709,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
             boxSizing: 'border-box',
             padding: '12px 16px',
             paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
-            backgroundColor: 'var(--bento-hueso)',
+            backgroundColor: 'var(--bento-page-bg-pwa)',
             borderTop: '1px solid var(--bento-border)',
             display: 'flex',
             flexDirection: 'column',
@@ -733,7 +731,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
                 padding: '6px 12px',
                 borderRadius: 'var(--bento-pill-radius)',
                 border: '1px solid var(--bento-border)',
-                background: 'var(--bento-papel)',
+                background: 'var(--bento-card-bg-solid)',
                 color: 'var(--bento-text)',
                 fontSize: '0.85rem',
                 fontFamily: 'var(--bento-font-body)',
@@ -748,7 +746,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
                 minHeight: 'var(--bento-touch-target, 44px)',
                 width: '100%',
                 boxSizing: 'border-box',
-                backgroundColor: 'var(--bento-papel)',
+                backgroundColor: 'var(--bento-card-bg-solid)',
                 color: 'var(--bento-text)',
                 border: '1px solid var(--bento-border)',
                 borderRadius: 'var(--bento-pill-radius)',
@@ -776,8 +774,8 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
                   minHeight: 'var(--bento-touch-target, 44px)',
                   width: '100%',
                   boxSizing: 'border-box',
-                  backgroundColor: 'var(--bento-papel)',
-                  color: 'var(--bento-text-muted, #718096)',
+                  backgroundColor: 'var(--bento-card-bg-solid)',
+                  color: 'var(--bento-text-muted)',
                   border: '1px solid var(--bento-border)',
                   borderRadius: 'var(--bento-pill-radius)',
                   fontWeight: 600,
@@ -800,9 +798,9 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
                   minHeight: 'var(--bento-touch-target, 44px)',
                   width: '100%',
                   boxSizing: 'border-box',
-                  backgroundColor: requestingBill ? 'var(--bento-subtle, #f0f0f0)' : 'var(--bento-tinta)',
-                  color: requestingBill ? 'var(--bento-text-muted, #718096)' : 'var(--bento-papel)',
-                  border: '1px solid var(--bento-tinta)',
+                  backgroundColor: requestingBill ? 'var(--bento-subtle)' : 'var(--bento-primary)',
+                  color: requestingBill ? 'var(--bento-text-muted)' : 'var(--bento-card-bg-solid)',
+                  border: '1px solid var(--bento-primary)',
                   borderRadius: 'var(--bento-pill-radius)',
                   fontWeight: 600,
                   cursor: requestingBill ? 'not-allowed' : 'pointer',
@@ -844,6 +842,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
           onClose={() => setSelectedProduct(null)}
           onAddToCart={handleAddToCart}
           isOrderable={!billRequested && operatingMode !== 'waiter_only'}
+          orderBlockReason={billRequested ? 'bill_requested' : operatingMode === 'waiter_only' ? 'waiter_only' : undefined}
         />
 
         <CartFab
@@ -861,6 +860,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
           onUpdateQuantity={handleUpdateQuantity}
           onRemoveItem={handleRemoveItem}
           isOrderable={!billRequested && operatingMode !== 'waiter_only'}
+          orderBlockReason={billRequested ? 'bill_requested' : operatingMode === 'waiter_only' ? 'waiter_only' : undefined}
         />
       </main>
     </GuestSessionGuard>

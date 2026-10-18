@@ -9,6 +9,14 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./bento": {
+      "types": "./dist/bento/index.d.ts",
+      "default": "./dist/bento/index.js"
+    },
+    "./bento/tokens": {
+      "types": "./dist/bento/tokens.d.ts",
+      "default": "./dist/bento/tokens.js"
+    },
     "./bento.css": "./src/bento/bento.css",
     "./src/bento/bento.css": "./src/bento/bento.css"
   },

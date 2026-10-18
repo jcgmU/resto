@@ -21,7 +21,7 @@ describe('U22 / H4: PWA Hidratación y Layout 375px', () => {
 
     expect(ssrHtml).toContain('data-testid="guest-guard-loading"');
     expect(ssrHtml).not.toContain('<style');
-    expect(ssrHtml).toContain('var(--bento-hueso)');
+    expect(ssrHtml).toContain('var(--bento-page-bg-pwa)');
 
     // 2. Client render antes de montaje
     const { container } = render(

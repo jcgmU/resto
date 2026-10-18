@@ -26,7 +26,9 @@ export class HttpSessionServiceAdapter implements SessionServicePort {
             'x-tenant-id': tenantId,
             'x-session-id': sessionId,
             'x-user-role': 'system',
-            'x-internal-token': process.env.INTERNAL_SHARED_SECRET || 'resto-internal-shared-secret-dev-2026',
+            ...(process.env.INTERNAL_SHARED_SECRET
+              ? { 'x-internal-token': process.env.INTERNAL_SHARED_SECRET }
+              : {}),
           },
         },
         (res) => {
@@ -86,7 +88,9 @@ export class HttpSessionServiceAdapter implements SessionServicePort {
             'x-tenant-id': tenantId,
             'x-user-id': requester.userId,
             'x-user-role': requester.role,
-            'x-internal-token': process.env.INTERNAL_SHARED_SECRET || 'resto-internal-shared-secret-dev-2026',
+            ...(process.env.INTERNAL_SHARED_SECRET
+              ? { 'x-internal-token': process.env.INTERNAL_SHARED_SECRET }
+              : {}),
           },
         },
         (res) => {

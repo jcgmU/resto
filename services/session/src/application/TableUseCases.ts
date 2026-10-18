@@ -9,6 +9,19 @@ import {
   DomainError,
 } from '@packages/shared-types';
 
+export const VALID_TABLE_STATUSES = ['AVAILABLE', 'OCCUPIED', 'RESERVED', 'DISABLED'];
+
+export function parseAndValidateTableStatus(status: any): TableStatus | null {
+  if (typeof status !== 'string') return null;
+  const upper = status.trim().toUpperCase();
+  if (VALID_TABLE_STATUSES.includes(upper)) {
+    return upper as TableStatus;
+  }
+  if (upper === 'ACTIVE') return 'AVAILABLE';
+  if (upper === 'INACTIVE') return 'DISABLED';
+  return null;
+}
+
 export class CreateTableUseCaseImpl {
   constructor(
     private readonly tableRepo: TableRepository,
@@ -26,12 +39,14 @@ export class CreateTableUseCaseImpl {
       throw new DomainError('VALIDATION_ERROR', 'El nombre de la mesa es requerido');
     }
 
-    if (input.zoneId) {
-      if (this.zoneRepo) {
-        const zone = await this.zoneRepo.findById(input.tenantId, input.zoneId);
-        if (!zone) {
-          throw new DomainError('ZONE_NOT_FOUND', `Zona ${input.zoneId} no encontrada`);
-        }
+    if (!input.zoneId || typeof input.zoneId !== 'string' || input.zoneId.trim() === '') {
+      throw new DomainError('VALIDATION_ERROR', 'El zoneId es obligatorio');
+    }
+
+    if (this.zoneRepo) {
+      const zone = await this.zoneRepo.findById(input.tenantId, input.zoneId.trim());
+      if (!zone) {
+        throw new DomainError('VALIDATION_ERROR', `Zona ${input.zoneId} no encontrada`);
       }
     }
 
@@ -41,9 +56,13 @@ export class CreateTableUseCaseImpl {
       }
     }
 
-    const VALID_STATUSES: TableStatus[] = ['AVAILABLE', 'OCCUPIED', 'RESERVED', 'DISABLED', 'active'];
-    if (input.status && !VALID_STATUSES.includes(input.status)) {
-      throw new DomainError('VALIDATION_ERROR', 'Estado de mesa inválido');
+    let normalizedStatus: TableStatus = 'AVAILABLE';
+    if (input.status !== undefined) {
+      const parsed = parseAndValidateTableStatus(input.status);
+      if (!parsed) {
+        throw new DomainError('VALIDATION_ERROR', 'Estado de mesa inválido');
+      }
+      normalizedStatus = parsed;
     }
 
     const tableId = `table-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -53,8 +72,8 @@ export class CreateTableUseCaseImpl {
       tableId,
       tenantId: input.tenantId,
       label: input.label.trim(),
-      status: input.status || ('AVAILABLE' as const),
-      zoneId: input.zoneId,
+      status: normalizedStatus,
+      zoneId: input.zoneId.trim(),
       capacity: input.capacity ?? 4,
       createdAt: new Date().toISOString(),
     };

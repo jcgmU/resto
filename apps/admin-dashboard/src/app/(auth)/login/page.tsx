@@ -46,7 +46,7 @@ export default function LoginPage() {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        backgroundColor: 'var(--bento-hueso)',
+        backgroundColor: 'var(--bento-page-bg)',
         padding: '24px 16px',
         boxSizing: 'border-box',
         fontFamily: 'var(--bento-font-body)',
@@ -61,7 +61,7 @@ export default function LoginPage() {
       <div style={{ width: '100%', maxWidth: '400px' }}>
         <BentoCard
           style={{
-            backgroundColor: 'var(--bento-papel)',
+            backgroundColor: 'var(--bento-card-bg-solid)',
             border: '1px solid var(--bento-border)',
             borderRadius: 'var(--bento-card-radius)',
             boxShadow: 'var(--bento-card-shadow)',
@@ -88,7 +88,7 @@ export default function LoginPage() {
                 fontSize: '1.625rem',
                 fontWeight: 700,
                 fontFamily: 'var(--bento-font-heading)',
-                color: 'var(--bento-tinta)',
+                color: 'var(--bento-text-strong)',
                 letterSpacing: '-0.02em',
               }}
             >
@@ -113,7 +113,7 @@ export default function LoginPage() {
                   padding: '12px 14px',
                   marginBottom: '20px',
                   borderRadius: 'var(--bento-inner-radius)',
-                  backgroundColor: 'var(--bento-papel)',
+                  backgroundColor: 'var(--bento-card-bg-solid)',
                   border: '1px solid var(--bento-destructive)',
                   color: 'var(--bento-destructive)',
                   fontSize: '0.875rem',
@@ -149,7 +149,7 @@ export default function LoginPage() {
                   style={{
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    color: 'var(--bento-tinta)',
+                    color: 'var(--bento-text)',
                     fontFamily: 'var(--bento-font-body)',
                   }}
                 >
@@ -167,8 +167,8 @@ export default function LoginPage() {
                     padding: '10px 14px',
                     borderRadius: 'var(--bento-inner-radius)',
                     border: '1px solid var(--bento-border)',
-                    backgroundColor: 'var(--bento-papel)',
-                    color: 'var(--bento-tinta)',
+                    backgroundColor: 'var(--bento-card-bg-solid)',
+                    color: 'var(--bento-text)',
                     fontSize: '0.95rem',
                     fontFamily: 'var(--bento-font-body)',
                     boxSizing: 'border-box',
@@ -183,7 +183,7 @@ export default function LoginPage() {
                   style={{
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    color: 'var(--bento-tinta)',
+                    color: 'var(--bento-text)',
                     fontFamily: 'var(--bento-font-body)',
                   }}
                 >
@@ -201,8 +201,8 @@ export default function LoginPage() {
                     padding: '10px 14px',
                     borderRadius: 'var(--bento-inner-radius)',
                     border: '1px solid var(--bento-border)',
-                    backgroundColor: 'var(--bento-papel)',
-                    color: 'var(--bento-tinta)',
+                    backgroundColor: 'var(--bento-card-bg-solid)',
+                    color: 'var(--bento-text)',
                     fontSize: '0.95rem',
                     fontFamily: 'var(--bento-font-body)',
                     boxSizing: 'border-box',
@@ -217,7 +217,7 @@ export default function LoginPage() {
                   style={{
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    color: 'var(--bento-tinta)',
+                    color: 'var(--bento-text)',
                     fontFamily: 'var(--bento-font-body)',
                   }}
                 >
@@ -234,8 +234,8 @@ export default function LoginPage() {
                     padding: '10px 14px',
                     borderRadius: 'var(--bento-inner-radius)',
                     border: '1px solid var(--bento-border)',
-                    backgroundColor: 'var(--bento-papel)',
-                    color: 'var(--bento-tinta)',
+                    backgroundColor: 'var(--bento-card-bg-solid)',
+                    color: 'var(--bento-text)',
                     fontSize: '0.95rem',
                     fontFamily: 'var(--bento-font-body)',
                     boxSizing: 'border-box',
@@ -251,9 +251,9 @@ export default function LoginPage() {
                 style={{
                   marginTop: '8px',
                   padding: '12px 20px',
-                  backgroundColor: 'var(--bento-tinta)',
-                  color: 'var(--bento-papel)',
-                  border: '1px solid var(--bento-tinta)',
+                  backgroundColor: 'var(--bento-primary)',
+                  color: 'var(--bento-card-bg-solid)',
+                  border: '1px solid var(--bento-primary)',
                   borderRadius: 'var(--bento-pill-radius)',
                   fontSize: '0.95rem',
                   fontWeight: 600,
@@ -299,7 +299,7 @@ export default function LoginPage() {
                 <a
                   href="/register"
                   style={{
-                    color: 'var(--bento-tinta)',
+                    color: 'var(--bento-primary)',
                     fontWeight: 600,
                     textDecoration: 'underline',
                     textUnderlineOffset: '3px',

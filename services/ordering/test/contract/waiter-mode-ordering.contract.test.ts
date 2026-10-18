@@ -392,5 +392,55 @@ describe('V21 Waiter Mode & Staff Ordering Contract Test (Postgres + Redis Reale
       expect(foundGeneric).not.toBeNull();
       expect(foundGeneric?.type).toBe('GENERIC');
     });
+
+    test('POST /service-calls con BILL_REQUEST crea llamada visible en GET /service-calls?status=pending y type inválido retorna 400', async () => {
+      const guestToken = jwt.sign(
+        { tenantId, sessionId, role: 'guest' },
+        config.jwtSecret
+      );
+      const staffToken = jwt.sign(
+        { tenantId, userId: 'staff-1', role: 'staff' },
+        config.jwtSecret
+      );
+
+      // 1. Type inválido debe fallar con 400 VALIDATION_ERROR
+      const invalidTypeRes = await request(app)
+        .post('/service-calls')
+        .set('authorization', `Bearer ${guestToken}`)
+        .send({
+          tableId,
+          type: 'INVENTED_TYPE',
+          note: 'Tipo no soportado',
+        });
+
+      expect(invalidTypeRes.status).toBe(400);
+      expect(invalidTypeRes.body.error.code).toBe('VALIDATION_ERROR');
+
+      // 2. Type BILL_REQUEST válido crea service-call 201
+      const validRes = await request(app)
+        .post('/service-calls')
+        .set('authorization', `Bearer ${guestToken}`)
+        .send({
+          tableId,
+          type: 'BILL_REQUEST',
+          note: 'Por favor traer la cuenta',
+        });
+
+      expect(validRes.status).toBe(201);
+      expect(validRes.body.type).toBe('BILL_REQUEST');
+      expect(validRes.body.status).toBe('pending');
+      expect(validRes.body.tableId).toBe(tableId);
+
+      // 3. Visible en GET /service-calls?status=pending para staff
+      const listRes = await request(app)
+        .get('/service-calls?status=pending')
+        .set('authorization', `Bearer ${staffToken}`);
+
+      expect(listRes.status).toBe(200);
+      const createdCall = listRes.body.find((c: any) => c.callId === validRes.body.callId);
+      expect(createdCall).toBeDefined();
+      expect(createdCall.type).toBe('BILL_REQUEST');
+      expect(createdCall.status).toBe('pending');
+    });
   });
 });

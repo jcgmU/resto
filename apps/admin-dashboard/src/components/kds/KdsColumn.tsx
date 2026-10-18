@@ -83,7 +83,7 @@ export function KdsColumn({
             fontSize: '12px',
             fontWeight: 600,
             color: 'var(--bento-text-muted)',
-            backgroundColor: 'var(--bento-hueso)',
+            backgroundColor: 'var(--bento-page-bg)',
             padding: '2px 10px',
             borderRadius: 'var(--bento-pill-radius)',
             border: '1px solid var(--bento-border)',

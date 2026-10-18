@@ -85,11 +85,11 @@ describe('E.2 Estructura visual Bento Box (Tests 37-44)', () => {
       '4px 6px 30px rgba(150, 155, 160, 0.2), -4px -4px 20px rgba(255, 255, 255, 0.8)'
     );
 
-    // Alias deprecados (conservar una oleada)
-    expect(BENTO_TOKENS['--bento-lima']).toBe('#a5b9c6');
-    expect(BENTO_TOKENS['--bento-tinta']).toBe('#1d1f22');
-    expect(BENTO_TOKENS['--bento-hueso']).toBe('#d0d3d6');
-    expect(BENTO_TOKENS['--bento-papel']).toBe('#ffffff');
+    // Alias deprecados eliminados en U9
+    expect(BENTO_TOKENS['--bento-lima']).toBeUndefined();
+    expect(BENTO_TOKENS['--bento-tinta']).toBeUndefined();
+    expect(BENTO_TOKENS['--bento-hueso']).toBeUndefined();
+    expect(BENTO_TOKENS['--bento-papel']).toBeUndefined();
   });
 
   test('40. Contraste (test unitario puro, función WCAG sobre los hex de los tokens): texto y textos asociados a estados pastel cumplen ratio AA (>= 4.5:1)', () => {

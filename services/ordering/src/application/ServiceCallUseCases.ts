@@ -11,9 +11,12 @@ import {
   ServiceCallNotFoundError,
   SessionNotOrderableError,
   TableMismatchError,
+  ValidationError,
 } from '../domain/errors';
 import { createServiceCallEntity } from '../domain/serviceCall';
 import { config } from '../config';
+
+const VALID_SERVICE_CALL_TYPES = new Set(['WAITER_CALL', 'BILL_REQUEST', 'GENERIC']);
 
 export class ServiceCallUseCases {
   constructor(
@@ -24,6 +27,10 @@ export class ServiceCallUseCases {
 
   createServiceCall: CreateServiceCallUseCase = {
     execute: async (input) => {
+      if (input.type && !VALID_SERVICE_CALL_TYPES.has(input.type)) {
+        throw new ValidationError(`Tipo de llamada de servicio inválido: '${input.type}'`);
+      }
+
       let effectiveTableId = input.tableId || '';
       if (this.sessionService) {
         const session = await this.sessionService.getSession(input.tenantId, input.sessionId);

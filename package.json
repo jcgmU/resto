@@ -8,6 +8,7 @@
     "test:gateway": "pnpm --filter @services/gateway test",
     "test:ui": "pnpm --filter @packages/ui-components test",
     "lint": "pnpm -r run lint",
+    "check:a4": "node scripts/check-a4-tokens.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",
     "demo": "node scripts/start-demo.mjs",
     "test:e2e": "node scripts/e2e-demo.mjs"

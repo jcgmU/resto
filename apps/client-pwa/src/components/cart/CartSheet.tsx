@@ -14,6 +14,7 @@ export interface CartSheetProps {
   onRemoveItem?: (cartItemId: string) => void;
   isConfirming?: boolean;
   isOrderable?: boolean;
+  orderBlockReason?: 'bill_requested' | 'waiter_only';
 }
 
 const FOCUSABLE_SELECTOR =
@@ -29,6 +30,7 @@ export function CartSheet({
   onRemoveItem,
   isConfirming,
   isOrderable = true,
+  orderBlockReason,
 }: CartSheetProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -212,7 +214,9 @@ export function CartSheet({
               fontFamily: 'var(--bento-font-body)',
             }}
           >
-            La cuenta ya fue solicitada y no se pueden agregar más pedidos.
+            {orderBlockReason === 'waiter_only'
+              ? 'El pedido por celular está desactivado. Un mesero tomará su orden.'
+              : 'La cuenta ya fue solicitada y no se pueden agregar más pedidos.'}
           </div>
         )}
 
@@ -267,9 +271,9 @@ export function CartSheet({
                 boxSizing: 'border-box',
                 padding: '8px 12px',
                 borderRadius: 'var(--bento-card-radius, 8px)',
-                border: '1px solid var(--bento-border, #ccc)',
-                background: 'var(--bento-bg, #fff)',
-                color: 'var(--bento-text, #333)',
+                border: '1px solid var(--bento-border)',
+                background: 'var(--bento-card-bg-solid)',
+                color: 'var(--bento-text)',
                 fontSize: '0.85rem',
                 resize: 'none',
               }}

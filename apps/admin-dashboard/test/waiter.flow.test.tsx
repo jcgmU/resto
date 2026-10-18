@@ -230,7 +230,14 @@ describe('Terminal de Meseros - Flujo Guiado en 3 Pasos (V27 / REF-5 / N02c)', (
 
   beforeEach(() => {
     localStorage.clear();
-    ApiClient.token = 'mock-waiter-staff-jwt-token';
+    const staffClaims = {
+      sub: 'usr-waiter-42',
+      displayName: 'Laura Mesera',
+      email: 'laura@resto.com',
+      role: 'staff',
+    };
+    const b64 = Buffer.from(JSON.stringify(staffClaims)).toString('base64');
+    ApiClient.token = `header.${b64}.signature`;
     mockPush.mockClear();
     mockReplace.mockClear();
   });
@@ -265,7 +272,7 @@ describe('Terminal de Meseros - Flujo Guiado en 3 Pasos (V27 / REF-5 / N02c)', (
     expect(screen.getByTestId('operating-mode-badge')).toHaveTextContent('Modo: Híbrido');
   });
 
-  test('2. Selección de mesa invoca staffOpenSession (POST /v1/sessions/staff-open) y avanza a Paso 2', async () => {
+  test('2. Selección de mesa es sólo estado local: NO llama a staff-open al clickear la mesa y avanza directamente al Paso 2', async () => {
     setupFetch({ operatingMode: 'hybrid' });
     render(<WaiterTerminalPage />);
 
@@ -276,20 +283,46 @@ describe('Terminal de Meseros - Flujo Guiado en 3 Pasos (V27 / REF-5 / N02c)', (
     // Clic en Mesa 1
     fireEvent.click(screen.getByTestId('table-card-tbl-1'));
 
-    // Debe llamar a POST /v1/sessions/staff-open con { tableId: 'tbl-1' }
-    await waitFor(() => {
-      const openReq = capturedRequests.find(
-        (r) => r.url.includes('/v1/sessions/staff-open') && r.method === 'POST'
-      );
-      expect(openReq).toBeDefined();
-      expect(openReq?.body).toEqual({ tableId: 'tbl-1' });
-    });
-
-    // Debe avanzar al Paso 2
+    // Debe avanzar al Paso 2 con la mesa seleccionada en estado local
     await waitFor(() => {
       expect(screen.getByTestId('step-2-menu')).toBeInTheDocument();
       expect(screen.getByText(/Mesa 1 \(Terraza • 4 puestos\)/i)).toBeInTheDocument();
     });
+
+    // NO debe llamar a POST /v1/sessions/staff-open al seleccionar la mesa
+    const openReq = capturedRequests.find(
+      (r) => r.url.includes('/v1/sessions/staff-open') && r.method === 'POST'
+    );
+    expect(openReq).toBeUndefined();
+  });
+
+  test('2b. Seleccionar mesa y abandonar (volver a cambiar mesa) NO deja sesión abierta', async () => {
+    setupFetch({ operatingMode: 'hybrid' });
+    render(<WaiterTerminalPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('table-card-tbl-1')).toBeInTheDocument();
+    });
+
+    // Clic en Mesa 1
+    fireEvent.click(screen.getByTestId('table-card-tbl-1'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('step-2-menu')).toBeInTheDocument();
+    });
+
+    // Abandonar haciendo clic en "Cambiar Mesa"
+    fireEvent.click(screen.getByText('Cambiar Mesa'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('step-1-tables')).toBeInTheDocument();
+    });
+
+    // Sonda: no se creó ninguna sesión por sólo clickear la mesa y abandonar
+    const openReq = capturedRequests.find(
+      (r) => r.url.includes('/v1/sessions/staff-open') && r.method === 'POST'
+    );
+    expect(openReq).toBeUndefined();
   });
 
   test('3. Paso 2: Productos disponibles seleccionables; agotados deshabilitados', async () => {
@@ -346,13 +379,18 @@ describe('Terminal de Meseros - Flujo Guiado en 3 Pasos (V27 / REF-5 / N02c)', (
     expect(btnReview).toHaveTextContent('$ 25.000');
   });
 
-  test('5. Paso 3: Revisión de pedido, edición de nota por ítem, otras solicitudes generales y Enviar a Cocina con x-session-id', async () => {
+  test('5. Paso 3: Revisión de pedido, edición de nota por ítem, otras solicitudes generales y Enviar a Cocina con staff-open al ENVIAR y addedBy real', async () => {
     setupFetch({ operatingMode: 'hybrid' });
     render(<WaiterTerminalPage />);
 
-    // 1. Seleccionar mesa
+    // 1. Seleccionar mesa (sólo estado local)
     await waitFor(() => screen.getByTestId('table-card-tbl-1'));
     fireEvent.click(screen.getByTestId('table-card-tbl-1'));
+
+    // Sonda: antes de enviar, no debe haberse llamado a staff-open
+    expect(
+      capturedRequests.find((r) => r.url.includes('/v1/sessions/staff-open'))
+    ).toBeUndefined();
 
     // 2. Agregar ítem con nota
     await waitFor(() => screen.getByTestId('step-2-menu'));
@@ -391,9 +429,16 @@ describe('Terminal de Meseros - Flujo Guiado en 3 Pasos (V27 / REF-5 / N02c)', (
     expect(btnSend).toBeEnabled();
     fireEvent.click(btnSend);
 
-    // Verificar llamadas de red con x-session-id
+    // Verificar llamadas de red: staff-open se dispara al ENVIAR, cart/items lleva addedBy real
     await waitFor(() => {
-      // 1. addWaiterCartItem envía x-session-id y nota del ítem
+      // 0. staff-open get-or-create llamado en paso 3
+      const openReq = capturedRequests.find(
+        (r) => r.url.includes('/v1/sessions/staff-open') && r.method === 'POST'
+      );
+      expect(openReq).toBeDefined();
+      expect(openReq?.body).toEqual({ tableId: 'tbl-1' });
+
+      // 1. addWaiterCartItem envía x-session-id y addedBy real (no 'Mesero')
       const itemReq = capturedRequests.find(
         (r) => r.url.includes('/v1/cart/items') && r.method === 'POST'
       );
@@ -401,6 +446,8 @@ describe('Terminal de Meseros - Flujo Guiado en 3 Pasos (V27 / REF-5 / N02c)', (
       expect(itemReq?.headers['x-session-id']).toBe('sess-waiter-101');
       expect(itemReq?.body.notes).toBe('Término tres cuartos');
       expect(itemReq?.body.productId).toBe('prod-1');
+      expect(itemReq?.body.addedBy).toBe('Laura Mesera');
+      expect(itemReq?.body.addedBy).not.toBe('Mesero');
 
       // 2. confirmWaiterOrder envía x-session-id y notas generales
       const confirmReq = capturedRequests.find(
@@ -447,5 +494,18 @@ describe('Terminal de Meseros - Flujo Guiado en 3 Pasos (V27 / REF-5 / N02c)', (
     await waitFor(() => {
       expect(screen.getByTestId('step-2-menu')).toBeInTheDocument();
     });
+  });
+
+  test('7. addedBy resuelve correctamente usuario staff autenticado (email, displayName o token)', async () => {
+    const { getAuthenticatedStaffUser } = await import('../src/lib/api/waiter');
+
+    // Caso A: Token con solo email
+    const emailClaims = { sub: 'usr-2', email: 'camarero@resto.com' };
+    ApiClient.token = `header.${Buffer.from(JSON.stringify(emailClaims)).toString('base64')}.sig`;
+    expect(getAuthenticatedStaffUser()).toBe('camarero@resto.com');
+
+    // Caso B: localStorage resto_user con displayName
+    localStorage.setItem('resto_user', JSON.stringify({ displayName: 'Mateo Garzón', email: 'mateo@resto.com' }));
+    expect(getAuthenticatedStaffUser()).toBe('Mateo Garzón');
   });
 });

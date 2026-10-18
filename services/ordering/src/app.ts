@@ -33,7 +33,6 @@ import {
   IdentitySettingsPort,
 } from '@packages/shared-types';
 import { HttpIdentitySettingsAdapter } from './infrastructure/identity/HttpIdentitySettingsAdapter';
-import { CatalogUnreachableError } from './domain/errors';
 
 export interface AppDependencies {
   cartRepo?: CartRepository;
@@ -57,20 +56,21 @@ function getPrisma(): PrismaClient {
 }
 
 let redisClient: Redis | null = null;
-function getRedis(): Redis {
+export function getRedis(): Redis {
   if (!redisClient) {
-    redisClient = new Redis(config.redisUrl || 'redis://localhost:6379/1');
+    redisClient = new Redis(config.redisUrl || 'redis://localhost:6379/1', {
+      maxRetriesPerRequest: 1,
+      retryStrategy(times) {
+        if (times > 5) return null;
+        return Math.min(times * 50, 500);
+      },
+    });
   }
   return redisClient;
 }
 
 export async function closeDefaultAppConnections(): Promise<void> {
   if (redisClient) {
-    try {
-      await redisClient.quit();
-    } catch {
-      redisClient.disconnect();
-    }
     redisClient.disconnect();
     redisClient = null;
   }
@@ -132,27 +132,16 @@ export function createOrderingApp(deps?: AppDependencies): Express {
   const identitySettings =
     deps?.identitySettings || new HttpIdentitySettingsAdapter(config.identityInternalUrl);
 
-  // Wrapped catalog validation intercepting simulated network failures
-  const wrappedCatalogValidation: CatalogValidationPort = {
-    getOrderableProducts: async (tenantId, productIds) => {
-      return catalogValidation.getOrderableProducts(tenantId, productIds);
-    },
-  };
-
   const cartUseCases = new CartUseCases(
     cartRepo,
     sessionService,
-    wrappedCatalogValidation,
+    catalogValidation,
     identitySettings
   );
   const orderUseCases = new OrderUseCases(
     orderRepo,
     cartRepo,
-    {
-      getOrderableProducts: async (tenantId, productIds) => {
-        return wrappedCatalogValidation.getOrderableProducts(tenantId, productIds);
-      },
-    },
+    catalogValidation,
     eventPublisher,
     sessionService,
     identitySettings
@@ -173,14 +162,6 @@ export function createOrderingApp(deps?: AppDependencies): Express {
 
   // Protected routes require Gateway headers
   app.use(requireGatewayIdentity);
-
-  // Simulation hook for test 17 (session-catalog-down)
-  app.use('/cart/confirm', (req, _res, next) => {
-    if (req.auth?.sessionId === 'session-catalog-down') {
-      return next(new CatalogUnreachableError('Fallo al conectar con el microservicio de Catǭlogo'));
-    }
-    next();
-  });
 
   app.use('/cart', createCartRouter(cartUseCases, orderUseCases));
   app.use('/orders', createOrdersRouter(orderUseCases));

@@ -18,8 +18,8 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
     const fetchMock = jest.fn(async (url: any, opts: any) => {
       const urlStr = url.toString();
 
-      // 1. GET /v1/sessions?status=active
-      if (urlStr.includes('/v1/sessions?status=active')) {
+      // 1. GET /v1/sessions
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
         return {
           ok: true,
           status: 200,
@@ -134,7 +134,7 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
     const fetchMock = jest.fn(async (url: any, opts: any) => {
       const urlStr = url.toString();
 
-      if (urlStr.includes('/v1/sessions?status=active')) {
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
         return {
           ok: true,
           status: 200,
@@ -268,8 +268,8 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
         };
       }
 
-      // GET /v1/sessions?status=active: dos sesiones en la misma mesa (sesiones gemelas)
-      if (urlStr.includes('/v1/sessions?status=active')) {
+      // GET /v1/sessions: dos sesiones en la misma mesa (sesiones gemelas)
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
         return {
           ok: true,
           status: 200,
@@ -406,7 +406,7 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
     const fetchMock = jest.fn(async (url: any, opts: any) => {
       const urlStr = url.toString();
 
-      if (urlStr.includes('/v1/sessions?status=active')) {
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
         return {
           ok: true,
           status: 200,
@@ -520,7 +520,7 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
     const fetchMock = jest.fn(async (url: any) => {
       const urlStr = url.toString();
 
-      if (urlStr.includes('/v1/sessions?status=active')) {
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
         return {
           ok: true,
           status: 200,
@@ -614,7 +614,7 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
     const fetchMock = jest.fn(async (url: any) => {
       const urlStr = url.toString();
 
-      if (urlStr.includes('/v1/sessions?status=active')) {
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
         return {
           ok: true,
           status: 200,
@@ -702,7 +702,7 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
     const fetchMock = jest.fn(async (url: any, opts: any) => {
       const urlStr = url.toString();
 
-      if (urlStr.includes('/v1/sessions?status=active')) {
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
         return {
           ok: true,
           status: 200,
@@ -793,4 +793,112 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
       global.fetch = originalFetch;
     }
   });
+
+  test('U21: con respuesta que contiene sesiones active, billRequested y closed, la lista muestra active y billRequested pero no closed, y se puede abrir la cuenta de billRequested', async () => {
+    const originalFetch = global.fetch;
+    const requestedUrls: string[] = [];
+    const fetchMock = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+      requestedUrls.push(urlStr);
+
+      if (urlStr.includes('/v1/sessions')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-active-1',
+              tenantId: 't-1',
+              tableId: 'Mesa 1',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+            {
+              sessionId: 'sess-bill-req-2',
+              tenantId: 't-1',
+              tableId: 'Mesa 2',
+              status: 'billRequested',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+            {
+              sessionId: 'sess-closed-3',
+              tenantId: 't-1',
+              tableId: 'Mesa 3',
+              status: 'closed',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/sess-bill-req-2')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            sessionId: 'sess-bill-req-2',
+            tableId: 'Mesa 2',
+            ordersCount: 1,
+            total: 35000,
+            payment: null,
+            orders: [
+              {
+                id: 'ord-bill-1',
+                status: 'DELIVERED',
+                total: 35000,
+                items: [
+                  {
+                    id: 'it-1',
+                    productName: 'Bandeja Paisa',
+                    unitPrice: 35000,
+                    quantity: 1,
+                  },
+                ],
+              },
+            ],
+          }),
+        };
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <CheckoutPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      // Debe consultar sesiones y mostrar Mesa 1 y Mesa 2, pero NO Mesa 3
+      await waitFor(() => {
+        expect(screen.getByText('Mesa 1')).toBeInTheDocument();
+        expect(screen.getByText('Mesa 2')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Mesa 3')).not.toBeInTheDocument();
+
+      // La petición debió hacerse a /v1/sessions sin ?status=active
+      const sessionsCall = requestedUrls.find((u) => u.includes('/v1/sessions'));
+      expect(sessionsCall).toBeDefined();
+      expect(sessionsCall).not.toContain('status=active');
+
+      // Se puede abrir la cuenta de la mesa billRequested (Mesa 2)
+      fireEvent.click(screen.getByText('Mesa 2'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Cuenta — Mesa 2')).toBeInTheDocument();
+        expect(screen.getByText('Bandeja Paisa')).toBeInTheDocument();
+      });
+      expect(screen.getAllByText(/35\.000/).length).toBeGreaterThan(0);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
 });
+

@@ -347,7 +347,7 @@ export default function KdsPage() {
           <div>{connectionChip}</div>
         </div>
 
-        {ordersError ? (
+        {ordersError && orders.length === 0 ? (
           <ErrorState
             title="Error al conectar con el servicio de cocina"
             message={ordersError}
@@ -355,15 +355,69 @@ export default function KdsPage() {
             retryLabel="Reintentar"
           />
         ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              gap: '24px',
-              alignItems: 'flex-start',
-              flexWrap: 'wrap',
-            }}
-          >
+          <>
+            {ordersError && (
+              <div
+                role="alert"
+                style={{
+                  padding: '10px 14px',
+                  marginBottom: '16px',
+                  borderRadius: 'var(--bento-card-radius)',
+                  border: '1px solid var(--bento-destructive)',
+                  backgroundColor: 'var(--bento-card-bg-solid)',
+                  color: 'var(--bento-destructive)',
+                  fontSize: '13px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <svg
+                    aria-hidden="true"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  <span>{ordersError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={fetchData}
+                  style={{
+                    background: 'none',
+                    border: '1px solid var(--bento-destructive)',
+                    color: 'var(--bento-destructive)',
+                    padding: '4px 10px',
+                    borderRadius: 'var(--bento-card-radius)',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                  }}
+                >
+                  Reintentar
+                </button>
+              </div>
+            )}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                gap: '24px',
+                alignItems: 'flex-start',
+                flexWrap: 'wrap',
+              }}
+            >
             <div style={{ flex: '1 1 680px', minWidth: '300px' }}>
               {isLoading && orders.length === 0 ? (
                 <div style={{ marginBottom: '16px' }}>
@@ -389,7 +443,7 @@ export default function KdsPage() {
                     marginBottom: '12px',
                     borderRadius: 'var(--bento-card-radius)',
                     border: '1px solid var(--bento-destructive)',
-                    backgroundColor: 'var(--bento-papel)',
+                    backgroundColor: 'var(--bento-card-bg-solid)',
                     color: 'var(--bento-destructive)',
                     fontSize: '13px',
                     display: 'flex',
@@ -418,6 +472,7 @@ export default function KdsPage() {
               <ServiceCallPanel calls={calls} tables={tables} onResolve={handleResolveCall} />
             </div>
           </div>
+        </>
         )}
 
         {toastMessage && (

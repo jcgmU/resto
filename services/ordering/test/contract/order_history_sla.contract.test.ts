@@ -14,6 +14,7 @@ import { PrismaPaymentRepository } from '../../src/infrastructure/persistence/Pr
 import {
   InMemoryCatalogValidationAdapter,
   InMemorySessionServiceAdapter,
+  InMemoryIdentitySettingsAdapter,
 } from '../../src/infrastructure/fakes/InMemoryOrderingAdapters';
 import { RedisServiceCallRepository } from '../../src/infrastructure/persistence/RedisServiceCallRepository';
 import { RedisEventPublisher } from '../../src/infrastructure/events/RedisEventPublisher';
@@ -65,6 +66,9 @@ describe('V17 - Ordering Notas, SLA, Demora e Historial (Contract Tests PostgreS
       expiresAt: new Date(Date.now() + 3600000).toISOString(),
     });
 
+    const identitySettings = new InMemoryIdentitySettingsAdapter();
+    identitySettings.setEstimatedPrepMinutes(tenantId, 20);
+
     app = createOrderingApp({
       cartRepo,
       orderRepo,
@@ -73,6 +77,7 @@ describe('V17 - Ordering Notas, SLA, Demora e Historial (Contract Tests PostgreS
       serviceCallRepo,
       eventPublisher,
       sessionService,
+      identitySettings,
     });
   });
 
@@ -306,7 +311,7 @@ describe('V17 - Ordering Notas, SLA, Demora e Historial (Contract Tests PostgreS
   });
 
   describe('3. Asignación de demora (PATCH /orders/:id/delay)', () => {
-    it('permite a staff actualizar delayMinutes con entero >= 0', async () => {
+    it('permite a staff actualizar delayMinutes con entero entre 1 y 120', async () => {
       await request(app)
         .post('/cart/items')
         .set(guestHeaders)
@@ -391,8 +396,143 @@ describe('V17 - Ordering Notas, SLA, Demora e Historial (Contract Tests PostgreS
         .send({ delayMinutes: 'diez' });
       expect(resStr.status).toBe(400);
       expect(resStr.body.error.code).toBe('VALIDATION_ERROR');
+
+      // delayMinutes > 120 tope
+      const resMax = await request(app)
+        .patch(`/orders/${orderId}/delay`)
+        .set(staffHeaders)
+        .send({ delayMinutes: 121 });
+      expect(resMax.status).toBe(400);
+      expect(resMax.body.error.code).toBe('VALIDATION_ERROR');
+
+      // delayMinutes < 1 (0 es menor a 1)
+      const resZero = await request(app)
+        .patch(`/orders/${orderId}/delay`)
+        .set(staffHeaders)
+        .send({ delayMinutes: 0 });
+      expect(resZero.status).toBe(400);
+      expect(resZero.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('rechaza delay en ordenes en estado terminal (DELIVERED, CANCELLED) con 409 ORDER_ALREADY_TERMINAL', async () => {
+      // 1. Orden DELIVERED
+      await request(app)
+        .post('/cart/items')
+        .set(guestHeaders)
+        .send({ productId: 'prod-sla-1', quantity: 1 });
+      const conf1 = await request(app)
+        .post('/cart/confirm')
+        .set(guestHeaders)
+        .send({ tableId: 'mesa-sla-1' });
+      const ord1Id = conf1.body.id;
+
+      await request(app).patch(`/orders/${ord1Id}/status`).set(staffHeaders).send({ status: 'IN_KITCHEN' });
+      await request(app).patch(`/orders/${ord1Id}/status`).set(staffHeaders).send({ status: 'READY' });
+      await request(app).patch(`/orders/${ord1Id}/status`).set(staffHeaders).send({ status: 'DELIVERED' });
+
+      const resDelivered = await request(app)
+        .patch(`/orders/${ord1Id}/delay`)
+        .set(staffHeaders)
+        .send({ delayMinutes: 15 });
+      expect(resDelivered.status).toBe(409);
+      expect(resDelivered.body.error.code).toBe('ORDER_ALREADY_TERMINAL');
+
+      // 2. Orden CANCELLED
+      await request(app)
+        .post('/cart/items')
+        .set(guestHeaders)
+        .send({ productId: 'prod-sla-1', quantity: 1 });
+      const conf2 = await request(app)
+        .post('/cart/confirm')
+        .set(guestHeaders)
+        .send({ tableId: 'mesa-sla-1' });
+      const ord2Id = conf2.body.id;
+
+      const adminHeaders = {
+        'x-tenant-id': tenantId,
+        'x-user-id': 'u-admin-1',
+        'x-user-role': 'admin',
+      };
+      await request(app).patch(`/orders/${ord2Id}/cancel`).set(adminHeaders);
+
+      const resCancelled = await request(app)
+        .patch(`/orders/${ord2Id}/delay`)
+        .set(staffHeaders)
+        .send({ delayMinutes: 15 });
+      expect(resCancelled.status).toBe(409);
+      expect(resCancelled.body.error.code).toBe('ORDER_ALREADY_TERMINAL');
     });
   });
+
+  describe('5. U3: estimatedMinutes desde tenant + ignorar guest + clamp', () => {
+    it('obtiene estimatedMinutes del tenant para guest e ignora el estimatedMinutes enviado en el body', async () => {
+      await request(app)
+        .post('/cart/items')
+        .set(guestHeaders)
+        .send({ productId: 'prod-sla-1', quantity: 1 });
+
+      // Guest envía estimatedMinutes: 99, pero el tenant tiene configurado 20
+      const res = await request(app)
+        .post('/cart/confirm')
+        .set(guestHeaders)
+        .send({ tableId: 'mesa-sla-1', estimatedMinutes: 99 });
+
+      expect(res.status).toBe(201);
+      expect(res.body.estimatedMinutes).toBe(20);
+    });
+
+    it('permite a staff hacer override de estimatedMinutes con clamp entre 5 y 120', async () => {
+      // 1. Staff envía override válido dentro del clamp
+      await request(app)
+        .post('/cart/items')
+        .set(guestHeaders)
+        .send({ productId: 'prod-sla-1', quantity: 1 });
+
+      const staffConfirmHeaders = {
+        'x-tenant-id': tenantId,
+        'x-session-id': sessionId,
+        'x-user-id': 'u-staff-1',
+        'x-user-role': 'staff',
+      };
+
+      const resStaff = await request(app)
+        .post('/cart/confirm')
+        .set(staffConfirmHeaders)
+        .send({ tableId: 'mesa-sla-1', estimatedMinutes: 35 });
+
+      expect(resStaff.status).toBe(201);
+      expect(resStaff.body.estimatedMinutes).toBe(35);
+
+      // 2. Staff envía valor menor a 5 -> clamp a 5
+      await request(app)
+        .post('/cart/items')
+        .set(guestHeaders)
+        .send({ productId: 'prod-sla-1', quantity: 1 });
+
+      const resLow = await request(app)
+        .post('/cart/confirm')
+        .set(staffConfirmHeaders)
+        .send({ tableId: 'mesa-sla-1', estimatedMinutes: 2 });
+
+      expect(resLow.status).toBe(201);
+      expect(resLow.body.estimatedMinutes).toBe(5);
+
+      // 3. Staff envía valor mayor a 120 -> clamp a 120
+      await request(app)
+        .post('/cart/items')
+        .set(guestHeaders)
+        .send({ productId: 'prod-sla-1', quantity: 1 });
+
+      const resHigh = await request(app)
+        .post('/cart/confirm')
+        .set(staffConfirmHeaders)
+        .send({ tableId: 'mesa-sla-1', estimatedMinutes: 150 });
+
+      expect(resHigh.status).toBe(201);
+      expect(resHigh.body.estimatedMinutes).toBe(120);
+    });
+  });
+
 
   describe('4. Flag computado overdue', () => {
     it('calcula overdue basado en SLA base + delayMinutes y estados activos', async () => {

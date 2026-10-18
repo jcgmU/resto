@@ -16,6 +16,7 @@ import {
   addWaiterCartItem,
   confirmWaiterOrder,
   fetchTenantSettings,
+  getAuthenticatedStaffUser,
   WaiterCategory,
   WaiterProduct,
 } from '../../../lib/api/waiter';
@@ -76,7 +77,6 @@ export default function WaiterTerminalPage() {
   // Estado del flujo de pedido
   const [selectedTable, setSelectedTable] = useState<EnrichedTable | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [selectingTableId, setSelectingTableId] = useState<string | null>(null);
 
   // Menú y filtros
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
@@ -183,33 +183,17 @@ export default function WaiterTerminalPage() {
     loadInitialData();
   }, [loadInitialData]);
 
-  // Paso 1: Selección de Mesa y Apertura/Recuperación de Sesión Staff
-  const handleSelectTable = async (table: EnrichedTable) => {
+  // Paso 1: Selección de Mesa (sólo estado local, staff-open se dispara al enviar a cocina en Paso 3)
+  const handleSelectTable = (table: EnrichedTable) => {
     if (table.effectiveStatus === 'DESHABILITADA') {
       setError(`La mesa ${table.label} se encuentra deshabilitada`);
       return;
     }
 
-    setSelectingTableId(table.tableId);
     setError(null);
-    try {
-      const res = await staffOpenSession(table.tableId);
-      const sessionObj = (res as any)?.session || res;
-      const sessionId =
-        sessionObj?.sessionId || (sessionObj as any)?.id || (res as any)?.sessionId || (res as any)?.id;
-
-      if (!sessionId) {
-        throw new Error('No se pudo obtener el identificador de sesión');
-      }
-
-      setSelectedTable(table);
-      setActiveSessionId(sessionId);
-      setCurrentStep(2);
-    } catch (err: any) {
-      setError(err?.message || `Error al abrir sesión en la mesa ${table.label}`);
-    } finally {
-      setSelectingTableId(null);
-    }
+    setSelectedTable(table);
+    setActiveSessionId(null);
+    setCurrentStep(2);
   };
 
   // Paso 2: Agregar producto a pedido temporal
@@ -284,8 +268,8 @@ export default function WaiterTerminalPage() {
 
   // Paso 3: Enviar a Cocina
   const handleConfirmOrder = async () => {
-    if (!selectedTable || !activeSessionId) {
-      setError('Debes seleccionar una mesa con sesión activa');
+    if (!selectedTable) {
+      setError('Debes seleccionar una mesa');
       return;
     }
 
@@ -303,19 +287,37 @@ export default function WaiterTerminalPage() {
     setError(null);
 
     try {
-      // 1. Agregar cada ítem del carrito temporal al carrito del backend con su x-session-id
+      // (a) staff-open se dispara en "Enviar a Cocina" (paso 3), get-or-create reusando sesión si ya existe
+      let sessionId = activeSessionId;
+      if (!sessionId) {
+        const res = await staffOpenSession(selectedTable.tableId);
+        const sessionObj = (res as any)?.session || res;
+        sessionId =
+          sessionObj?.sessionId || (sessionObj as any)?.id || (res as any)?.sessionId || (res as any)?.id;
+
+        if (!sessionId) {
+          throw new Error('No se pudo obtener el identificador de sesión para la mesa');
+        }
+        setActiveSessionId(sessionId);
+      }
+
+      // (b) addedBy = usuario staff real (nombre/email/displayName del usuario autenticado obtenido de la sesión/token, no 'Mesero' hardcodeado)
+      const realStaffUser = getAuthenticatedStaffUser();
+
+      // 1. Agregar cada ítem del carrito temporal al carrito del backend con su x-session-id y addedBy real
       for (const item of cart) {
-        await addWaiterCartItem(activeSessionId, {
+        await addWaiterCartItem(sessionId, {
           productId: item.productId,
           quantity: item.quantity,
           notes: item.notes,
           productName: item.name,
           unitPrice: item.price,
+          addedBy: realStaffUser,
         });
       }
 
       // 2. Confirmar orden con x-session-id y notas generales
-      await confirmWaiterOrder(activeSessionId, {
+      await confirmWaiterOrder(sessionId, {
         tableId: selectedTable.tableId,
         notes: generalNotes,
       });
@@ -503,7 +505,7 @@ export default function WaiterTerminalPage() {
                 padding: '0.75rem 1.75rem',
                 borderRadius: 'var(--bento-inner-radius)',
                 backgroundColor: 'var(--bento-primary)',
-                color: '#ffffff',
+                color: 'var(--bento-card-bg-solid)',
                 border: 'none',
                 fontWeight: 600,
                 fontSize: '0.875rem',
@@ -583,7 +585,7 @@ export default function WaiterTerminalPage() {
                   fontSize: '0.75rem',
                   backgroundColor:
                     currentStep === 1 ? 'var(--bento-primary)' : 'rgba(0, 0, 0, 0.1)',
-                  color: currentStep === 1 ? '#fff' : 'inherit',
+                  color: currentStep === 1 ? 'var(--bento-card-bg-solid)' : 'inherit',
                 }}
               >
                 1
@@ -633,7 +635,7 @@ export default function WaiterTerminalPage() {
                   fontSize: '0.75rem',
                   backgroundColor:
                     currentStep === 2 ? 'var(--bento-primary)' : 'rgba(0, 0, 0, 0.1)',
-                  color: currentStep === 2 ? '#fff' : 'inherit',
+                  color: currentStep === 2 ? 'var(--bento-card-bg-solid)' : 'inherit',
                 }}
               >
                 2
@@ -683,7 +685,7 @@ export default function WaiterTerminalPage() {
                   fontSize: '0.75rem',
                   backgroundColor:
                     currentStep === 3 ? 'var(--bento-primary)' : 'rgba(0, 0, 0, 0.1)',
-                  color: currentStep === 3 ? '#fff' : 'inherit',
+                  color: currentStep === 3 ? 'var(--bento-card-bg-solid)' : 'inherit',
                 }}
               >
                 3
@@ -747,7 +749,6 @@ export default function WaiterTerminalPage() {
                 >
                   {tables.map((t) => {
                     const isSelected = selectedTable?.tableId === t.tableId;
-                    const isOpening = selectingTableId === t.tableId;
 
                     return (
                       <button
@@ -755,7 +756,7 @@ export default function WaiterTerminalPage() {
                         type="button"
                         data-testid={`table-card-${t.tableId}`}
                         onClick={() => handleSelectTable(t)}
-                        disabled={t.effectiveStatus === 'DESHABILITADA' || isOpening}
+                        disabled={t.effectiveStatus === 'DESHABILITADA'}
                         style={{
                           minHeight: '110px',
                           padding: '1.25rem',
@@ -840,7 +841,7 @@ export default function WaiterTerminalPage() {
                               color: 'var(--bento-primary)',
                             }}
                           >
-                            {isOpening ? 'Abriendo sesión...' : 'Seleccionar Mesa →'}
+                            Seleccionar Mesa →
                           </span>
                         </div>
                       </button>
@@ -919,7 +920,7 @@ export default function WaiterTerminalPage() {
                       borderRadius: 'var(--bento-inner-radius)',
                       backgroundColor:
                         cart.length > 0 ? 'var(--bento-primary)' : 'rgba(0,0,0,0.1)',
-                      color: cart.length > 0 ? '#fff' : 'var(--bento-text-muted)',
+                      color: cart.length > 0 ? 'var(--bento-card-bg-solid)' : 'var(--bento-text-muted)',
                       border: 'none',
                       fontSize: '0.8125rem',
                       fontWeight: 600,
@@ -955,7 +956,7 @@ export default function WaiterTerminalPage() {
                         selectedCategory === 'ALL'
                           ? 'var(--bento-primary)'
                           : 'rgba(255, 255, 255, 0.6)',
-                      color: selectedCategory === 'ALL' ? '#ffffff' : 'var(--bento-text)',
+                      color: selectedCategory === 'ALL' ? 'var(--bento-card-bg-solid)' : 'var(--bento-text)',
                       fontWeight: selectedCategory === 'ALL' ? 600 : 500,
                       fontSize: '0.8125rem',
                       cursor: 'pointer',
@@ -980,7 +981,7 @@ export default function WaiterTerminalPage() {
                           backgroundColor: isActive
                             ? 'var(--bento-primary)'
                             : 'rgba(255, 255, 255, 0.6)',
-                          color: isActive ? '#ffffff' : 'var(--bento-text)',
+                          color: isActive ? 'var(--bento-card-bg-solid)' : 'var(--bento-text)',
                           fontWeight: isActive ? 600 : 500,
                           fontSize: '0.8125rem',
                           cursor: 'pointer',
@@ -1119,7 +1120,7 @@ export default function WaiterTerminalPage() {
                               borderRadius: 'var(--bento-inner-radius)',
                               border: '1px solid rgba(0, 0, 0, 0.1)',
                               fontSize: '0.8125rem',
-                              backgroundColor: '#ffffff',
+                              backgroundColor: 'var(--bento-card-bg-solid)',
                               color: 'var(--bento-text)',
                               boxSizing: 'border-box',
                             }}
@@ -1145,7 +1146,7 @@ export default function WaiterTerminalPage() {
                           backgroundColor: isAvailable
                             ? 'var(--bento-primary)'
                             : 'rgba(0, 0, 0, 0.08)',
-                          color: isAvailable ? '#ffffff' : 'var(--bento-text-muted)',
+                          color: isAvailable ? 'var(--bento-card-bg-solid)' : 'var(--bento-text-muted)',
                           border: 'none',
                           fontSize: '0.875rem',
                           fontWeight: 600,
@@ -1336,7 +1337,7 @@ export default function WaiterTerminalPage() {
                                   height: '32px',
                                   borderRadius: '50%',
                                   border: 'none',
-                                  backgroundColor: '#ffffff',
+                                  backgroundColor: 'var(--bento-card-bg-solid)',
                                   color: 'var(--bento-text)',
                                   cursor: 'pointer',
                                   fontWeight: 700,
@@ -1366,7 +1367,7 @@ export default function WaiterTerminalPage() {
                                   height: '32px',
                                   borderRadius: '50%',
                                   border: 'none',
-                                  backgroundColor: '#ffffff',
+                                  backgroundColor: 'var(--bento-card-bg-solid)',
                                   color: 'var(--bento-text)',
                                   cursor: 'pointer',
                                   fontWeight: 700,
@@ -1419,7 +1420,7 @@ export default function WaiterTerminalPage() {
                               borderRadius: 'var(--bento-inner-radius)',
                               border: '1px solid rgba(0, 0, 0, 0.1)',
                               fontSize: '0.8125rem',
-                              backgroundColor: '#ffffff',
+                              backgroundColor: 'var(--bento-card-bg-solid)',
                               color: 'var(--bento-text)',
                               boxSizing: 'border-box',
                             }}
@@ -1479,7 +1480,7 @@ export default function WaiterTerminalPage() {
                       fontSize: '0.875rem',
                       fontFamily: 'inherit',
                       resize: 'none',
-                      backgroundColor: '#ffffff',
+                      backgroundColor: 'var(--bento-card-bg-solid)',
                       color: 'var(--bento-text)',
                       boxSizing: 'border-box',
                     }}
@@ -1538,7 +1539,7 @@ export default function WaiterTerminalPage() {
                         cart.length > 0 && !isSubmitting
                           ? 'var(--bento-primary)'
                           : 'rgba(0, 0, 0, 0.15)',
-                      color: '#ffffff',
+                      color: 'var(--bento-card-bg-solid)',
                       border: 'none',
                       fontSize: '1rem',
                       fontWeight: 600,

@@ -5,7 +5,7 @@ dotenv.config();
 export const config = {
   port: parseInt(process.env.GATEWAY_PORT || '4000', 10),
   jwtSecret: process.env.JWT_SECRET || 'super-secret-jwt-key-oleada-0',
-  internalSharedSecret: process.env.INTERNAL_SHARED_SECRET || 'resto-internal-shared-secret-dev-2026',
+  internalSharedSecret: process.env.INTERNAL_SHARED_SECRET,
   corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:3000,http://localhost:3001')
     .split(',')
     .map((s) => s.trim())

@@ -8,6 +8,7 @@ import { createApp } from '../src/app';
 
 const TEST_SECRET = 'super-secret-jwt-key-oleada-0';
 process.env.JWT_SECRET = TEST_SECRET;
+process.env.INTERNAL_SHARED_SECRET = 'resto-internal-shared-secret-dev-2026';
 process.env.IDENTITY_SERVICE_URL = 'http://localhost:4001';
 process.env.CATALOG_SERVICE_URL = 'http://localhost:4002';
 process.env.SESSION_SERVICE_URL = 'http://localhost:4003';
@@ -45,6 +46,20 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ token: 'jwt-token-xyz' });
     });
+
+    test('16b. POST /v1/auth/login con body vacío {} -> proxy reenvía body {} sin colgar', async () => {
+      const upstream = nock('http://localhost:4001')
+        .post('/auth/login', {})
+        .reply(400, { error: { code: 'INVALID_CREDENTIALS', message: 'Credenciales inválidas' } });
+
+      const res = await request(app)
+        .post('/v1/auth/login')
+        .send({});
+
+      expect(upstream.isDone()).toBe(true);
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('INVALID_CREDENTIALS');
+    }, 5000);
 
     test('17. POST /v1/graphql -> proxy a catalog:4002/graphql', async () => {
       const token = jwt.sign({ userId: 'u1', tenantId: 't1', role: 'admin' }, TEST_SECRET);
@@ -182,18 +197,49 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
   });
 
   describe('WebSocket (Test 27)', () => {
+    let activeOrderingIo: SocketIOServer | null = null;
+    let activeGatewayIo: any = null;
+
     beforeEach(() => {
       (app as any)._attachSockets = true;
     });
 
     afterEach(() => {
       (app as any)._attachSockets = false;
+      if (activeOrderingIo) {
+        try {
+          activeOrderingIo.close();
+        } catch {}
+        activeOrderingIo = null;
+      }
+      if (activeGatewayIo) {
+        try {
+          activeGatewayIo.close();
+        } catch {}
+        activeGatewayIo = null;
+      }
+    });
+
+    afterAll(() => {
+      if (activeOrderingIo) {
+        try {
+          activeOrderingIo.close();
+        } catch {}
+        activeOrderingIo = null;
+      }
+      if (activeGatewayIo) {
+        try {
+          activeGatewayIo.close();
+        } catch {}
+        activeGatewayIo = null;
+      }
     });
 
     test('27. socket.io-client conecta al namespace /orders a través del gateway contra un stub de ordering', (done) => {
       // Stub server for ordering WebSocket upstream
       const orderingHttpServer = http.createServer();
       const orderingIo = new SocketIOServer(orderingHttpServer);
+      activeOrderingIo = orderingIo;
       const ordersNamespace = orderingIo.of('/orders');
 
       ordersNamespace.on('connection', (socket) => {
@@ -206,6 +252,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
 
         // Gateway HTTP server with socket proxying
         const gatewayServer = http.createServer(app);
+        activeGatewayIo = (gatewayServer as any)._socketGatewayIo;
         gatewayServer.listen(0, () => {
           const gatewayPort = (gatewayServer.address() as any).port;
           const token = jwt.sign({ userId: 'u1', tenantId: 't1', role: 'customer' }, TEST_SECRET);
@@ -218,7 +265,14 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
           });
 
           client.on('connect_error', (err) => {
+            client.disconnect();
             client.close();
+            if (activeGatewayIo) {
+              try { activeGatewayIo.close(); } catch {}
+              activeGatewayIo = null;
+            }
+            orderingIo.close();
+            activeOrderingIo = null;
             gatewayServer.close();
             orderingHttpServer.close();
             // In RED phase, gateway has no socket.io handler so connect will fail/timeout
@@ -229,7 +283,14 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
 
           client.on('ready', (data) => {
             expect(data.message).toBe('ordering-connected');
+            client.disconnect();
             client.close();
+            if (activeGatewayIo) {
+              try { activeGatewayIo.close(); } catch {}
+              activeGatewayIo = null;
+            }
+            orderingIo.close();
+            activeOrderingIo = null;
             gatewayServer.close();
             orderingHttpServer.close();
             done();
@@ -241,6 +302,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
     test('28. socketProxy reenvía auth token del cliente a la conexión upstream', (done) => {
       const orderingHttpServer = http.createServer();
       const orderingIo = new SocketIOServer(orderingHttpServer);
+      activeOrderingIo = orderingIo;
       const ordersNamespace = orderingIo.of('/orders');
 
       let receivedAuthToken: string | undefined;
@@ -258,6 +320,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
         process.env.ORDERING_WS_PORT = String(orderingPort);
 
         const gatewayServer = http.createServer(app);
+        activeGatewayIo = (gatewayServer as any)._socketGatewayIo;
         gatewayServer.listen(0, () => {
           const gatewayPort = (gatewayServer.address() as any).port;
           const token = jwt.sign({ userId: 'u1', tenantId: 't1', role: 'ADMIN' }, TEST_SECRET);
@@ -271,14 +334,28 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
 
           client.on('ready', () => {
             expect(receivedAuthToken).toBe(token);
+            client.disconnect();
             client.close();
+            if (activeGatewayIo) {
+              try { activeGatewayIo.close(); } catch {}
+              activeGatewayIo = null;
+            }
+            orderingIo.close();
+            activeOrderingIo = null;
             gatewayServer.close();
             orderingHttpServer.close();
             done();
           });
 
           client.on('connect_error', (err) => {
+            client.disconnect();
             client.close();
+            if (activeGatewayIo) {
+              try { activeGatewayIo.close(); } catch {}
+              activeGatewayIo = null;
+            }
+            orderingIo.close();
+            activeOrderingIo = null;
             gatewayServer.close();
             orderingHttpServer.close();
             done(err);

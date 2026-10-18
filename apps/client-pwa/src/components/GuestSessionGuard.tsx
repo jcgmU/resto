@@ -32,7 +32,7 @@ export function GuestSessionGuard({ children }: GuestSessionGuardProps) {
         suppressHydrationWarning
         style={{
           minHeight: '100vh',
-          backgroundColor: 'var(--bento-hueso)',
+          backgroundColor: 'var(--bento-page-bg-pwa)',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
@@ -51,18 +51,18 @@ export function GuestSessionGuard({ children }: GuestSessionGuardProps) {
           justifyContent: 'center',
           alignItems: 'center',
           minHeight: '100vh',
-          backgroundColor: 'var(--bento-hueso)',
+          backgroundColor: 'var(--bento-page-bg-pwa)',
         } as React.CSSProperties}
       >
         <div style={{ width: '100%', maxWidth: '400px' }}>
-          <BentoCard style={{ backgroundColor: 'var(--bento-papel)' } as React.CSSProperties}>
+          <BentoCard style={{ backgroundColor: 'var(--bento-card-bg-solid)' } as React.CSSProperties}>
             <div style={{ textAlign: 'center', padding: '16px 0' }}>
               <h2
                 style={{
                   fontSize: '1.25rem',
                   fontWeight: 700,
                   margin: '0 0 8px 0',
-                  color: 'var(--bento-tinta)',
+                  color: 'var(--bento-text-strong)',
                   fontFamily: 'var(--bento-font-heading)',
                 } as React.CSSProperties}
               >

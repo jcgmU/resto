@@ -14,6 +14,7 @@ import {
   ServiceCallDTO,
   ServiceCallEvent,
   ServiceCallStatus,
+  ServiceCallType,
 } from './dtos';
 import { TableSessionDTO } from '../session/dtos';
 
@@ -221,7 +222,7 @@ export type CreateServiceCallUseCase = UseCase<
     tenantId: string;
     sessionId: string;
     tableId?: string;
-    type?: string;
+    type?: ServiceCallType;
     note?: string;
   },
   ServiceCallDTO
@@ -258,7 +259,7 @@ export interface SessionServicePort {
 export type GetBillUseCase = UseCase<{ tenantId: string; sessionId: string }, BillDTO>;
 
 export type ConfirmCheckoutUseCase = UseCase<
-  { tenantId: string; sessionId: string; tableId: string; method: PaymentMethod; recordedBy: string },
+  { tenantId: string; sessionId: string; tableId?: string; method: PaymentMethod; recordedBy: string },
   { bill: BillDTO; payment: PaymentDTO }
 >;
 

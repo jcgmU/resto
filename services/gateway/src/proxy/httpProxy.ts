@@ -1,17 +1,18 @@
-import { createProxyMiddleware } from 'http-proxy-middleware';
+import { createProxyMiddleware, fixRequestBody } from 'http-proxy-middleware';
 import { Response } from 'express';
 
 export function createServiceProxy(target: string) {
   return createProxyMiddleware({
     target,
     changeOrigin: true,
+    proxyTimeout: 30000,
+    timeout: 30000,
     pathRewrite: (path: string) => path.replace(/^\/v1/, ''),
     on: {
       proxyReq: (proxyReq: any, req: any) => {
-        proxyReq.setHeader(
-          'x-internal-token',
-          process.env.INTERNAL_SHARED_SECRET || 'resto-internal-shared-secret-dev-2026'
-        );
+        if (process.env.INTERNAL_SHARED_SECRET) {
+          proxyReq.setHeader('x-internal-token', process.env.INTERNAL_SHARED_SECRET);
+        }
 
         const user = req.user;
         if (user) {
@@ -21,12 +22,7 @@ export function createServiceProxy(target: string) {
           if (user.sessionId) proxyReq.setHeader('x-session-id', String(user.sessionId));
         }
 
-        if (req.body && Object.keys(req.body).length > 0) {
-          const bodyData = JSON.stringify(req.body);
-          proxyReq.setHeader('Content-Type', 'application/json');
-          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-          proxyReq.write(bodyData);
-        }
+        fixRequestBody(proxyReq, req);
       },
       error: (err: any, req: any, res: any) => {
         console.error(`[Gateway Proxy Error] ${req?.method} ${req?.url}:`, err?.message || err);

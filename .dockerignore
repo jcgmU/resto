@@ -9,3 +9,5 @@ build
 .next
 coverage
 *.log
+.env*
+*.env*

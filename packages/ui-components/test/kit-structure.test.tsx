@@ -58,7 +58,7 @@ describe('SidebarRail', () => {
     const css = container.querySelector('style')?.textContent ?? '';
     expect(css).toContain(':focus-visible');
     expect(css).toContain('prefers-reduced-motion');
-    expect(css).toContain('var(--bento-tinta)');
+    expect(css).toContain('var(--bento-accent-strong)');
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   });
 });

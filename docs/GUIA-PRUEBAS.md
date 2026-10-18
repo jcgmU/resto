@@ -192,6 +192,26 @@ Sigue este guion para comprobar el funcionamiento interactivo de punta a punta e
 
 ---
 
+## 4.1 Llamadas de Servicio (Asistencia, Cuenta y Auto-resolución)
+
+El sistema centraliza las solicitudes de atención y cuenta entre las mesas y el personal mediante **Llamadas de Servicio**:
+
+- **Tipos de llamadas:**
+  - `WAITER_CALL`: Solicitud presencial de asistencia en mesa ("Llamar al mesero").
+  - `BILL_REQUEST`: Solicitud de cuenta para liquidación y cobro.
+  - `GENERIC`: Llamadas operativas o de asistencia genérica.
+- **Quién las produce:**
+  - El comensal desde la PWA móvil mediante el botón **Llamar al mesero**, el cual envía un `POST /v1/service-calls` de tipo `WAITER_CALL`.
+  - El comensal al presionar **Pedir la cuenta**, lo que invoca `POST /v1/sessions/:id/bill-request`. El backend de Session Service transiciona la sesión al estado `billRequested` y genera automáticamente la llamada `BILL_REQUEST` hacia Ordering. En este estado la sesión deja de admitir nuevos pedidos de comida (`409 SESSION_NOT_ORDERABLE`), pero las llamadas de servicio siguen expresamente permitidas como excepción a la barrera de liquidación para que el cliente pueda seguir pidiendo asistencia.
+- **Cómo se visualizan y resuelven en el KDS por el staff:**
+  - Se visualizan en tiempo real en el panel lateral de **Llamadas de servicio** en el Monitor de Cocina (`/kds`) tras emitirse el evento WebSocket `service-call.created`.
+  - La tarjeta de llamada detalla el nombre resuelto de la mesa, el tipo de llamada y la hora de emisión.
+  - El staff (mesero o personal de cocina) atiende la solicitud y hace clic en el botón **Resolver** (`PATCH /v1/service-calls/:id/resolve`) para dar por atendida la alerta y retirarla de la interfaz.
+- **Auto-resolución de llamadas pendientes al confirmar el cobro en checkout:**
+  - Al completar el cobro en la pantalla de **Checkout** (`POST /v1/checkout/confirm`), el caso de uso `ConfirmCheckout` consulta todas las llamadas de servicio con estado `pending` pertenecientes a la sesión y las marca automáticamente como resueltas antes de liberar la mesa. De esta manera, el KDS queda completamente limpio sin llamadas huérfanas de servicios ya finalizados.
+
+---
+
 ## 5. Pruebas Automatizadas: `pnpm test:e2e`
 
 Para validar todo el flujo anterior de manera automatizada y sin intervención manual en el navegador, dispones del script de verificación E2E oficial:

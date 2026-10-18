@@ -82,23 +82,6 @@ describe('PwaApiClient - Manejo de guestToken expirado / 401 (H10)', () => {
     expect(PwaApiClient.session).toBeNull();
   });
 
-  it('checkout() ante 401 limpia sesión y lanza error descriptivo', async () => {
-    PwaApiClient.guestToken = 'token-expirado-checkout';
-    PwaApiClient.session = { sessionId: 's-4', tenantId: 't-1', tableId: 'tbl-4', status: 'active' };
-
-    global.fetch = jest.fn().mockResolvedValue(mock401Response()) as any;
-
-    await expect(
-      PwaApiClient.checkout({ sessionId: 's-4', tableId: 'tbl-4', method: 'CASH' })
-    ).rejects.toMatchObject({
-      status: 401,
-      message: 'Tu sesión ha expirado. Por favor, escanea nuevamente el código QR de tu mesa.',
-    });
-
-    expect(PwaApiClient.guestToken).toBeNull();
-    expect(PwaApiClient.session).toBeNull();
-  });
-
   it('requestBill() y getOrder() ante 401 limpian sesión y lanzan error descriptivo', async () => {
     PwaApiClient.guestToken = 'token-bill-expired';
     PwaApiClient.session = { sessionId: 's-5', tenantId: 't-1', tableId: 'tbl-5', status: 'active' };

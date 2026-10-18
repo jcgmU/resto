@@ -140,7 +140,10 @@ export class GetTableSessionUseCaseImpl {
 }
 
 export class RequestBillSessionUseCaseImpl {
-  constructor(private readonly sessionRepo: TableSessionRepository) {}
+  constructor(
+    private readonly sessionRepo: TableSessionRepository,
+    private readonly orderingServiceCall?: import('../domain/orderingPorts').OrderingServiceCallPort
+  ) {}
 
   async execute(input: { tenantId: string; sessionId: string }): Promise<TableSessionDTO> {
     const session = await this.sessionRepo.findById(input.tenantId, input.sessionId);
@@ -159,7 +162,22 @@ export class RequestBillSessionUseCaseImpl {
       );
     }
 
-    return this.sessionRepo.requestBill(input.tenantId, input.sessionId);
+    const updatedSession = await this.sessionRepo.requestBill(input.tenantId, input.sessionId);
+
+    if (this.orderingServiceCall) {
+      try {
+        await this.orderingServiceCall.createServiceCall({
+          tenantId: input.tenantId,
+          sessionId: input.sessionId,
+          tableId: session.tableId,
+          type: 'BILL_REQUEST',
+        });
+      } catch (err: any) {
+        console.warn(`[RequestBillSessionUseCase] Error al crear ServiceCall BILL_REQUEST en ordering: ${err?.message || err}`);
+      }
+    }
+
+    return updatedSession;
   }
 }
 

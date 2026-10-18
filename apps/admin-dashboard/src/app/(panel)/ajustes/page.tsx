@@ -45,7 +45,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <BentoCard
         style={{
-          backgroundColor: 'var(--bento-papel)',
+          backgroundColor: 'var(--bento-card-bg-solid)',
           padding: '24px',
         }}
       >

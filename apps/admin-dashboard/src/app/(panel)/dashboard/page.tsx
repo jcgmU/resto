@@ -12,6 +12,8 @@ import {
   KpiDelta,
   FeatureGuard,
   Proximamente,
+  getTableDisplayName,
+  formatOrderNumber,
 } from '@packages/ui-components';
 import {
   TableDTO,
@@ -20,6 +22,8 @@ import {
   ReservationDTO,
   OperatingMode,
   formatCOP,
+  OrderDTO,
+  computeOrderOverdue,
 } from '@packages/shared-types';
 import { ApiClient } from '../../../lib/api';
 import {
@@ -62,6 +66,9 @@ interface OrderItem {
   total?: number;
   tableId?: string;
   createdAt?: string;
+  estimatedMinutes?: number | null;
+  delayMinutes?: number | null;
+  overdue?: boolean;
 }
 
 interface ServiceCallItem {
@@ -104,6 +111,7 @@ export default function DashboardPage() {
   // Settings de tenant
   const [operatingMode, setOperatingMode] = useState<OperatingMode>('hybrid');
   const [estimatedPrepMinutes, setEstimatedPrepMinutes] = useState<number>(18);
+  const lastPersistedSlaRef = useRef<number>(18);
   const [savingSettings, setSavingSettings] = useState(false);
 
   // Filtros
@@ -227,6 +235,7 @@ export default function DashboardPage() {
         if (settingsRes.operatingMode) setOperatingMode(settingsRes.operatingMode as OperatingMode);
         if (typeof settingsRes.estimatedPrepMinutes === 'number') {
           setEstimatedPrepMinutes(settingsRes.estimatedPrepMinutes);
+          lastPersistedSlaRef.current = settingsRes.estimatedPrepMinutes;
         }
       }
     } catch (err: any) {
@@ -384,6 +393,34 @@ export default function DashboardPage() {
     });
   }, [enrichedTables, tableFilter, zoneFilter]);
 
+  // Active orders count for KPI delta / operational metrics
+  const activeOrders = useMemo(() => {
+    return orders.filter((o) =>
+      ['PLACED', 'IN_KITCHEN', 'READY'].includes(o.status)
+    );
+  }, [orders]);
+
+  const activeOrdersCount = activeOrders.length;
+
+  // Pedidos demorados / overdue (N20)
+  const overdueOrders = useMemo(() => {
+    const now = Date.now();
+    return activeOrders.filter((o) => {
+      if (o.overdue === true) return true;
+      if (!o.createdAt) return false;
+      return computeOrderOverdue(
+        {
+          status: o.status as any,
+          createdAt: o.createdAt,
+          estimatedMinutes: o.estimatedMinutes,
+          delayMinutes: o.delayMinutes,
+        },
+        now,
+        estimatedPrepMinutes
+      );
+    });
+  }, [activeOrders, estimatedPrepMinutes]);
+
   // Cambiar modo de operación
   const handleToggleOperatingMode = async () => {
     const newMode: OperatingMode = operatingMode === 'hybrid' ? 'waiter_only' : 'hybrid';
@@ -410,8 +447,10 @@ export default function DashboardPage() {
   };
 
   const handleSlaCommit = async (newVal: number) => {
+    if (newVal === lastPersistedSlaRef.current) return;
     try {
       await updateTenantSettings({ estimatedPrepMinutes: newVal });
+      lastPersistedSlaRef.current = newVal;
       showToast(`Tiempo SLA actualizado a ${newVal} min`);
     } catch (err: any) {
       showToast(err?.message || 'Error al actualizar SLA');
@@ -458,8 +497,12 @@ export default function DashboardPage() {
     }
   };
 
-  const handleCobrarMesa = () => {
-    router.push('/checkout');
+  const handleCobrarMesa = (tableId?: string) => {
+    if (tableId) {
+      router.push('/checkout?tableId=' + tableId);
+    } else {
+      router.push('/checkout');
+    }
   };
 
   // CRUD Mesas
@@ -669,17 +712,17 @@ export default function DashboardPage() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px' }}>
-          <BentoCard style={{ backgroundColor: 'var(--bento-papel)', padding: '24px', minHeight: '140px' }}>
+          <BentoCard style={{ backgroundColor: 'var(--bento-card-bg-solid)', padding: '24px', minHeight: '140px' }}>
             <Skeleton height="72px" />
           </BentoCard>
-          <BentoCard style={{ backgroundColor: 'var(--bento-papel)', padding: '24px', minHeight: '140px' }}>
+          <BentoCard style={{ backgroundColor: 'var(--bento-card-bg-solid)', padding: '24px', minHeight: '140px' }}>
             <Skeleton height="72px" />
           </BentoCard>
-          <BentoCard style={{ backgroundColor: 'var(--bento-papel)', padding: '24px', minHeight: '140px' }}>
+          <BentoCard style={{ backgroundColor: 'var(--bento-card-bg-solid)', padding: '24px', minHeight: '140px' }}>
             <Skeleton height="72px" />
           </BentoCard>
         </div>
-        <BentoCard style={{ backgroundColor: 'var(--bento-papel)', padding: '24px' }}>
+        <BentoCard style={{ backgroundColor: 'var(--bento-card-bg-solid)', padding: '24px' }}>
           <Skeleton height="28px" width="180px" style={{ marginBottom: '16px' }} />
           <Skeleton height="180px" />
         </BentoCard>
@@ -698,11 +741,6 @@ export default function DashboardPage() {
     );
   }
 
-  // Active orders count for KPI delta / operational metrics
-  const activeOrdersCount = orders.filter((o) =>
-    ['PLACED', 'IN_KITCHEN', 'READY'].includes(o.status)
-  ).length;
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
       {/* Toast flotante */}
@@ -715,8 +753,8 @@ export default function DashboardPage() {
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 100,
-            backgroundColor: 'rgba(34, 34, 34, 0.95)',
-            color: '#fff',
+            backgroundColor: 'var(--bento-overlay-dark)',
+            color: 'var(--bento-card-bg-solid)',
             padding: '10px 24px',
             borderRadius: '9999px',
             fontSize: '0.875rem',
@@ -778,9 +816,9 @@ export default function DashboardPage() {
               cursor: savingSettings ? 'wait' : 'pointer',
               transition: 'all 0.2s ease',
               border: '1px solid',
-              backgroundColor: operatingMode === 'hybrid' ? 'rgba(255, 255, 255, 0.9)' : '#5c6784',
-              borderColor: operatingMode === 'hybrid' ? 'var(--bento-border)' : '#5c6784',
-              color: operatingMode === 'hybrid' ? 'var(--bento-text)' : '#ffffff',
+              backgroundColor: operatingMode === 'hybrid' ? 'rgba(255, 255, 255, 0.9)' : 'var(--bento-primary)',
+              borderColor: operatingMode === 'hybrid' ? 'var(--bento-border)' : 'var(--bento-primary)',
+              color: operatingMode === 'hybrid' ? 'var(--bento-text)' : 'var(--bento-card-bg-solid)',
               boxShadow: 'var(--bento-card-shadow)',
               minHeight: '40px',
             }}
@@ -820,7 +858,7 @@ export default function DashboardPage() {
                 left: 0,
                 width: '6px',
                 height: '100%',
-                backgroundColor: '#e0a6a6',
+                backgroundColor: 'var(--bento-status-occupied)',
               }}
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -832,7 +870,7 @@ export default function DashboardPage() {
               <span
                 style={{
                   backgroundColor: 'rgba(224, 166, 166, 0.25)',
-                  color: '#a05a5a',
+                  color: 'var(--bento-danger-text)',
                   padding: '4px 10px',
                   borderRadius: '6px',
                   fontSize: '0.75rem',
@@ -874,7 +912,7 @@ export default function DashboardPage() {
                 left: 0,
                 width: '6px',
                 height: '100%',
-                backgroundColor: '#8fbf95',
+                backgroundColor: 'var(--bento-status-available)',
               }}
             />
             <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--bento-text-muted)' }}>
@@ -882,12 +920,12 @@ export default function DashboardPage() {
             </p>
             <div style={{ display: 'flex', gap: '24px', margin: '8px 0' }}>
               <div>
-                <span style={{ fontSize: '1.25rem', fontWeight: 500, color: '#527a55' }}>
+                <span style={{ fontSize: '1.25rem', fontWeight: 500, color: 'var(--bento-status-available-text)' }}>
                   {metrics.availableCount} Libres
                 </span>
               </div>
               <div>
-                <span style={{ fontSize: '1.25rem', fontWeight: 500, color: '#9a8542' }}>
+                <span style={{ fontSize: '1.25rem', fontWeight: 500, color: 'var(--bento-status-reserved-soft-text)' }}>
                   {metrics.reservedCount} Reservas
                 </span>
               </div>
@@ -949,9 +987,10 @@ export default function DashboardPage() {
                 onChange={(e) => handleSlaChange(Number(e.target.value))}
                 onMouseUp={(e) => handleSlaCommit(Number((e.target as HTMLInputElement).value))}
                 onTouchEnd={(e) => handleSlaCommit(Number((e.target as HTMLInputElement).value))}
+                onBlur={(e) => handleSlaCommit(Number((e.target as HTMLInputElement).value))}
                 style={{
                   width: '100%',
-                  accentColor: 'var(--bento-primary, #5c6784)',
+                  accentColor: 'var(--bento-primary)',
                   cursor: 'pointer',
                 }}
               />
@@ -962,6 +1001,105 @@ export default function DashboardPage() {
               </div>
             </div>
           </BentoCard>
+
+          {/* Tarjeta 4: Pedidos Demorados (N20) */}
+          <BentoCard
+            data-testid="overdue-orders-card"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.65)',
+              padding: '24px',
+              position: 'relative',
+              overflow: 'hidden',
+              minHeight: '140px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '6px',
+                height: '100%',
+                backgroundColor: overdueOrders.length > 0 ? 'var(--bento-status-occupied)' : 'var(--bento-status-available)',
+              }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--bento-text-muted)' }}>
+                  Pedidos demorados
+                </p>
+                <p style={{ margin: '2px 0 0 0', fontSize: '0.6875rem', color: 'var(--bento-text-muted)' }}>
+                  Exceden el SLA de cocina ({estimatedPrepMinutes}m)
+                </p>
+              </div>
+              <span
+                style={{
+                  backgroundColor: overdueOrders.length > 0 ? 'rgba(224, 166, 166, 0.25)' : 'rgba(166, 224, 186, 0.25)',
+                  color: overdueOrders.length > 0 ? 'var(--bento-danger-text)' : 'var(--bento-status-available-text)',
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {overdueOrders.length}
+              </span>
+            </div>
+
+            <div style={{ marginTop: '12px' }}>
+              {overdueOrders.length === 0 ? (
+                <div style={{ fontSize: '0.8125rem', color: 'var(--bento-text-muted)' }}>
+                  Todos los pedidos marchan a tiempo.
+                </div>
+              ) : (
+                <ul
+                  data-testid="overdue-orders-list"
+                  style={{
+                    listStyle: 'none',
+                    margin: 0,
+                    padding: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    maxHeight: '120px',
+                    overflowY: 'auto',
+                  }}
+                >
+                  {overdueOrders.map((o) => {
+                    const elapsed = o.createdAt
+                      ? Math.max(0, Math.floor((Date.now() - new Date(o.createdAt).getTime()) / 60000))
+                      : 0;
+                    const tableDisplay = getTableDisplayName(o.tableId, tables);
+                    return (
+                      <li
+                        key={o.id}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: '0.75rem',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          backgroundColor: 'rgba(0, 0, 0, 0.03)',
+                        }}
+                      >
+                        <span style={{ fontWeight: 600, color: 'var(--bento-text)' }}>
+                          {tableDisplay} • {formatOrderNumber(o.id)}
+                        </span>
+                        <span style={{ color: 'var(--bento-danger-text)', fontWeight: 600 }}>
+                          +{elapsed}m
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </BentoCard>
         </div>
 
         {/* FeatureGuard opcional para analíticas */}
@@ -970,10 +1108,10 @@ export default function DashboardPage() {
           fallback={null}
         >
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '24px', marginTop: '24px' }}>
-            <BentoCard style={{ backgroundColor: 'var(--bento-papel)', padding: '24px', minHeight: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <BentoCard style={{ backgroundColor: 'var(--bento-card-bg-solid)', padding: '24px', minHeight: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Proximamente featureName="Ventas del Día" />
             </BentoCard>
-            <BentoCard style={{ backgroundColor: 'var(--bento-papel)', padding: '24px', minHeight: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <BentoCard style={{ backgroundColor: 'var(--bento-card-bg-solid)', padding: '24px', minHeight: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Proximamente featureName="Ticket Promedio" />
             </BentoCard>
           </div>
@@ -1075,10 +1213,10 @@ export default function DashboardPage() {
                 onClick={handleOpenCreateTable}
                 style={{
                   padding: '8px 16px',
-                  backgroundColor: 'var(--bento-tinta)',
-                  color: 'var(--bento-papel)',
+                  backgroundColor: 'var(--bento-primary)',
+                  color: 'var(--bento-card-bg-solid)',
                   borderRadius: 'var(--bento-pill-radius)',
-                  border: '1px solid var(--bento-tinta)',
+                  border: '1px solid var(--bento-primary)',
                   fontSize: '0.8125rem',
                   fontWeight: 600,
                   cursor: 'pointer',
@@ -1108,12 +1246,12 @@ export default function DashboardPage() {
               {filteredTables.map((t) => {
                 const statusDotColor =
                   t.effectiveStatus === 'LIBRE'
-                    ? '#8fbf95'
+                    ? 'var(--bento-status-available)'
                     : t.effectiveStatus === 'OCUPADA'
-                    ? '#e0a6a6'
+                    ? 'var(--bento-status-occupied)'
                     : t.effectiveStatus === 'RESERVADA'
-                    ? '#dcc98a'
-                    : '#9ca3af';
+                    ? 'var(--bento-status-reserved)'
+                    : 'var(--bento-status-disabled)';
 
                 const statusLabel =
                   t.effectiveStatus === 'LIBRE'
@@ -1223,7 +1361,7 @@ export default function DashboardPage() {
                                 flex: 1,
                                 padding: '6px 10px',
                                 backgroundColor: 'rgba(220, 201, 138, 0.25)',
-                                color: '#8a6b32',
+                                color: 'var(--bento-status-reserved-text)',
                                 border: '1px solid rgba(220, 201, 138, 0.5)',
                                 borderRadius: 'var(--bento-inner-radius)',
                                 fontSize: '0.75rem',
@@ -1239,12 +1377,12 @@ export default function DashboardPage() {
                         {t.effectiveStatus === 'OCUPADA' && (
                           <button
                             type="button"
-                            onClick={handleCobrarMesa}
+                            onClick={() => handleCobrarMesa(t.tableId)}
                             style={{
                               width: '100%',
                               padding: '8px 12px',
-                              backgroundColor: '#5c6784',
-                              color: '#fff',
+                              backgroundColor: 'var(--bento-primary)',
+                              color: 'var(--bento-card-bg-solid)',
                               border: 'none',
                               borderRadius: 'var(--bento-inner-radius)',
                               fontSize: '0.75rem',
@@ -1333,7 +1471,7 @@ export default function DashboardPage() {
                             background: 'none',
                             border: 'none',
                             fontSize: '0.6875rem',
-                            color: '#a05a5a',
+                            color: 'var(--bento-danger-text)',
                             cursor: 'pointer',
                             textDecoration: 'underline',
                           }}
@@ -1369,7 +1507,7 @@ export default function DashboardPage() {
               <span
                 style={{
                   backgroundColor: 'rgba(220, 201, 138, 0.3)',
-                  color: '#8a6b32',
+                  color: 'var(--bento-status-reserved-text)',
                   padding: '2px 8px',
                   borderRadius: '12px',
                   fontSize: '0.75rem',
@@ -1445,7 +1583,7 @@ export default function DashboardPage() {
                             fontWeight: 600,
                             padding: '2px 8px',
                             backgroundColor: 'rgba(92, 103, 132, 0.1)',
-                            color: 'var(--bento-primary, #5c6784)',
+                            color: 'var(--bento-primary)',
                             borderRadius: '4px',
                           }}
                         >
@@ -1481,7 +1619,7 @@ export default function DashboardPage() {
                         style={{
                           padding: '6px 12px',
                           backgroundColor: 'transparent',
-                          color: '#a05a5a',
+                          color: 'var(--bento-danger-text)',
                           border: '1px solid rgba(160, 90, 90, 0.3)',
                           borderRadius: 'var(--bento-pill-radius)',
                           fontSize: '0.75rem',
@@ -1586,7 +1724,7 @@ export default function DashboardPage() {
         >
           <div
             style={{
-              backgroundColor: '#e0e3e5',
+              backgroundColor: 'var(--bento-panel-bg)',
               borderRadius: '2rem',
               width: '100%',
               maxWidth: '420px',
@@ -1595,19 +1733,19 @@ export default function DashboardPage() {
               border: '1px solid rgba(255,255,255,0.7)',
             }}
           >
-            <h3 id="modal-create-table-title" style={{ margin: '0 0 16px 0', fontSize: '1.25rem', fontWeight: 300, color: '#222' }}>
+            <h3 id="modal-create-table-title" style={{ margin: '0 0 16px 0', fontSize: '1.25rem', fontWeight: 300, color: 'var(--bento-text-strong)' }}>
               Nueva Mesa
             </h3>
 
             {createTableError && (
-              <div role="alert" style={{ color: '#a05a5a', fontSize: '0.8125rem', marginBottom: '12px' }}>
+              <div role="alert" style={{ color: 'var(--bento-danger-text)', fontSize: '0.8125rem', marginBottom: '12px' }}>
                 {createTableError}
               </div>
             )}
 
             <form onSubmit={handleSubmitCreateTable} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label htmlFor="create-table-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
+                <label htmlFor="create-table-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
                   Nombre o Identificador de Mesa
                 </label>
                 <input
@@ -1621,7 +1759,7 @@ export default function DashboardPage() {
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: '12px',
-                    border: '1px solid #fff',
+                    border: '1px solid var(--bento-card-bg-solid)',
                     backgroundColor: 'rgba(255,255,255,0.7)',
                     fontSize: '0.875rem',
                     boxSizing: 'border-box',
@@ -1631,7 +1769,7 @@ export default function DashboardPage() {
               </div>
 
               <div>
-                <label htmlFor="create-table-capacity" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
+                <label htmlFor="create-table-capacity" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
                   Capacidad (Puestos)
                 </label>
                 <input
@@ -1644,7 +1782,7 @@ export default function DashboardPage() {
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: '12px',
-                    border: '1px solid #fff',
+                    border: '1px solid var(--bento-card-bg-solid)',
                     backgroundColor: 'rgba(255,255,255,0.7)',
                     fontSize: '0.875rem',
                     boxSizing: 'border-box',
@@ -1654,7 +1792,7 @@ export default function DashboardPage() {
               </div>
 
               <div>
-                <label htmlFor="create-table-zone" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
+                <label htmlFor="create-table-zone" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
                   Zona
                 </label>
                 <select
@@ -1665,7 +1803,7 @@ export default function DashboardPage() {
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: '12px',
-                    border: '1px solid #fff',
+                    border: '1px solid var(--bento-card-bg-solid)',
                     backgroundColor: 'rgba(255,255,255,0.7)',
                     fontSize: '0.875rem',
                     boxSizing: 'border-box',
@@ -1690,7 +1828,7 @@ export default function DashboardPage() {
                     padding: '10px',
                     borderRadius: '12px',
                     backgroundColor: 'rgba(255,255,255,0.6)',
-                    color: '#555',
+                    color: 'var(--bento-text-secondary)',
                     border: '1px solid rgba(255,255,255,0.8)',
                     fontSize: '0.875rem',
                     fontWeight: 600,
@@ -1706,8 +1844,8 @@ export default function DashboardPage() {
                     flex: 1,
                     padding: '10px',
                     borderRadius: '12px',
-                    backgroundColor: '#5c6784',
-                    color: '#fff',
+                    backgroundColor: 'var(--bento-primary)',
+                    color: 'var(--bento-card-bg-solid)',
                     border: 'none',
                     fontSize: '0.875rem',
                     fontWeight: 600,
@@ -1747,7 +1885,7 @@ export default function DashboardPage() {
         >
           <div
             style={{
-              backgroundColor: '#e0e3e5',
+              backgroundColor: 'var(--bento-panel-bg)',
               borderRadius: '2rem',
               width: '100%',
               maxWidth: '420px',
@@ -1756,19 +1894,19 @@ export default function DashboardPage() {
               border: '1px solid rgba(255,255,255,0.7)',
             }}
           >
-            <h3 id="modal-edit-table-title" style={{ margin: '0 0 16px 0', fontSize: '1.25rem', fontWeight: 300, color: '#222' }}>
+            <h3 id="modal-edit-table-title" style={{ margin: '0 0 16px 0', fontSize: '1.25rem', fontWeight: 300, color: 'var(--bento-text-strong)' }}>
               Editar Mesa {editingTable.label}
             </h3>
 
             {editTableError && (
-              <div role="alert" style={{ color: '#a05a5a', fontSize: '0.8125rem', marginBottom: '12px' }}>
+              <div role="alert" style={{ color: 'var(--bento-danger-text)', fontSize: '0.8125rem', marginBottom: '12px' }}>
                 {editTableError}
               </div>
             )}
 
             <form onSubmit={handleSubmitEditTable} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label htmlFor="edit-table-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
+                <label htmlFor="edit-table-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
                   Nombre o Identificador
                 </label>
                 <input
@@ -1781,7 +1919,7 @@ export default function DashboardPage() {
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: '12px',
-                    border: '1px solid #fff',
+                    border: '1px solid var(--bento-card-bg-solid)',
                     backgroundColor: 'rgba(255,255,255,0.7)',
                     fontSize: '0.875rem',
                     boxSizing: 'border-box',
@@ -1791,7 +1929,7 @@ export default function DashboardPage() {
               </div>
 
               <div>
-                <label htmlFor="edit-table-capacity" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
+                <label htmlFor="edit-table-capacity" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
                   Capacidad (Puestos)
                 </label>
                 <input
@@ -1804,7 +1942,7 @@ export default function DashboardPage() {
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: '12px',
-                    border: '1px solid #fff',
+                    border: '1px solid var(--bento-card-bg-solid)',
                     backgroundColor: 'rgba(255,255,255,0.7)',
                     fontSize: '0.875rem',
                     boxSizing: 'border-box',
@@ -1814,7 +1952,7 @@ export default function DashboardPage() {
               </div>
 
               <div>
-                <label htmlFor="edit-table-zone" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
+                <label htmlFor="edit-table-zone" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
                   Zona
                 </label>
                 <select
@@ -1825,7 +1963,7 @@ export default function DashboardPage() {
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: '12px',
-                    border: '1px solid #fff',
+                    border: '1px solid var(--bento-card-bg-solid)',
                     backgroundColor: 'rgba(255,255,255,0.7)',
                     fontSize: '0.875rem',
                     boxSizing: 'border-box',
@@ -1842,7 +1980,7 @@ export default function DashboardPage() {
               </div>
 
               <div>
-                <label htmlFor="edit-table-status" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
+                <label htmlFor="edit-table-status" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
                   Estado de la Mesa
                 </label>
                 <select
@@ -1853,7 +1991,7 @@ export default function DashboardPage() {
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: '12px',
-                    border: '1px solid #fff',
+                    border: '1px solid var(--bento-card-bg-solid)',
                     backgroundColor: 'rgba(255,255,255,0.7)',
                     fontSize: '0.875rem',
                     boxSizing: 'border-box',
@@ -1874,7 +2012,7 @@ export default function DashboardPage() {
                     padding: '10px',
                     borderRadius: '12px',
                     backgroundColor: 'rgba(255,255,255,0.6)',
-                    color: '#555',
+                    color: 'var(--bento-text-secondary)',
                     border: '1px solid rgba(255,255,255,0.8)',
                     fontSize: '0.875rem',
                     fontWeight: 600,
@@ -1890,8 +2028,8 @@ export default function DashboardPage() {
                     flex: 1,
                     padding: '10px',
                     borderRadius: '12px',
-                    backgroundColor: '#5c6784',
-                    color: '#fff',
+                    backgroundColor: 'var(--bento-primary)',
+                    color: 'var(--bento-card-bg-solid)',
                     border: 'none',
                     fontSize: '0.875rem',
                     fontWeight: 600,
@@ -1931,7 +2069,7 @@ export default function DashboardPage() {
         >
           <div
             style={{
-              backgroundColor: '#e0e3e5',
+              backgroundColor: 'var(--bento-panel-bg)',
               borderRadius: '2rem',
               width: '100%',
               maxWidth: '400px',
@@ -1940,15 +2078,15 @@ export default function DashboardPage() {
               border: '1px solid rgba(255,255,255,0.7)',
             }}
           >
-            <h3 id="modal-delete-table-title" style={{ margin: '0 0 12px 0', fontSize: '1.25rem', fontWeight: 400, color: '#222' }}>
+            <h3 id="modal-delete-table-title" style={{ margin: '0 0 12px 0', fontSize: '1.25rem', fontWeight: 400, color: 'var(--bento-text-strong)' }}>
               ¿Eliminar Mesa {deletingTable.label}?
             </h3>
-            <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: '#555' }}>
+            <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--bento-text-secondary)' }}>
               Esta acción no se puede deshacer. Las mesas con sesión activa no pueden eliminarse.
             </p>
 
             {deleteTableError && (
-              <div role="alert" style={{ color: '#a05a5a', fontSize: '0.8125rem', marginBottom: '12px' }}>
+              <div role="alert" style={{ color: 'var(--bento-danger-text)', fontSize: '0.8125rem', marginBottom: '12px' }}>
                 {deleteTableError}
               </div>
             )}
@@ -1962,7 +2100,7 @@ export default function DashboardPage() {
                   padding: '10px',
                   borderRadius: '12px',
                   backgroundColor: 'rgba(255,255,255,0.6)',
-                  color: '#555',
+                  color: 'var(--bento-text-secondary)',
                   border: '1px solid rgba(255,255,255,0.8)',
                   fontSize: '0.875rem',
                   fontWeight: 600,
@@ -1979,8 +2117,8 @@ export default function DashboardPage() {
                   flex: 1,
                   padding: '10px',
                   borderRadius: '12px',
-                  backgroundColor: '#a05a5a',
-                  color: '#fff',
+                  backgroundColor: 'var(--bento-danger-text)',
+                  color: 'var(--bento-card-bg-solid)',
                   border: 'none',
                   fontSize: '0.875rem',
                   fontWeight: 600,
@@ -2019,7 +2157,7 @@ export default function DashboardPage() {
         >
           <div
             style={{
-              backgroundColor: '#e0e3e5',
+              backgroundColor: 'var(--bento-panel-bg)',
               borderRadius: '2rem',
               width: '100%',
               maxWidth: '400px',
@@ -2029,12 +2167,12 @@ export default function DashboardPage() {
               textAlign: 'center',
             }}
           >
-            <h3 id="modal-qr-title" style={{ margin: '0 0 16px 0', fontSize: '1.25rem', fontWeight: 300, color: '#222' }}>
+            <h3 id="modal-qr-title" style={{ margin: '0 0 16px 0', fontSize: '1.25rem', fontWeight: 300, color: 'var(--bento-text-strong)' }}>
               QR Mesa {activeTableQr.label}
             </h3>
 
             {qrError && (
-              <div role="alert" style={{ color: '#a05a5a', fontSize: '0.8125rem', marginBottom: '12px' }}>
+              <div role="alert" style={{ color: 'var(--bento-danger-text)', fontSize: '0.8125rem', marginBottom: '12px' }}>
                 {qrError}
               </div>
             )}
@@ -2048,9 +2186,9 @@ export default function DashboardPage() {
                 <img
                   src={qrData.pngDataUrl}
                   alt={`QR Mesa ${activeTableQr.label}`}
-                  style={{ width: '180px', height: '180px', borderRadius: '12px', border: '1px solid #fff' }}
+                  style={{ width: '180px', height: '180px', borderRadius: '12px', border: '1px solid var(--bento-card-bg-solid)' }}
                 />
-                <p style={{ margin: 0, fontSize: '0.75rem', color: '#555', wordBreak: 'break-all' }}>
+                <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--bento-text-secondary)', wordBreak: 'break-all' }}>
                   {qrData.url}
                 </p>
                 <button
@@ -2059,9 +2197,9 @@ export default function DashboardPage() {
                   style={{
                     padding: '8px 16px',
                     borderRadius: 'var(--bento-pill-radius)',
-                    backgroundColor: 'var(--bento-tinta)',
-                    color: 'var(--bento-papel)',
-                    border: '1px solid var(--bento-tinta)',
+                    backgroundColor: 'var(--bento-primary)',
+                    color: 'var(--bento-card-bg-solid)',
+                    border: '1px solid var(--bento-primary)',
                     fontSize: '0.8125rem',
                     fontWeight: 600,
                     cursor: 'pointer',
@@ -2081,7 +2219,7 @@ export default function DashboardPage() {
                 padding: '8px 16px',
                 borderRadius: '12px',
                 backgroundColor: 'rgba(255,255,255,0.6)',
-                color: '#555',
+                color: 'var(--bento-text-secondary)',
                 border: '1px solid rgba(255,255,255,0.8)',
                 fontSize: '0.8125rem',
                 fontWeight: 600,
@@ -2120,7 +2258,7 @@ export default function DashboardPage() {
         >
           <div
             style={{
-              backgroundColor: '#e0e3e5',
+              backgroundColor: 'var(--bento-panel-bg)',
               borderRadius: '2rem',
               width: '100%',
               maxWidth: '500px',
@@ -2132,20 +2270,20 @@ export default function DashboardPage() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 id="modal-zones-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 300, color: '#222' }}>
+              <h3 id="modal-zones-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 300, color: 'var(--bento-text-strong)' }}>
                 Gestión de Zonas
               </h3>
               <button
                 type="button"
                 onClick={() => setShowZonesModal(false)}
-                style={{ background: 'none', border: 'none', fontSize: '1.25rem', cursor: 'pointer', color: '#555' }}
+                style={{ background: 'none', border: 'none', fontSize: '1.25rem', cursor: 'pointer', color: 'var(--bento-text-secondary)' }}
               >
                 ✕
               </button>
             </div>
 
             {zoneActionError && (
-              <div role="alert" style={{ color: '#a05a5a', fontSize: '0.8125rem', marginBottom: '12px' }}>
+              <div role="alert" style={{ color: 'var(--bento-danger-text)', fontSize: '0.8125rem', marginBottom: '12px' }}>
                 {zoneActionError}
               </div>
             )}
@@ -2162,7 +2300,7 @@ export default function DashboardPage() {
                   flex: 2,
                   padding: '8px 12px',
                   borderRadius: '10px',
-                  border: '1px solid #fff',
+                  border: '1px solid var(--bento-card-bg-solid)',
                   backgroundColor: 'rgba(255,255,255,0.7)',
                   fontSize: '0.8125rem',
                   outline: 'none',
@@ -2177,7 +2315,7 @@ export default function DashboardPage() {
                   width: '60px',
                   padding: '8px 8px',
                   borderRadius: '10px',
-                  border: '1px solid #fff',
+                  border: '1px solid var(--bento-card-bg-solid)',
                   backgroundColor: 'rgba(255,255,255,0.7)',
                   fontSize: '0.8125rem',
                   outline: 'none',
@@ -2188,8 +2326,8 @@ export default function DashboardPage() {
                 disabled={submittingZone}
                 style={{
                   padding: '8px 14px',
-                  backgroundColor: '#5c6784',
-                  color: '#fff',
+                  backgroundColor: 'var(--bento-primary)',
+                  color: 'var(--bento-card-bg-solid)',
                   border: 'none',
                   borderRadius: '10px',
                   fontSize: '0.8125rem',
@@ -2230,7 +2368,7 @@ export default function DashboardPage() {
                             flex: 1,
                             padding: '4px 8px',
                             borderRadius: '8px',
-                            border: '1px solid #5c6784',
+                            border: '1px solid var(--bento-primary)',
                             fontSize: '0.8125rem',
                           }}
                         />
@@ -2239,8 +2377,8 @@ export default function DashboardPage() {
                           onClick={() => handleUpdateZone(z.id)}
                           style={{
                             padding: '4px 10px',
-                            backgroundColor: '#5c6784',
-                            color: '#fff',
+                            backgroundColor: 'var(--bento-primary)',
+                            color: 'var(--bento-card-bg-solid)',
                             border: 'none',
                             borderRadius: '8px',
                             fontSize: '0.75rem',
@@ -2255,7 +2393,7 @@ export default function DashboardPage() {
                           style={{
                             padding: '4px 8px',
                             backgroundColor: 'transparent',
-                            color: '#555',
+                            color: 'var(--bento-text-secondary)',
                             border: 'none',
                             fontSize: '0.75rem',
                             cursor: 'pointer',
@@ -2267,10 +2405,10 @@ export default function DashboardPage() {
                     ) : (
                       <>
                         <div>
-                          <span style={{ fontWeight: 600, fontSize: '0.875rem', color: '#222' }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--bento-text-strong)' }}>
                             {z.name}
                           </span>
-                          <span style={{ fontSize: '0.75rem', color: '#666', marginLeft: '8px' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--bento-text-muted)', marginLeft: '8px' }}>
                             ({assignedCount} mesas)
                           </span>
                         </div>
@@ -2285,7 +2423,7 @@ export default function DashboardPage() {
                               background: 'none',
                               border: 'none',
                               fontSize: '0.75rem',
-                              color: '#5c6784',
+                              color: 'var(--bento-primary)',
                               cursor: 'pointer',
                             }}
                           >
@@ -2298,7 +2436,7 @@ export default function DashboardPage() {
                               background: 'none',
                               border: 'none',
                               fontSize: '0.75rem',
-                              color: '#a05a5a',
+                              color: 'var(--bento-danger-text)',
                               cursor: 'pointer',
                             }}
                           >
@@ -2340,7 +2478,7 @@ export default function DashboardPage() {
         >
           <div
             style={{
-              backgroundColor: '#e0e3e5',
+              backgroundColor: 'var(--bento-panel-bg)',
               borderRadius: '2rem',
               width: '100%',
               maxWidth: '420px',
@@ -2349,19 +2487,19 @@ export default function DashboardPage() {
               border: '1px solid rgba(255,255,255,0.7)',
             }}
           >
-            <h3 id="modal-reservation-title" style={{ margin: '0 0 16px 0', fontSize: '1.25rem', fontWeight: 300, color: '#222' }}>
+            <h3 id="modal-reservation-title" style={{ margin: '0 0 16px 0', fontSize: '1.25rem', fontWeight: 300, color: 'var(--bento-text-strong)' }}>
               Nueva Reserva
             </h3>
 
             {reservationError && (
-              <div role="alert" style={{ color: '#a05a5a', fontSize: '0.8125rem', marginBottom: '12px' }}>
+              <div role="alert" style={{ color: 'var(--bento-danger-text)', fontSize: '0.8125rem', marginBottom: '12px' }}>
                 {reservationError}
               </div>
             )}
 
             <form onSubmit={handleSubmitReservation} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label htmlFor="res-table-select" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
+                <label htmlFor="res-table-select" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
                   Mesa
                 </label>
                 <select
@@ -2372,7 +2510,7 @@ export default function DashboardPage() {
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: '12px',
-                    border: '1px solid #fff',
+                    border: '1px solid var(--bento-card-bg-solid)',
                     backgroundColor: 'rgba(255,255,255,0.7)',
                     fontSize: '0.875rem',
                     boxSizing: 'border-box',
@@ -2388,7 +2526,7 @@ export default function DashboardPage() {
               </div>
 
               <div>
-                <label htmlFor="res-customer-name" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
+                <label htmlFor="res-customer-name" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
                   Nombre del Cliente
                 </label>
                 <input
@@ -2402,7 +2540,7 @@ export default function DashboardPage() {
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: '12px',
-                    border: '1px solid #fff',
+                    border: '1px solid var(--bento-card-bg-solid)',
                     backgroundColor: 'rgba(255,255,255,0.7)',
                     fontSize: '0.875rem',
                     boxSizing: 'border-box',
@@ -2413,7 +2551,7 @@ export default function DashboardPage() {
 
               <div style={{ display: 'flex', gap: '12px' }}>
                 <div style={{ flex: 1 }}>
-                  <label htmlFor="res-phone" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
+                  <label htmlFor="res-phone" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
                     Teléfono
                   </label>
                   <input
@@ -2426,7 +2564,7 @@ export default function DashboardPage() {
                       width: '100%',
                       padding: '10px 14px',
                       borderRadius: '12px',
-                      border: '1px solid #fff',
+                      border: '1px solid var(--bento-card-bg-solid)',
                       backgroundColor: 'rgba(255,255,255,0.7)',
                       fontSize: '0.875rem',
                       boxSizing: 'border-box',
@@ -2436,7 +2574,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div style={{ width: '90px' }}>
-                  <label htmlFor="res-party-size" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
+                  <label htmlFor="res-party-size" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
                     Personas
                   </label>
                   <input
@@ -2449,7 +2587,7 @@ export default function DashboardPage() {
                       width: '100%',
                       padding: '10px 14px',
                       borderRadius: '12px',
-                      border: '1px solid #fff',
+                      border: '1px solid var(--bento-card-bg-solid)',
                       backgroundColor: 'rgba(255,255,255,0.7)',
                       fontSize: '0.875rem',
                       boxSizing: 'border-box',
@@ -2460,7 +2598,7 @@ export default function DashboardPage() {
               </div>
 
               <div>
-                <label htmlFor="res-time" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
+                <label htmlFor="res-time" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
                   Hora de Llegada
                 </label>
                 <input
@@ -2472,7 +2610,7 @@ export default function DashboardPage() {
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: '12px',
-                    border: '1px solid #fff',
+                    border: '1px solid var(--bento-card-bg-solid)',
                     backgroundColor: 'rgba(255,255,255,0.7)',
                     fontSize: '0.875rem',
                     boxSizing: 'border-box',
@@ -2482,7 +2620,7 @@ export default function DashboardPage() {
               </div>
 
               <div>
-                <label htmlFor="res-notes" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
+                <label htmlFor="res-notes" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
                   Notas u Ocasión (Opcional)
                 </label>
                 <input
@@ -2495,7 +2633,7 @@ export default function DashboardPage() {
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: '12px',
-                    border: '1px solid #fff',
+                    border: '1px solid var(--bento-card-bg-solid)',
                     backgroundColor: 'rgba(255,255,255,0.7)',
                     fontSize: '0.875rem',
                     boxSizing: 'border-box',
@@ -2513,7 +2651,7 @@ export default function DashboardPage() {
                     padding: '10px',
                     borderRadius: '12px',
                     backgroundColor: 'rgba(255,255,255,0.6)',
-                    color: '#555',
+                    color: 'var(--bento-text-secondary)',
                     border: '1px solid rgba(255,255,255,0.8)',
                     fontSize: '0.875rem',
                     fontWeight: 600,
@@ -2529,8 +2667,8 @@ export default function DashboardPage() {
                     flex: 1,
                     padding: '10px',
                     borderRadius: '12px',
-                    backgroundColor: '#5c6784',
-                    color: '#fff',
+                    backgroundColor: 'var(--bento-primary)',
+                    color: 'var(--bento-card-bg-solid)',
                     border: 'none',
                     fontSize: '0.875rem',
                     fontWeight: 600,

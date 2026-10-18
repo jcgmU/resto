@@ -181,6 +181,29 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
   });
 
   describe('2. Mesas con zoneId, capacity y validación de enum status', () => {
+    let testZoneId: string;
+
+    beforeEach(async () => {
+      const z = await zoneRepo.save(tenantId, {
+        id: `zone-contract-test-${Date.now()}`,
+        tenantId,
+        name: 'Zona Contract',
+        sortOrder: 1,
+      });
+      testZoneId = z.id;
+    });
+
+    test('POST /tables exige zoneId obligatorio (400 VALIDATION_ERROR si falta)', async () => {
+      const res = await request(app)
+        .post('/tables')
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'admin')
+        .send({ label: 'Mesa Sin Zona' });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBeDefined();
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
     test('Creación de mesa valida zoneId y capacity; asigna capacity default 4', async () => {
       // zoneId inexistente -> 400
       const badZone = await request(app)
@@ -195,7 +218,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
         .post('/tables')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ label: 'Mesa 1', capacity: 0 });
+        .send({ label: 'Mesa 1', zoneId: testZoneId, capacity: 0 });
       expect(badCapacity.status).toBe(400);
 
       // Sin capacity especificada -> default 4
@@ -203,7 +226,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
         .post('/tables')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ label: 'Mesa Sin Capacidad' });
+        .send({ label: 'Mesa Sin Capacidad', zoneId: testZoneId });
       expect(defaultTable.status).toBe(201);
       expect(defaultTable.body.capacity).toBe(4);
       expect(defaultTable.body.status).toBe('AVAILABLE');
@@ -213,20 +236,38 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
         .post('/tables')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ label: 'Mesa 6 Puestos', capacity: 6 });
+        .send({ label: 'Mesa 6 Puestos', zoneId: testZoneId, capacity: 6 });
       expect(explicitTable.status).toBe(201);
       expect(explicitTable.body.capacity).toBe(6);
     });
 
-    test('PATCH /tables/:id valida enum de status ("AVAILABLE"|"OCCUPIED"|"RESERVED"|"DISABLED") o 400', async () => {
+    test('Consistencia de enum status entre POST y PATCH /tables ("AVAILABLE"|"OCCUPIED"|"RESERVED"|"DISABLED") o 400', async () => {
+      // POST con status inválido -> 400
+      const badPost = await request(app)
+        .post('/tables')
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'admin')
+        .send({ label: 'Mesa Bad Post', zoneId: testZoneId, status: 'INVALID_STATUS' });
+      expect(badPost.status).toBe(400);
+      expect(badPost.body.error.code).toBe('VALIDATION_ERROR');
+
+      // POST con status 'available' (minúsculas) -> 201 y normalizado a 'AVAILABLE'
+      const postAvailable = await request(app)
+        .post('/tables')
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'admin')
+        .send({ label: 'Mesa Lowercase Available', zoneId: testZoneId, status: 'available' });
+      expect(postAvailable.status).toBe(201);
+      expect(postAvailable.body.status).toBe('AVAILABLE');
+
       const created = await request(app)
         .post('/tables')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ label: 'Mesa Estado Test' });
+        .send({ label: 'Mesa Estado Test', zoneId: testZoneId });
       const tableId = created.body.tableId;
 
-      // Status inválido -> 400
+      // Status inválido en PATCH -> 400
       const badStatus = await request(app)
         .patch(`/tables/${tableId}`)
         .set('x-tenant-id', tenantId)
@@ -235,14 +276,14 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       expect(badStatus.status).toBe(400);
       expect(badStatus.body.error.code).toBe('VALIDATION_ERROR');
 
-      // Status DISABLED válido -> 200
-      const setDisabled = await request(app)
+      // Status 'disabled' (minúsculas) en PATCH -> 200 y 'DISABLED'
+      const setDisabledLower = await request(app)
         .patch(`/tables/${tableId}`)
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ status: 'DISABLED' });
-      expect(setDisabled.status).toBe(200);
-      expect(setDisabled.body.status).toBe('DISABLED');
+        .send({ status: 'disabled' });
+      expect(setDisabledLower.status).toBe(200);
+      expect(setDisabledLower.body.status).toBe('DISABLED');
 
       // Mesa DISABLED no permite abrir sesión -> 400 TABLE_INACTIVE
       const tableWithQr = await tableRepo.findById(tenantId, tableId);
@@ -252,7 +293,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       expect(openDisabled.status).toBe(400);
       expect(openDisabled.body.error.code).toBe('TABLE_INACTIVE');
 
-      // Status AVAILABLE válido -> 200
+      // Status 'AVAILABLE' (mayúsculas) en PATCH -> 200
       const setAvailable = await request(app)
         .patch(`/tables/${tableId}`)
         .set('x-tenant-id', tenantId)
@@ -270,12 +311,24 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
   });
 
   describe('3. DELETE /tables/:id Protegido y Bloqueado con Sesión o Reserva Activa', () => {
+    let delZoneId: string;
+
+    beforeEach(async () => {
+      const z = await zoneRepo.save(tenantId, {
+        id: `zone-del-${Date.now()}`,
+        tenantId,
+        name: 'Zona Delete Tests',
+        sortOrder: 1,
+      });
+      delZoneId = z.id;
+    });
+
     test('DELETE /tables/:id protegido para admin/manager', async () => {
       const created = await request(app)
         .post('/tables')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ label: 'Mesa Protegida' });
+        .send({ label: 'Mesa Protegida', zoneId: delZoneId });
       const tableId = created.body.tableId;
 
       // Sin rol -> 403
@@ -297,7 +350,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
         .post('/tables')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ label: 'Mesa Con Sesión' });
+        .send({ label: 'Mesa Con Sesión', zoneId: delZoneId });
       const tableId = created.body.tableId;
       const tableWithQr = await tableRepo.findById(tenantId, tableId);
 
@@ -339,7 +392,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
         .post('/tables')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ label: 'Mesa Con Reserva' });
+        .send({ label: 'Mesa Con Reserva', zoneId: delZoneId });
       const tableId = created.body.tableId;
 
       // Crear reserva activa
@@ -557,6 +610,196 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
         .set('x-user-role', 'staff');
       const tableAfterCancel = getAfterCancel.body.find((t: any) => t.tableId === table.tableId);
       expect(tableAfterCancel.status).toBe('AVAILABLE');
+    });
+
+    test('PATCH /reservations/:id (staff) permite modificar customerName, phone, partySize, reservedFor, notes con validaciones', async () => {
+      const table = await tableRepo.save(tenantId, {
+        tableId: 'tb-res-patch',
+        tenantId,
+        label: 'Mesa Patch Reserva',
+        status: 'AVAILABLE',
+        capacity: 4,
+        qrKey: 'qr-res-patch',
+        createdAt: new Date().toISOString(),
+      });
+
+      const initialDate = new Date(Date.now() + 2 * 3600 * 1000).toISOString();
+      const createdRes = await request(app)
+        .post('/reservations')
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'staff')
+        .send({
+          tableId: table.tableId,
+          customerName: 'Carlos M.',
+          phone: '3001234567',
+          partySize: 2,
+          reservedFor: initialDate,
+          notes: 'Nota inicial',
+        });
+      expect(createdRes.status).toBe(201);
+      const resId = createdRes.body.id;
+
+      // 1. Control de acceso: sin rol staff -> 403
+      const noRolePatch = await request(app)
+        .patch(`/reservations/${resId}`)
+        .set('x-tenant-id', tenantId)
+        .send({ customerName: 'Intento Sin Rol' });
+      expect(noRolePatch.status).toBe(403);
+
+      // 2. Reserva inexistente -> 404
+      const notFoundPatch = await request(app)
+        .patch('/reservations/res-non-existent')
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'staff')
+        .send({ customerName: 'Nuevo Nombre' });
+      expect(notFoundPatch.status).toBe(404);
+      expect(notFoundPatch.body.error.code).toBe('RESERVATION_NOT_FOUND');
+
+      // 3. Validaciones de ventana / campos inválidos -> 400
+      const badDatePatch = await request(app)
+        .patch(`/reservations/${resId}`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'staff')
+        .send({ reservedFor: 'fecha-invalida' });
+      expect(badDatePatch.status).toBe(400);
+      expect(badDatePatch.body.error.code).toBe('VALIDATION_ERROR');
+
+      const badPartyPatch = await request(app)
+        .patch(`/reservations/${resId}`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'staff')
+        .send({ partySize: 0 });
+      expect(badPartyPatch.status).toBe(400);
+
+      const emptyNamePatch = await request(app)
+        .patch(`/reservations/${resId}`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'staff')
+        .send({ customerName: '   ' });
+      expect(emptyNamePatch.status).toBe(400);
+
+      const emptyPhonePatch = await request(app)
+        .patch(`/reservations/${resId}`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'staff')
+        .send({ phone: '' });
+      expect(emptyPhonePatch.status).toBe(400);
+
+      // 4. Edición exitosa de todos los campos permitidos -> 200
+      const updatedDate = new Date(Date.now() + 5 * 3600 * 1000).toISOString();
+      const patchSuccess = await request(app)
+        .patch(`/reservations/${resId}`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'staff')
+        .send({
+          customerName: 'Carlos Mendoza',
+          phone: '3119876543',
+          partySize: 4,
+          reservedFor: updatedDate,
+          notes: 'Mesa alta cerca al bar',
+        });
+      expect(patchSuccess.status).toBe(200);
+      expect(patchSuccess.body.customerName).toBe('Carlos Mendoza');
+      expect(patchSuccess.body.phone).toBe('3119876543');
+      expect(patchSuccess.body.partySize).toBe(4);
+      expect(new Date(patchSuccess.body.reservedFor).getTime()).toBe(new Date(updatedDate).getTime());
+      expect(patchSuccess.body.notes).toBe('Mesa alta cerca al bar');
+
+      // 5. Verificar persistencia en Redis real
+      const persisted = await reservationRepo.findById(tenantId, resId);
+      expect(persisted).not.toBeNull();
+      expect(persisted?.customerName).toBe('Carlos Mendoza');
+      expect(persisted?.partySize).toBe(4);
+      expect(persisted?.notes).toBe('Mesa alta cerca al bar');
+    });
+
+    test('Prioridad de estados en GET /tables: disabled > occupied (sesión viva) > reserved (reserva active hoy) > available; RESERVED NO pisa OCCUPIED', async () => {
+      const z = await zoneRepo.save(tenantId, {
+        id: `zone-prio-${Date.now()}`,
+        tenantId,
+        name: 'Zona Prioridad',
+        sortOrder: 1,
+      });
+
+      const tableRes = await request(app)
+        .post('/tables')
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'admin')
+        .send({ label: 'Mesa Prioridad Ocupada', zoneId: z.id, capacity: 4 });
+      const tableId = tableRes.body.tableId;
+      const tableWithQr = await tableRepo.findById(tenantId, tableId);
+
+      // 1. Abrir sesión viva -> mesa pasa a ocupada
+      const openRes = await request(app)
+        .post('/sessions/open')
+        .send({ tenantId, tableId, qrKey: tableWithQr!.qrKey });
+      expect(openRes.status).toBe(200);
+      const sessionId = openRes.body.session.sessionId;
+
+      // 2. Crear reserva active para HOY en la misma mesa
+      const todayReservation = new Date(Date.now() + 3 * 3600 * 1000).toISOString();
+      await request(app)
+        .post('/reservations')
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'staff')
+        .send({
+          tableId,
+          customerName: 'Cliente Reserva y Ocupada',
+          phone: '3007778899',
+          partySize: 4,
+          reservedFor: todayReservation,
+        });
+
+      // 3. GET /tables: con sesión viva y reserva hoy -> DEBE ser OCCUPIED (RESERVED ya NO pisa OCCUPIED)
+      const getTablesOcc = await request(app)
+        .get('/tables')
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'staff');
+      expect(getTablesOcc.status).toBe(200);
+      const tableOcc = getTablesOcc.body.find((t: any) => t.tableId === tableId);
+      expect(tableOcc.status).toBe('OCCUPIED');
+
+      // 4. Si la mesa se marca como DISABLED, disabled tiene máxima prioridad sobre occupied y reserved
+      await request(app)
+        .patch(`/tables/${tableId}`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'admin')
+        .send({ status: 'DISABLED' });
+
+      const getTablesDis = await request(app)
+        .get('/tables')
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'staff');
+      const tableDis = getTablesDis.body.find((t: any) => t.tableId === tableId);
+      expect(tableDis.status).toBe('DISABLED');
+
+      // Restaurar status AVAILABLE
+      await request(app)
+        .patch(`/tables/${tableId}`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'admin')
+        .send({ status: 'AVAILABLE' });
+
+      // Sigue teniendo sesión viva -> vuelve a OCCUPIED
+      const getTablesOccAgain = await request(app)
+        .get('/tables')
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'staff');
+      const tableOccAgain = getTablesOccAgain.body.find((t: any) => t.tableId === tableId);
+      expect(tableOccAgain.status).toBe('OCCUPIED');
+
+      // 5. Cerrar la sesión -> ahora ya no tiene sesión viva, pero conserva la reserva active de hoy -> RESERVED
+      await request(app)
+        .patch(`/sessions/${sessionId}/close`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'staff');
+
+      const getTablesRes = await request(app)
+        .get('/tables')
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'staff');
+      const tableResAfter = getTablesRes.body.find((t: any) => t.tableId === tableId);
+      expect(tableResAfter.status).toBe('RESERVED');
     });
   });
 

@@ -105,7 +105,7 @@ export function ModalConfirm({
         alignItems: 'center',
         justifyContent: 'center',
         padding: '16px',
-        background: 'color-mix(in srgb, var(--bento-hueso) 70%, transparent)',
+        background: 'color-mix(in srgb, var(--bento-page-bg) 70%, transparent)',
         zIndex: 1000,
       }}
     >
@@ -121,7 +121,7 @@ export function ModalConfirm({
         style={{
           width: '100%',
           maxWidth: '480px',
-          background: 'var(--bento-papel)',
+          background: 'var(--bento-card-bg-solid)',
           color: 'var(--bento-text)',
           borderRadius: 'var(--bento-card-radius)',
           border: '1px solid var(--bento-border)',
@@ -144,7 +144,7 @@ export function ModalConfirm({
                 padding: '12px 16px',
                 borderRadius: 'var(--bento-inner-radius)',
                 border: '1px solid var(--bento-border)',
-                background: i === 1 ? 'var(--bento-hueso)' : 'transparent',
+                background: i === 1 ? 'var(--bento-page-bg)' : 'transparent',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '4px',
@@ -217,9 +217,9 @@ export function ModalConfirm({
             onClick={onApprove}
             style={{
               ...buttonBase,
-              background: 'var(--bento-tinta)',
-              color: 'var(--bento-papel)',
-              border: '1px solid var(--bento-tinta)',
+              background: 'var(--bento-primary)',
+              color: 'var(--bento-card-bg-solid)',
+              border: '1px solid var(--bento-primary)',
             }}
           >
             {approveLabel}

@@ -27,7 +27,7 @@ export function ErrorState({ title = 'Algo salió mal', message, onRetry, retryL
         padding: '32px 24px',
         border: '1px solid var(--bento-destructive)',
         borderRadius: 'var(--bento-card-radius)',
-        background: 'var(--bento-papel)',
+        background: 'var(--bento-card-bg-solid)',
         color: 'var(--bento-text)',
       }}
     >
@@ -57,9 +57,9 @@ export function ErrorState({ title = 'Algo salió mal', message, onRetry, retryL
             minHeight: '44px',
             padding: '0 20px',
             borderRadius: 'var(--bento-pill-radius)',
-            background: 'var(--bento-tinta)',
-            color: 'var(--bento-papel)',
-            border: '1px solid var(--bento-tinta)',
+            background: 'var(--bento-primary)',
+            color: 'var(--bento-card-bg-solid)',
+            border: '1px solid var(--bento-primary)',
             fontFamily: 'var(--bento-font-body)',
             fontSize: '14px',
             fontWeight: 600,

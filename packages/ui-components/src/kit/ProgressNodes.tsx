@@ -42,9 +42,9 @@ export function ProgressNodes({ steps, current, problemSegment, className }: Pro
                   height: '16px',
                   borderRadius: 'var(--bento-pill-radius)',
                   boxSizing: 'border-box',
-                  background: state === 'pending' ? 'var(--bento-papel)' : 'var(--bento-tinta)',
-                  border: '2px solid var(--bento-tinta)',
-                  boxShadow: state === 'current' ? '0 0 0 3px var(--bento-lima)' : 'none',
+                  background: state === 'pending' ? 'var(--bento-card-bg-solid)' : 'var(--bento-primary)',
+                  border: '2px solid var(--bento-primary)',
+                  boxShadow: state === 'current' ? '0 0 0 3px var(--bento-primary)' : 'none',
                 }}
               />
               <span
@@ -70,7 +70,7 @@ export function ProgressNodes({ steps, current, problemSegment, className }: Pro
                   '--kit-segment-bg': problem
                     ? 'var(--bento-destructive)'
                     : i < current
-                    ? 'var(--bento-tinta)'
+                    ? 'var(--bento-primary)'
                     : 'var(--bento-border)',
                   background: 'var(--kit-segment-bg)',
                 } as React.CSSProperties}

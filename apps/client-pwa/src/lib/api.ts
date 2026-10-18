@@ -344,30 +344,6 @@ export class PwaApiClient {
     return res.json();
   }
 
-  static async checkout(params: { sessionId: string; tableId: string; method?: string }): Promise<any> {
-    const baseUrl = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:4000';
-    const res = await fetch(`${baseUrl}/v1/checkout/confirm`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(PwaApiClient.guestToken ? { Authorization: `Bearer ${PwaApiClient.guestToken}` } : {}),
-      },
-      body: JSON.stringify({
-        sessionId: params.sessionId,
-        tableId: params.tableId,
-        method: params.method || 'CASH',
-      }),
-    });
-    PwaApiClient.checkAuthExpired(res);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      const err = new Error(data.message || 'Error en checkout');
-      (err as any).status = res.status;
-      throw err;
-    }
-    return res.json();
-  }
-
   static async requestBill(sessionIdOrTableId?: string): Promise<any> {
     const effectiveSessionId = PwaApiClient.session?.sessionId || sessionIdOrTableId;
     if (!effectiveSessionId) {

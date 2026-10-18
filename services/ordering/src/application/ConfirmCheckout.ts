@@ -14,6 +14,7 @@ import {
 import { calculateBill } from '../domain/bill';
 import { validatePaymentMethod } from '../domain/payment';
 import { BillEmptyError, SessionCloseFailedError } from '../domain/errors';
+import { guardCheckoutSession } from './sessionGuard';
 
 export interface ConfirmCheckoutResult {
   bill: BillDTO;
@@ -34,19 +35,28 @@ export class ConfirmCheckout implements ConfirmCheckoutUseCase {
   async execute(input: {
     tenantId: string;
     sessionId: string;
-    tableId: string;
+    tableId?: string;
     method: PaymentMethod;
     recordedBy: string;
   }): Promise<ConfirmCheckoutResult> {
     const { tenantId, sessionId, tableId, recordedBy } = input;
     const method = validatePaymentMethod(input.method);
 
+    // Idempotencia: Verificar si ya existe Payment para (tenantId, sessionId)
+    const existingPayment = await this.paymentRepo.findBySession(tenantId, sessionId);
+
+    // Validar sesión y derivar mesa efectiva
+    const { effectiveTableId } = await guardCheckoutSession({
+      sessionService: this.sessionService,
+      tenantId,
+      sessionId,
+      inputTableId: tableId,
+      hasExistingPayment: Boolean(existingPayment),
+    });
+
     // 1. Calcular la cuenta: OrderRepository.listBySession filtrando status != CANCELLED
     const orders = await this.orderRepo.listBySession(tenantId, sessionId);
     const calculated = calculateBill(orders);
-
-    // Idempotencia: Verificar si ya existe Payment para (tenantId, sessionId)
-    const existingPayment = await this.paymentRepo.findBySession(tenantId, sessionId);
 
     if (!existingPayment && calculated.orders.length === 0) {
       throw new BillEmptyError('BILL_EMPTY: No hay órdenes activas para cobrar en esta sesión');
@@ -64,7 +74,7 @@ export class ConfirmCheckout implements ConfirmCheckoutUseCase {
         id: randomUUID(),
         tenantId,
         sessionId,
-        tableId,
+        tableId: effectiveTableId,
         amount: calculated.total, // CRITICAL: Server-calculated amount ONLY
         method,
         ordersCount: calculated.ordersCount,
@@ -116,12 +126,12 @@ export class ConfirmCheckout implements ConfirmCheckoutUseCase {
       // Ignorar fallo secundario de limpieza de service calls
     }
 
-    // 5. Publicar evento session.checkout-completed tras la orquestación y limpieza
-    if (this.eventPublisher) {
+    // 5. Publicar evento session.checkout-completed tras la orquestación y limpieza (solo si es pago nuevo)
+    if (this.eventPublisher && !isExisting) {
       await this.eventPublisher.publishCheckoutCompleted(tenantId, {
         type: 'session.checkout-completed',
         sessionId,
-        tableId,
+        tableId: effectiveTableId,
         payment,
         occurredAt: new Date().toISOString(),
       });
@@ -129,7 +139,7 @@ export class ConfirmCheckout implements ConfirmCheckoutUseCase {
 
     const bill: BillDTO = {
       sessionId,
-      tableId,
+      tableId: effectiveTableId,
       orders: calculated.orders,
       ordersCount: calculated.ordersCount,
       total: payment.amount,

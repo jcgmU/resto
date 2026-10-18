@@ -281,6 +281,56 @@ describe('R03a Transiciones de Estado de Sesión (Contract Test con Redis Real d
     expect(forbiddenRes.status).toBe(403);
   });
 
+  test('Control de acceso: POST bill-request exige sesión propia o rol staff (matriz de autorización)', async () => {
+    const openRes = await request(app)
+      .post('/sessions/open')
+      .send({ tenantId, tableId, qrKey });
+
+    const sessionId = openRes.body.session.sessionId;
+    expect(openRes.body.session.status).toBe('active');
+
+    // a) Sin header x-session-id ni JWT staff -> debe responder 403
+    const noAuthRes = await request(app)
+      .post(`/sessions/${sessionId}/bill-request`)
+      .set('x-tenant-id', tenantId);
+
+    expect(noAuthRes.status).toBe(403);
+    expect(noAuthRes.body.error?.code).toBe('FORBIDDEN');
+
+    // b) Con x-session-id de OTRA sesión (sesion-ajena) -> debe responder 403
+    const foreignSessionRes = await request(app)
+      .post(`/sessions/${sessionId}/bill-request`)
+      .set('x-tenant-id', tenantId)
+      .set('x-session-id', 'sesion-ajena');
+
+    expect(foreignSessionRes.status).toBe(403);
+    expect(foreignSessionRes.body.error?.code).toBe('FORBIDDEN');
+
+    // c) Con rol staff (x-user-role: staff/admin) -> debe responder 200
+    const staffRes = await request(app)
+      .post(`/sessions/${sessionId}/bill-request`)
+      .set('x-tenant-id', tenantId)
+      .set('x-user-role', 'staff');
+
+    expect(staffRes.status).toBe(200);
+    expect(staffRes.body.status).toBe('billRequested');
+
+    // Reabrir cuenta para probar paso d en estado active
+    await request(app)
+      .post(`/sessions/${sessionId}/bill-reopen`)
+      .set('x-tenant-id', tenantId)
+      .set('x-user-role', 'staff');
+
+    // d) Con x-session-id igual a req.params.id -> debe responder 200
+    const ownSessionRes = await request(app)
+      .post(`/sessions/${sessionId}/bill-request`)
+      .set('x-tenant-id', tenantId)
+      .set('x-session-id', sessionId);
+
+    expect(ownSessionRes.status).toBe(200);
+    expect(ownSessionRes.body.status).toBe('billRequested');
+  });
+
   test('Mesa ocupada en billRequested: escaneo concurrente/nuevo QR devuelve la misma sesión', async () => {
     const openRes = await request(app)
       .post('/sessions/open')
@@ -338,5 +388,95 @@ describe('R03a Transiciones de Estado de Sesión (Contract Test con Redis Real d
     await expect(
       sessionRepo.reopenBill(tenantId, created.sessionId)
     ).rejects.toThrow('No se puede reabrir la cuenta');
+  });
+
+  test('RequestBill invoca orderingServiceCallAdapter con type BILL_REQUEST solo en transición y de forma no bloqueante', async () => {
+    const calls: any[] = [];
+    const mockOrderingServiceCall = {
+      createServiceCall: jest.fn(async (params: any) => {
+        calls.push(params);
+        return {
+          callId: 'call-mock-1',
+          ...params,
+          status: 'pending' as const,
+          createdAt: new Date().toISOString(),
+        };
+      }),
+    };
+
+    const localApp = createSessionApp({
+      tableRepo,
+      sessionRepo,
+      orderingServiceCall: mockOrderingServiceCall,
+    });
+
+    const activeSession = await sessionRepo.save(
+      tenantId,
+      {
+        sessionId: 'sess-bill-req-adapter-1',
+        tenantId,
+        tableId,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+      },
+      3600
+    );
+
+    // 1. Primera solicitud: transición active -> billRequested, debe disparar createServiceCall con BILL_REQUEST
+    const res1 = await request(localApp)
+      .post(`/sessions/${activeSession.sessionId}/bill-request`)
+      .set('x-tenant-id', tenantId)
+      .set('x-session-id', activeSession.sessionId)
+      .set('x-user-role', 'guest')
+      .send();
+
+    expect(res1.status).toBe(200);
+    expect(res1.body.status).toBe('billRequested');
+    expect(mockOrderingServiceCall.createServiceCall).toHaveBeenCalledTimes(1);
+    expect(calls[0]).toEqual({
+      tenantId,
+      sessionId: activeSession.sessionId,
+      tableId,
+      type: 'BILL_REQUEST',
+    });
+
+    // 2. Segunda solicitud (idempotente): ya está en billRequested, NO debe volver a llamar a ordering
+    const res2 = await request(localApp)
+      .post(`/sessions/${activeSession.sessionId}/bill-request`)
+      .set('x-tenant-id', tenantId)
+      .set('x-session-id', activeSession.sessionId)
+      .set('x-user-role', 'guest')
+      .send();
+
+    expect(res2.status).toBe(200);
+    expect(res2.body.status).toBe('billRequested');
+    expect(mockOrderingServiceCall.createServiceCall).toHaveBeenCalledTimes(1);
+
+    // 3. Fallo en ordering es NO bloqueante: la sesión cambia a billRequested y responde 200
+    const activeSession2 = await sessionRepo.save(
+      tenantId,
+      {
+        sessionId: 'sess-bill-req-adapter-2',
+        tenantId,
+        tableId,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+      },
+      3600
+    );
+
+    mockOrderingServiceCall.createServiceCall.mockRejectedValueOnce(new Error('Ordering down'));
+
+    const res3 = await request(localApp)
+      .post(`/sessions/${activeSession2.sessionId}/bill-request`)
+      .set('x-tenant-id', tenantId)
+      .set('x-session-id', activeSession2.sessionId)
+      .set('x-user-role', 'guest')
+      .send();
+
+    expect(res3.status).toBe(200);
+    expect(res3.body.status).toBe('billRequested');
   });
 });

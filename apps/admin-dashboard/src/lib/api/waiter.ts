@@ -39,6 +39,7 @@ export interface WaiterCartItemInput {
   productName?: string;
   unitPrice?: number;
   modifiers?: any[];
+  addedBy?: string;
 }
 
 export interface ConfirmWaiterOrderInput {
@@ -126,10 +127,75 @@ export async function fetchMenu(): Promise<WaiterMenuData> {
   return { categories, products };
 }
 
+export function getAuthenticatedStaffUser(): string {
+  // 1. Check localStorage for stored user object
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const stored = window.localStorage.getItem('resto_user') || window.localStorage.getItem('user');
+      if (stored) {
+        const u = JSON.parse(stored);
+        if (u?.displayName && typeof u.displayName === 'string' && u.displayName.trim()) {
+          return u.displayName.trim();
+        }
+        if (u?.name && typeof u.name === 'string' && u.name.trim()) {
+          return u.name.trim();
+        }
+        if (u?.email && typeof u.email === 'string' && u.email.trim()) {
+          return u.email.trim();
+        }
+      }
+    } catch {}
+  }
+
+  // 2. Check JWT token from ApiClient or localStorage
+  const token =
+    ApiClient.token ||
+    (typeof window !== 'undefined' && window.localStorage
+      ? window.localStorage.getItem('resto_access_token') || window.localStorage.getItem('token')
+      : null);
+
+  if (token) {
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const base64Url = parts[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        let decoded = '';
+        if (typeof atob === 'function') {
+          decoded = atob(base64);
+        } else if (typeof Buffer !== 'undefined') {
+          decoded = Buffer.from(base64, 'base64').toString('utf-8');
+        }
+        if (decoded) {
+          const claims = JSON.parse(decoded);
+          if (claims?.displayName && typeof claims.displayName === 'string' && claims.displayName.trim()) {
+            return claims.displayName.trim();
+          }
+          if (claims?.name && typeof claims.name === 'string' && claims.name.trim()) {
+            return claims.name.trim();
+          }
+          if (claims?.email && typeof claims.email === 'string' && claims.email.trim()) {
+            return claims.email.trim();
+          }
+          if (claims?.sub && typeof claims.sub === 'string' && claims.sub.trim()) {
+            return claims.sub.trim();
+          }
+        }
+      } else if (!token.includes('.')) {
+        return token;
+      }
+    } catch {}
+  }
+
+  // 3. Fallback
+  return 'Personal de Sala';
+}
+
 export async function addWaiterCartItem(
   sessionId: string,
   item: WaiterCartItemInput
 ): Promise<any> {
+  const effectiveAddedBy = item.addedBy?.trim() || getAuthenticatedStaffUser();
   const res = await ApiClient.request('/v1/cart/items', {
     method: 'POST',
     headers: {
@@ -140,7 +206,7 @@ export async function addWaiterCartItem(
       productId: item.productId,
       quantity: item.quantity,
       notes: item.notes?.trim() ? item.notes.trim() : undefined,
-      addedBy: 'Mesero',
+      addedBy: effectiveAddedBy,
       display: {
         productName: item.productName || 'Producto',
         unitPrice: item.unitPrice || 0,

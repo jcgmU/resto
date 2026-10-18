@@ -38,6 +38,7 @@ export const routeTable: RouteDefinition[] = [
   { method: 'GET', path: '/v1/reservations', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter'], targetService: 'session' },
   { method: 'POST', path: '/v1/reservations', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter'], targetService: 'session' },
   { method: 'PATCH', path: '/v1/reservations/:id/cancel', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter'], targetService: 'session' },
+  { method: 'PATCH', path: '/v1/reservations/:id', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter'], targetService: 'session' },
   { method: 'POST', path: '/v1/reservations/:id/seat', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter'], targetService: 'session' },
 
   // Mesas & Sesiones (Oleada 2 & FASE B)

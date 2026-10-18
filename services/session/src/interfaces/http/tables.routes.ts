@@ -4,6 +4,7 @@ import {
   CreateTableUseCaseImpl,
   GenerateTableQrUseCaseImpl,
   RotateTableQrKeyUseCaseImpl,
+  parseAndValidateTableStatus,
 } from '../../application/TableUseCases';
 import {
   TableRepository,
@@ -52,8 +53,6 @@ export function createTablesRouter(deps: {
     reservationRepo,
   } = deps;
 
-  const VALID_TABLE_STATUSES: TableStatus[] = ['AVAILABLE', 'OCCUPIED', 'RESERVED', 'DISABLED'];
-
   // POST /tables -> staff (admin/manager)
   router.post(
     '/',
@@ -63,8 +62,14 @@ export function createTablesRouter(deps: {
         const tenantId = req.headers['x-tenant-id'] as string;
         const { label, zoneId, capacity, status } = req.body;
 
-        if (zoneId && zoneRepo) {
-          const zone = await zoneRepo.findById(tenantId, zoneId);
+        if (!zoneId || typeof zoneId !== 'string' || zoneId.trim() === '') {
+          return res.status(400).json({
+            error: { code: 'VALIDATION_ERROR', message: 'El zoneId es obligatorio' },
+          });
+        }
+
+        if (zoneRepo) {
+          const zone = await zoneRepo.findById(tenantId, zoneId.trim());
           if (!zone) {
             return res.status(400).json({
               error: { code: 'VALIDATION_ERROR', message: `Zona ${zoneId} no encontrada` },
@@ -80,20 +85,23 @@ export function createTablesRouter(deps: {
           }
         }
 
+        let normalizedStatus: TableStatus | undefined;
         if (status !== undefined) {
-          if (!VALID_TABLE_STATUSES.includes(status) && status !== 'active') {
+          const parsed = parseAndValidateTableStatus(status);
+          if (!parsed) {
             return res.status(400).json({
               error: { code: 'VALIDATION_ERROR', message: 'Estado de mesa inválido' },
             });
           }
+          normalizedStatus = parsed;
         }
 
         const result = await createTableUseCase.execute({
           tenantId,
           label,
-          zoneId,
+          zoneId: zoneId.trim(),
           capacity,
-          status,
+          status: normalizedStatus,
         });
         res.status(201).json(result);
       } catch (err) {
@@ -119,13 +127,36 @@ export function createTablesRouter(deps: {
           );
         }
 
-        const enriched = list.map((table) => {
-          let status = table.status;
-          if (status !== 'DISABLED' && status !== 'inactive') {
-            if (todayReservedTableIds.has(table.tableId)) {
-              status = 'RESERVED';
+        const occupiedTableIds = new Set<string>();
+        if (sessionRepo) {
+          const activeChecks = await Promise.all(
+            list.map(async (table) => {
+              const activeSession = await sessionRepo.findActiveByTable(tenantId, table.tableId);
+              return { tableId: table.tableId, isActive: Boolean(activeSession) };
+            })
+          );
+          for (const check of activeChecks) {
+            if (check.isActive) {
+              occupiedTableIds.add(check.tableId);
             }
           }
+        }
+
+        const enriched = list.map((table) => {
+          let status: TableStatus;
+          const rawStatus = (table.status || '').toUpperCase();
+
+          // Prioridad: disabled > occupied (sesión viva) > reserved (reserva active hoy) > available
+          if (rawStatus === 'DISABLED' || rawStatus === 'INACTIVE') {
+            status = 'DISABLED';
+          } else if (occupiedTableIds.has(table.tableId) || rawStatus === 'OCCUPIED') {
+            status = 'OCCUPIED';
+          } else if (todayReservedTableIds.has(table.tableId) || rawStatus === 'RESERVED') {
+            status = 'RESERVED';
+          } else {
+            status = 'AVAILABLE';
+          }
+
           return {
             ...table,
             status,
@@ -153,11 +184,13 @@ export function createTablesRouter(deps: {
         }
 
         if (req.body.status !== undefined) {
-          if (!VALID_TABLE_STATUSES.includes(req.body.status)) {
+          const parsed = parseAndValidateTableStatus(req.body.status);
+          if (!parsed) {
             return res.status(400).json({
               error: { code: 'VALIDATION_ERROR', message: 'Estado de mesa inválido' },
             });
           }
+          req.body.status = parsed;
         }
 
         if (req.body.capacity !== undefined) {

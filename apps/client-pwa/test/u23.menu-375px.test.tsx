@@ -124,7 +124,7 @@ describe('U23 / H6: PWA a 375px — Layout, catálogo 100% y footer fijo con saf
     expect(footer?.style.width).toBe('100%');
     expect(footer?.style.zIndex).toBe('30');
     expect(footer?.style.boxSizing).toBe('border-box');
-    expect(footer?.style.backgroundColor).toBe('var(--bento-hueso)');
+    expect(footer?.style.backgroundColor).toBe('var(--bento-page-bg-pwa)');
     expect(footer?.style.display).toBe('flex');
     expect(footer?.style.flexDirection).toBe('column');
     expect(footer?.style.gap).toBe('8px');

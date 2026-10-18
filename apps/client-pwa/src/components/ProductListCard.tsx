@@ -47,7 +47,7 @@ export function ProductListCard({ product, onSelect }: ProductListCardProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'var(--bento-text-muted, #888)',
+            color: 'var(--bento-text-muted)',
           }}
         >
           <svg
@@ -117,9 +117,9 @@ export function ProductListCard({ product, onSelect }: ProductListCardProps) {
           <span
             data-testid="badge-agotado"
             style={{
-              color: 'var(--bento-destructive, #ef4444)',
+              color: 'var(--bento-destructive)',
               backgroundColor: 'var(--bento-destructive-subtle, rgba(239, 68, 68, 0.1))',
-              border: '1px solid var(--bento-destructive, #ef4444)',
+              border: '1px solid var(--bento-destructive)',
               borderRadius: 'var(--bento-pill-radius, 12px)',
               padding: '2px 8px',
               fontSize: '0.75rem',

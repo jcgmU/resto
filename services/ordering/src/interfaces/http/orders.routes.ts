@@ -95,12 +95,13 @@ export function createOrdersRouter(orderUseCases: OrderUseCases): Router {
         delayMinutes === undefined ||
         typeof delayMinutes !== 'number' ||
         !Number.isInteger(delayMinutes) ||
-        delayMinutes < 0
+        delayMinutes < 1 ||
+        delayMinutes > 120
       ) {
         return res.status(400).json({
           error: {
             code: 'VALIDATION_ERROR',
-            message: 'delayMinutes debe ser un número entero mayor o igual a 0',
+            message: 'delayMinutes debe ser un número entero entre 1 y 120',
           },
         });
       }

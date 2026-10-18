@@ -51,7 +51,7 @@ export function ProductCard({
               width: '100%',
               height: '140px',
               borderRadius: 'var(--bento-inner-radius)',
-              backgroundColor: 'color-mix(in srgb, var(--bento-primario, #5c6784) 10%, transparent)',
+              backgroundColor: 'color-mix(in srgb, var(--bento-primary, #5c6784) 10%, transparent)',
               border: '1px dashed var(--bento-border)',
               display: 'flex',
               flexDirection: 'column',
@@ -89,9 +89,9 @@ export function ProductCard({
               fontSize: '0.75rem',
               fontWeight: 600,
               backgroundColor: isAvail
-                ? 'color-mix(in srgb, var(--bento-libre, #8fbf95) 25%, transparent)'
-                : 'color-mix(in srgb, var(--bento-ocupada, #e0a6a6) 25%, transparent)',
-              color: isAvail ? '#2d5a31' : '#8a2b2b',
+                ? 'color-mix(in srgb, var(--bento-status-available, #8fbf95) 25%, transparent)'
+                : 'color-mix(in srgb, var(--bento-status-occupied, #e0a6a6) 25%, transparent)',
+              color: isAvail ? 'var(--bento-status-available-strong)' : 'var(--bento-status-occupied-strong)',
             }}
           >
             {isAvail ? 'Disponible' : 'Agotado'}
@@ -165,7 +165,7 @@ export function ProductCard({
                 style={{
                   flex: 1,
                   padding: '6px 12px',
-                  backgroundColor: 'var(--bento-papel)',
+                  backgroundColor: 'var(--bento-card-bg-solid)',
                   color: 'var(--bento-text)',
                   borderRadius: 'var(--bento-pill-radius)',
                   border: '1px solid var(--bento-border)',

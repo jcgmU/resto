@@ -97,8 +97,11 @@ export function createCartRouter(
         }
       }
 
-      if (estimatedMinutes !== undefined && estimatedMinutes !== null) {
-        if (typeof estimatedMinutes !== 'number' || !Number.isInteger(estimatedMinutes) || estimatedMinutes <= 0) {
+      const isStaff = role && ['staff', 'manager', 'admin', 'waiter'].includes(role.toLowerCase());
+      const effectiveEstimatedMinutes = isStaff ? estimatedMinutes : undefined;
+
+      if (effectiveEstimatedMinutes !== undefined && effectiveEstimatedMinutes !== null) {
+        if (typeof effectiveEstimatedMinutes !== 'number' || !Number.isInteger(effectiveEstimatedMinutes) || effectiveEstimatedMinutes <= 0) {
           throw new ValidationError('estimatedMinutes debe ser un entero positivo');
         }
       }
@@ -108,7 +111,7 @@ export function createCartRouter(
         sessionId: sessionId!,
         tableId,
         notes,
-        estimatedMinutes,
+        estimatedMinutes: effectiveEstimatedMinutes,
         userRole: role,
       });
 

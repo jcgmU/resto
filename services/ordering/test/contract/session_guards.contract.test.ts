@@ -226,6 +226,33 @@ describe('V08 - R03b + R06 Session Guards and Table Derivation in Ordering (Cont
       expect(patchRes.body.error.code).toBe('SESSION_NOT_ORDERABLE');
     });
 
+    it('rechaza eliminar ítem del carrito (DELETE /cart/items/:id) en billRequested con 409 SESSION_NOT_ORDERABLE', async () => {
+      const sessionId = 'session-bill-delete';
+      setupSession(sessionId, 'active', tableId);
+      const headers = { 'x-tenant-id': tenantId, 'x-session-id': sessionId };
+
+      const addRes = await request(app)
+        .post('/cart/items')
+        .set(headers)
+        .send({
+          productId: 'prod-taco',
+          quantity: 1,
+          modifiers: [],
+          display: { productName: 'Tacos', unitPrice: 15, modifierNames: [] },
+        });
+      expect(addRes.status).toBe(201);
+      const cartItemId = addRes.body.items[0].cartItemId;
+
+      setupSession(sessionId, 'billRequested', tableId);
+
+      const delRes = await request(app)
+        .delete(`/cart/items/${cartItemId}`)
+        .set(headers);
+
+      expect(delRes.status).toBe(409);
+      expect(delRes.body.error.code).toBe('SESSION_NOT_ORDERABLE');
+    });
+
     it('rechaza confirmar orden con 409 SESSION_NOT_ORDERABLE y no persiste nada en Postgres', async () => {
       const sessionId = 'session-bill-confirm';
       setupSession(sessionId, 'active', tableId);
@@ -278,6 +305,33 @@ describe('V08 - R03b + R06 Session Guards and Table Derivation in Ordering (Cont
 
       expect(res.status).toBe(409);
       expect(res.body.error.code).toBe('SESSION_NOT_ORDERABLE');
+    });
+
+    it('rechaza eliminar ítem del carrito (DELETE /cart/items/:id) en closed con 409 SESSION_NOT_ORDERABLE', async () => {
+      const sessionId = 'session-closed-delete';
+      setupSession(sessionId, 'active', tableId);
+      const headers = { 'x-tenant-id': tenantId, 'x-session-id': sessionId };
+
+      const addRes = await request(app)
+        .post('/cart/items')
+        .set(headers)
+        .send({
+          productId: 'prod-taco',
+          quantity: 1,
+          modifiers: [],
+          display: { productName: 'Tacos', unitPrice: 15, modifierNames: [] },
+        });
+      expect(addRes.status).toBe(201);
+      const cartItemId = addRes.body.items[0].cartItemId;
+
+      setupSession(sessionId, 'closed', tableId);
+
+      const delRes = await request(app)
+        .delete(`/cart/items/${cartItemId}`)
+        .set(headers);
+
+      expect(delRes.status).toBe(409);
+      expect(delRes.body.error.code).toBe('SESSION_NOT_ORDERABLE');
     });
 
     it('rechaza confirmar orden con 409 SESSION_NOT_ORDERABLE', async () => {
@@ -410,6 +464,45 @@ describe('V08 - R03b + R06 Session Guards and Table Derivation in Ordering (Cont
       expect(res.status).toBe(409);
       expect(res.body.error.code).toBe('TABLE_MISMATCH');
     });
+
+    it('rechaza checkout con 409 TABLE_MISMATCH si el tableId provisto difiere de la sesión', async () => {
+      const sessionId = 'session-checkout-mismatch';
+      setupSession(sessionId, 'active', 'mesa-autorizada');
+
+      const guestHeaders = { 'x-tenant-id': tenantId, 'x-session-id': sessionId };
+      const staffHeaders = {
+        'x-tenant-id': tenantId,
+        'x-user-id': 'staff-cajero',
+        'x-user-role': 'staff',
+      };
+
+      await request(app)
+        .post('/cart/items')
+        .set(guestHeaders)
+        .send({
+          productId: 'prod-taco',
+          quantity: 1,
+          modifiers: [],
+          display: { productName: 'Tacos', unitPrice: 15, modifierNames: [] },
+        });
+
+      await request(app)
+        .post('/cart/confirm')
+        .set(guestHeaders)
+        .send({ tableId: 'mesa-autorizada' });
+
+      const checkoutRes = await request(app)
+        .post('/checkout/confirm')
+        .set(staffHeaders)
+        .send({
+          sessionId,
+          tableId: 'mesa-ajena',
+          method: 'CASH',
+        });
+
+      expect(checkoutRes.status).toBe(409);
+      expect(checkoutRes.body.error.code).toBe('TABLE_MISMATCH');
+    });
   });
 
   describe('5. Simulación pedido + cobro simultáneos (Barrera de Liquidación)', () => {
@@ -513,8 +606,186 @@ describe('V08 - R03b + R06 Session Guards and Table Derivation in Ordering (Cont
     });
   });
 
+  describe('7. ConfirmCheckout Session Guards y Reintentos Idempotentes', () => {
+    it('permite cobro (POST /checkout/confirm) en estado billRequested con 201 OK', async () => {
+      const sessionId = 'session-checkout-bill-req';
+      setupSession(sessionId, 'active', tableId);
+
+      const guestHeaders = { 'x-tenant-id': tenantId, 'x-session-id': sessionId };
+      const staffHeaders = {
+        'x-tenant-id': tenantId,
+        'x-user-id': 'staff-cajero',
+        'x-user-role': 'staff',
+      };
+
+      await request(app)
+        .post('/cart/items')
+        .set(guestHeaders)
+        .send({
+          productId: 'prod-taco',
+          quantity: 2,
+          modifiers: [],
+          display: { productName: 'Tacos', unitPrice: 15, modifierNames: [] },
+        });
+
+      await request(app)
+        .post('/cart/confirm')
+        .set(guestHeaders)
+        .send({ tableId });
+
+      setupSession(sessionId, 'billRequested', tableId);
+
+      const checkoutRes = await request(app)
+        .post('/checkout/confirm')
+        .set(staffHeaders)
+        .send({
+          sessionId,
+          tableId,
+          method: 'CASH',
+        });
+
+      expect(checkoutRes.status).toBe(201);
+      expect(checkoutRes.body.payment).toBeDefined();
+      expect(checkoutRes.body.payment.amount).toBe(30);
+      expect(checkoutRes.body.bill.total).toBe(30);
+      expect(checkoutRes.body.payment.tableId).toBe(tableId);
+      expect(checkoutRes.body.bill.tableId).toBe(tableId);
+    });
+
+    it('permite reintento de cobro en sesión closed con pago previo (idempotente 200) y rechaza cobro en closed sin pago previo (409 SESSION_NOT_ORDERABLE)', async () => {
+      const sessionId = 'session-checkout-closed-retry';
+      setupSession(sessionId, 'active', tableId);
+
+      const guestHeaders = { 'x-tenant-id': tenantId, 'x-session-id': sessionId };
+      const staffHeaders = {
+        'x-tenant-id': tenantId,
+        'x-user-id': 'staff-cajero',
+        'x-user-role': 'staff',
+      };
+
+      await request(app)
+        .post('/cart/items')
+        .set(guestHeaders)
+        .send({
+          productId: 'prod-taco',
+          quantity: 1,
+          modifiers: [],
+          display: { productName: 'Tacos', unitPrice: 15, modifierNames: [] },
+        });
+
+      await request(app)
+        .post('/cart/confirm')
+        .set(guestHeaders)
+        .send({ tableId });
+
+      // 1. Cobro inicial exitoso (201)
+      const firstCheckout = await request(app)
+        .post('/checkout/confirm')
+        .set(staffHeaders)
+        .send({
+          sessionId,
+          tableId,
+          method: 'CASH',
+        });
+      expect(firstCheckout.status).toBe(201);
+
+      // Ahora la sesión está closed
+      const sess = await sessionService.getSession(tenantId, sessionId);
+      expect(sess?.status).toBe('closed');
+
+      // 2. Reintento de cobro en sesión closed con pago previo -> 200 idempotente
+      const retryCheckout = await request(app)
+        .post('/checkout/confirm')
+        .set(staffHeaders)
+        .send({
+          sessionId,
+          tableId,
+          method: 'CASH',
+        });
+      expect(retryCheckout.status).toBe(200);
+      expect(retryCheckout.body.payment.id).toBe(firstCheckout.body.payment.id);
+
+      // 3. Intento de cobro en sesión closed SIN pago previo -> debe dar 409 SESSION_NOT_ORDERABLE
+      const sessionWithoutPayment = 'session-closed-no-payment';
+      setupSession(sessionWithoutPayment, 'closed', tableId);
+
+      const prisma = getTestPrisma();
+      await prisma.order.create({
+        data: {
+          id: 'ord-orphan-test',
+          tenantId,
+          sessionId: sessionWithoutPayment,
+          tableId,
+          status: 'PLACED',
+          total: 15,
+        },
+      });
+
+      const rejectClosed = await request(app)
+        .post('/checkout/confirm')
+        .set(staffHeaders)
+        .send({
+          sessionId: sessionWithoutPayment,
+          tableId,
+          method: 'CASH',
+        });
+
+      expect(rejectClosed.status).toBe(409);
+      expect(rejectClosed.body.error.code).toBe('SESSION_NOT_ORDERABLE');
+    });
+
+    it('deriva effectiveTableId de la sesión si no se envía tableId en body de checkout', async () => {
+      const sessionId = 'session-checkout-derive-table';
+      setupSession(sessionId, 'active', 'mesa-terraza-8');
+
+      const guestHeaders = { 'x-tenant-id': tenantId, 'x-session-id': sessionId };
+      const staffHeaders = {
+        'x-tenant-id': tenantId,
+        'x-user-id': 'staff-cajero',
+        'x-user-role': 'staff',
+      };
+
+      await request(app)
+        .post('/cart/items')
+        .set(guestHeaders)
+        .send({
+          productId: 'prod-taco',
+          quantity: 1,
+          modifiers: [],
+          display: { productName: 'Tacos', unitPrice: 15, modifierNames: [] },
+        });
+
+      await request(app)
+        .post('/cart/confirm')
+        .set(guestHeaders)
+        .send({ tableId: 'mesa-terraza-8' });
+
+      const checkoutRes = await request(app)
+        .post('/checkout/confirm')
+        .set(staffHeaders)
+        .send({
+          sessionId,
+          method: 'CASH',
+        });
+
+      expect(checkoutRes.status).toBe(201);
+      expect(checkoutRes.body.payment.tableId).toBe('mesa-terraza-8');
+      expect(checkoutRes.body.bill.tableId).toBe('mesa-terraza-8');
+    });
+  });
+
   describe('6. HttpSessionServiceAdapter: contrato HTTP hacia session service', () => {
     const httpAdapter = new HttpSessionServiceAdapter('http://mock-session:4003');
+    const origSecret = process.env.INTERNAL_SHARED_SECRET;
+
+    beforeAll(() => {
+      process.env.INTERNAL_SHARED_SECRET = 'test-internal-secret';
+    });
+
+    afterAll(() => {
+      if (origSecret) process.env.INTERNAL_SHARED_SECRET = origSecret;
+      else delete process.env.INTERNAL_SHARED_SECRET;
+    });
 
     it('retorna TableSessionDTO cuando session service responde HTTP 200', async () => {
       const mockSession: TableSessionDTO = {

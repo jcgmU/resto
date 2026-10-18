@@ -200,6 +200,7 @@ describe('A. Ordering — unitarios checkout (Tests 1-8)', () => {
     expect(second.payment.id).toBe(first.payment.id);
     expect(paymentRepo.payments).toHaveLength(1);
     expect(sessionService.closedSessions.length).toBeGreaterThanOrEqual(2);
+    expect(eventPublisher.checkoutCompletedEvents).toHaveLength(1);
   });
 
   test('7. Si closeSession falla tras persistir -> SESSION_CLOSE_FAILED y el pago queda registrado; el reintento posterior completa el cierre', async () => {

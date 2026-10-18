@@ -52,6 +52,14 @@ export interface CreateReservationRequest {
   notes?: string;
 }
 
+export interface UpdateReservationRequest {
+  customerName?: string;
+  phone?: string;
+  partySize?: number;
+  reservedFor?: string;
+  notes?: string;
+}
+
 export interface TableSessionDTO {
   sessionId: string;
   tenantId: string;

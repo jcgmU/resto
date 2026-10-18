@@ -9,7 +9,7 @@ export interface ToastProps {
 }
 
 const STYLES = `
-[data-component="toast"] button:focus-visible { outline: 2px solid var(--bento-lima); outline-offset: 2px; }
+[data-component="toast"] button:focus-visible { outline: 2px solid var(--bento-primary); outline-offset: 2px; }
 `;
 
 export function Toast({ message, onDismiss, duration, className }: ToastProps) {
@@ -31,9 +31,9 @@ export function Toast({ message, onDismiss, duration, className }: ToastProps) {
         gap: '10px',
         padding: '10px 16px',
         borderRadius: 'var(--bento-pill-radius)',
-        '--kit-toast-bg': 'var(--bento-tinta)',
+        '--kit-toast-bg': 'var(--bento-accent-strong)',
         background: 'var(--kit-toast-bg)',
-        color: 'var(--bento-papel)',
+        color: 'var(--bento-card-bg-solid)',
         fontFamily: 'var(--bento-font-body)',
         fontSize: '14px',
         boxShadow: 'var(--bento-card-shadow)',
@@ -46,7 +46,7 @@ export function Toast({ message, onDismiss, duration, className }: ToastProps) {
         height="18"
         viewBox="0 0 18 18"
         fill="none"
-        stroke="var(--bento-lima)"
+        stroke="var(--bento-status-available)"
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -69,7 +69,7 @@ export function Toast({ message, onDismiss, duration, className }: ToastProps) {
             margin: '-12px -12px -12px 0',
             background: 'transparent',
             border: 'none',
-            color: 'var(--bento-papel)',
+            color: 'var(--bento-card-bg-solid)',
             cursor: 'pointer',
           }}
         >

@@ -23,6 +23,7 @@ import {
   SessionNotOrderableError,
   TableMismatchError,
   ValidationError,
+  OrderAlreadyTerminalError,
 } from '../domain/errors';
 import { canTransition } from '../domain/orderStatusMachine';
 import { validateAndPriceCart } from '../domain/pricing';
@@ -117,6 +118,24 @@ export class OrderUseCases {
 
         const priced = validateAndPriceCart(cart.items, validatedProducts);
 
+        const isStaff = ['ADMIN', 'MANAGER', 'STAFF', 'WAITER'].includes((input.userRole || '').toUpperCase());
+
+        let effectiveEstimatedMinutes = 18;
+        if (this.identitySettings) {
+          try {
+            const tenantMinutes = await this.identitySettings.getEstimatedPrepMinutes(input.tenantId);
+            if (typeof tenantMinutes === 'number' && !isNaN(tenantMinutes)) {
+              effectiveEstimatedMinutes = Math.min(120, Math.max(5, tenantMinutes));
+            }
+          } catch {
+            effectiveEstimatedMinutes = 18;
+          }
+        }
+
+        if (isStaff && input.estimatedMinutes !== undefined && input.estimatedMinutes !== null) {
+          effectiveEstimatedMinutes = Math.min(120, Math.max(5, input.estimatedMinutes));
+        }
+
         const orderId = `ord-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
         const order: OrderDTO = {
           id: orderId,
@@ -127,7 +146,7 @@ export class OrderUseCases {
           total: priced.total,
           items: priced.items,
           notes: input.notes && input.notes.trim() !== '' ? input.notes.trim() : undefined,
-          estimatedMinutes: input.estimatedMinutes,
+          estimatedMinutes: effectiveEstimatedMinutes,
           delayMinutes: 0,
           overdue: false,
           createdAt: new Date().toISOString(),
@@ -205,14 +224,19 @@ export class OrderUseCases {
         input.delayMinutes === undefined ||
         typeof input.delayMinutes !== 'number' ||
         !Number.isInteger(input.delayMinutes) ||
-        input.delayMinutes < 0
+        input.delayMinutes < 1 ||
+        input.delayMinutes > 120
       ) {
-        throw new ValidationError('delayMinutes debe ser un número entero mayor o igual a 0');
+        throw new ValidationError('delayMinutes debe ser un número entero entre 1 y 120');
       }
 
       const order = await this.orderRepo.findById(input.tenantId, input.orderId);
       if (!order) {
         throw new OrderNotFoundError();
+      }
+
+      if (order.status === 'DELIVERED' || order.status === 'CANCELLED') {
+        throw new OrderAlreadyTerminalError('No se puede asignar demora a una orden en estado terminal');
       }
 
       if (!this.orderRepo.updateDelay) {

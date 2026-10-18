@@ -33,9 +33,13 @@ try {
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
 async function runCleanup() {
+  const isDryRun = process.argv.includes('--dry-run');
   console.log('====================================================');
-  console.log('🔄 Iniciando scripts/cleanup-sessions.mjs');
+  console.log(`🔄 Iniciando scripts/cleanup-sessions.mjs${isDryRun ? ' (MODO DRY-RUN)' : ''}`);
   console.log(`🔌 Conectando a Redis: ${REDIS_URL}`);
+  if (isDryRun) {
+    console.log('ℹ️ DRY-RUN activo: no se aplicarán mutaciones destructivas en Redis.');
+  }
   console.log('====================================================');
 
   const redis = new Redis(REDIS_URL, {
@@ -118,8 +122,8 @@ async function runCleanup() {
 
         if (!raw) {
           // Sesión huérfana en el set sin clave session:{id} correspondiente
-          console.log(`  🧹 Removiendo ID huérfano de ${setKey}: ${sessionId}`);
-          await redis.srem(setKey, sessionId);
+          console.log(`  🧹 Removiendo ID huérfano de ${setKey}: ${sessionId}${isDryRun ? ' [DRY-RUN]' : ''}`);
+          if (!isDryRun) await redis.srem(setKey, sessionId);
           stats.orphanSetMembersRemoved++;
           continue;
         }
@@ -127,8 +131,8 @@ async function runCleanup() {
         try {
           const session = JSON.parse(raw);
           if (session.tenantId !== tenantId) {
-            console.log(`  ⚠️ Sesión ${sessionId} pertenece a otro tenant (${session.tenantId}), quitando de ${setKey}`);
-            await redis.srem(setKey, sessionId);
+            console.log(`  ⚠️ Sesión ${sessionId} pertenece a otro tenant (${session.tenantId}), quitando de ${setKey}${isDryRun ? ' [DRY-RUN]' : ''}`);
+            if (!isDryRun) await redis.srem(setKey, sessionId);
             stats.orphanSetMembersRemoved++;
             continue;
           }
@@ -154,7 +158,7 @@ async function runCleanup() {
         const pointerKey = `tenant:${tenantId}:table:${tableId}:session`;
         const activePointerSessionId = await redis.get(pointerKey);
 
-        const activeSessions = sessions.filter((s) => s.status === 'active');
+        const activeSessions = sessions.filter((s) => s.status === 'active' || s.status === 'billRequested');
         const closedSessions = sessions.filter((s) => s.status === 'closed');
 
         stats.closedSessionsKept += closedSessions.length;
@@ -162,8 +166,8 @@ async function runCleanup() {
         if (activeSessions.length === 0) {
           // No hay sesiones activas. Si el puntero aún apunta a algo, es un puntero obsoleto
           if (activePointerSessionId) {
-            console.log(`  🧹 Mesa ${tableId}: puntero obsoleto apunta a ${activePointerSessionId} sin sesión activa. Eliminando puntero.`);
-            await redis.del(pointerKey);
+            console.log(`  🧹 Mesa ${tableId}: puntero obsoleto apunta a ${activePointerSessionId} sin sesión activa. Eliminando puntero.${isDryRun ? ' [DRY-RUN]' : ''}`);
+            if (!isDryRun) await redis.del(pointerKey);
             stats.stalePointersRemoved++;
           }
         } else if (activeSessions.length === 1) {
@@ -172,8 +176,8 @@ async function runCleanup() {
 
           // Asegurar que el puntero coincida
           if (activePointerSessionId !== canonical.sessionId) {
-            console.log(`  🔧 Mesa ${tableId}: corrigiendo puntero a sesión activa única ${canonical.sessionId} (anterior: ${activePointerSessionId || 'ninguno'})`);
-            await redis.set(pointerKey, canonical.sessionId, 'EX', 14400);
+            console.log(`  🔧 Mesa ${tableId}: corrigiendo puntero a sesión activa única ${canonical.sessionId} (anterior: ${activePointerSessionId || 'ninguno'})${isDryRun ? ' [DRY-RUN]' : ''}`);
+            if (!isDryRun) await redis.set(pointerKey, canonical.sessionId, 'EX', 14400);
             stats.pointersRepaired++;
           }
         } else {
@@ -186,8 +190,8 @@ async function runCleanup() {
             // Ordenar por fecha de creación descendente (más reciente)
             activeSessions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
             canonical = activeSessions[0];
-            console.log(`    Puntero activo no coincidía con ninguna. Se elige la más reciente como canónica: ${canonical.sessionId}`);
-            await redis.set(pointerKey, canonical.sessionId, 'EX', 14400);
+            console.log(`    Puntero activo no coincidía con ninguna. Se elige la más reciente como canónica: ${canonical.sessionId}${isDryRun ? ' [DRY-RUN]' : ''}`);
+            if (!isDryRun) await redis.set(pointerKey, canonical.sessionId, 'EX', 14400);
             stats.pointersRepaired++;
           } else {
             console.log(`    Se conserva la sesión canónica apuntada por el puntero: ${canonical.sessionId}`);
@@ -204,8 +208,8 @@ async function runCleanup() {
             const sessionKey = `session:${duplicate.sessionId}`;
 
             // Persistir estado cerrado con TTL de 24h (86400s)
-            await redis.set(sessionKey, JSON.stringify(duplicate), 'EX', 86400);
-            console.log(`    🔒 Cerrada sesión duplicada ${duplicate.sessionId} de mesa ${tableId}`);
+            if (!isDryRun) await redis.set(sessionKey, JSON.stringify(duplicate), 'EX', 86400);
+            console.log(`    🔒 Cerrada sesión duplicada ${duplicate.sessionId} de mesa ${tableId}${isDryRun ? ' [DRY-RUN]' : ''}`);
             stats.duplicateSessionsClosed++;
           }
         }
@@ -221,8 +225,8 @@ async function runCleanup() {
             const ptrVal = await redis.get(ptrKey);
             const refRaw = ptrVal ? await redis.get(`session:${ptrVal}`) : null;
             if (!refRaw) {
-              console.log(`  🧹 Mesa ${tId}: puntero sin sesiones registradas. Eliminando ${ptrKey}`);
-              await redis.del(ptrKey);
+              console.log(`  🧹 Mesa ${tId}: puntero sin sesiones registradas. Eliminando ${ptrKey}${isDryRun ? ' [DRY-RUN]' : ''}`);
+              if (!isDryRun) await redis.del(ptrKey);
               stats.stalePointersRemoved++;
             }
           }

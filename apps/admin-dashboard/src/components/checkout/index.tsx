@@ -83,10 +83,10 @@ export function ActiveTablesGrid({
               padding: '16px',
               minHeight: '44px',
               border: isSelected
-                ? '2px solid var(--bento-tinta)'
+                ? '2px solid var(--bento-primary)'
                 : '1px solid var(--bento-border)',
               backgroundColor: isSelected
-                ? 'var(--bento-hueso)'
+                ? 'var(--bento-page-bg)'
                 : 'var(--bento-card-bg)',
             }}
           >
@@ -230,7 +230,7 @@ export function BillSummaryCard({ bill, tables, error, onRetry }: BillSummaryCar
                 padding: '0 16px',
                 borderRadius: 'var(--bento-pill-radius)',
                 background: 'var(--bento-destructive)',
-                color: 'var(--bento-papel)',
+                color: 'var(--bento-card-bg-solid)',
                 border: 'none',
                 cursor: 'pointer',
                 fontFamily: 'var(--bento-font-body)',
@@ -321,11 +321,11 @@ export function PaymentMethodPicker({
               gap: '8px',
               borderRadius: 'var(--bento-pill-radius)',
               border: isSelected
-                ? '2px solid var(--bento-tinta)'
+                ? '2px solid var(--bento-primary)'
                 : '1px solid var(--bento-border)',
               background: isSelected
-                ? 'var(--bento-hueso)'
-                : 'var(--bento-papel)',
+                ? 'var(--bento-page-bg)'
+                : 'var(--bento-card-bg-solid)',
               color: 'var(--bento-text)',
               cursor: 'pointer',
               fontFamily: 'var(--bento-font-body)',
@@ -380,10 +380,10 @@ export function ConfirmPaymentButton({
           borderRadius: 'var(--bento-pill-radius)',
           background: disabled
             ? 'var(--bento-border)'
-            : 'var(--bento-tinta)',
+            : 'var(--bento-primary)',
           color: disabled
             ? 'var(--bento-text-muted)'
-            : 'var(--bento-papel)',
+            : 'var(--bento-card-bg-solid)',
           border: 'none',
           fontFamily: 'var(--bento-font-body)',
           fontWeight: 600,
@@ -499,7 +499,7 @@ export function ReleaseTableModal({
         alignItems: 'center',
         justifyContent: 'center',
         padding: '16px',
-        background: 'color-mix(in srgb, var(--bento-hueso) 70%, transparent)',
+        background: 'color-mix(in srgb, var(--bento-page-bg) 70%, transparent)',
         zIndex: 1000,
       }}
     >
@@ -518,7 +518,7 @@ export function ReleaseTableModal({
         style={{
           width: '100%',
           maxWidth: '480px',
-          background: 'var(--bento-papel)',
+          background: 'var(--bento-card-bg-solid)',
           color: 'var(--bento-text)',
           borderRadius: 'var(--bento-card-radius)',
           border: '1px solid var(--bento-border)',
@@ -622,7 +622,7 @@ export function ReleaseTableModal({
                   padding: '0 12px',
                   borderRadius: 'var(--bento-pill-radius)',
                   background: 'var(--bento-destructive)',
-                  color: 'var(--bento-papel)',
+                  color: 'var(--bento-card-bg-solid)',
                   border: 'none',
                   cursor: 'pointer',
                   fontWeight: 600,
@@ -667,8 +667,8 @@ export function ReleaseTableModal({
               fontSize: '14px',
               fontWeight: 600,
               cursor: (hasPending || loading) ? 'not-allowed' : 'pointer',
-              background: hasPending ? 'var(--bento-border)' : 'var(--bento-tinta)',
-              color: hasPending ? 'var(--bento-text-muted)' : 'var(--bento-papel)',
+              background: hasPending ? 'var(--bento-border)' : 'var(--bento-primary)',
+              color: hasPending ? 'var(--bento-text-muted)' : 'var(--bento-card-bg-solid)',
               border: 'none',
               opacity: hasPending ? 0.6 : 1,
             }}

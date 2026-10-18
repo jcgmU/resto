@@ -1,5 +1,15 @@
 import request from 'supertest';
-import { createSeededOrderingTestApp  } from '../helpers/seededOrderingApp';
+import {
+  createSeededOrderingTestApp,
+  sharedCartRepo,
+  sharedOrderRepo,
+  sharedServiceCallRepo,
+  sharedEventPublisher,
+  sharedPaymentRepo,
+  sharedSessionService,
+} from '../helpers/seededOrderingApp';
+import { createOrderingApp } from '../../src/app';
+import { CatalogUnreachableError } from '../../src/domain/errors';
 
 describe('B. Ordering — integración HTTP (Tests 13-17)', () => {
   const app = createSeededOrderingTestApp();
@@ -106,7 +116,36 @@ describe('B. Ordering — integración HTTP (Tests 13-17)', () => {
   });
 
   test('17. Errores con contrato { error: { code, message } }; caída del catálogo mockeado (nock sin respuesta) -> 502 CATALOG_UNREACHABLE', async () => {
-    const errRes = await request(app)
+    await request(app)
+      .post('/cart/items')
+      .set('x-tenant-id', 'tenant-1')
+      .set('x-session-id', 'session-catalog-down')
+      .send({
+        productId: 'prod-1',
+        modifiers: [],
+        quantity: 1,
+        display: {
+          productName: 'Tacos',
+          unitPrice: 10,
+          modifierNames: [],
+        },
+      });
+
+    const downCatalogApp = createOrderingApp({
+      cartRepo: sharedCartRepo,
+      orderRepo: sharedOrderRepo,
+      catalogValidation: {
+        getOrderableProducts: async () => {
+          throw new CatalogUnreachableError('Fallo al conectar con el microservicio de Catálogo');
+        },
+      },
+      serviceCallRepo: sharedServiceCallRepo,
+      eventPublisher: sharedEventPublisher,
+      paymentRepo: sharedPaymentRepo,
+      sessionService: sharedSessionService,
+    });
+
+    const errRes = await request(downCatalogApp)
       .post('/cart/confirm')
       .set('x-tenant-id', 'tenant-1')
       .set('x-session-id', 'session-catalog-down')

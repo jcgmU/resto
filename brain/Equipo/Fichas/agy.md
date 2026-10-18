@@ -1,7 +1,7 @@
 ---
 agente: agy
 tipo: Antigravity CLI (agente de código de Google DeepMind)
-version: 1.3.5
+version: 1.4.0
 modelo: Gemini 3.8 Flash (High) — seleccionado en la sesión actual
 estado: completa
 ---
@@ -34,13 +34,14 @@ estado: completa
 - `Workspace`: `inherit` (mismo workspace), `branch` (workspace clonado aislado) o `share` (comparte repositorio estilo worktree sin duplicar storage).
 
 ## Modelos disponibles y cómo elegirlos
-Confirmados mediante el comando `agy models`:
+Confirmados mediante el comando `agy models` (actualizado 2026-10-17, v1.4.0):
+- `gemini-4-argon-high` / `gemini-4-argon-medium` / `gemini-4-argon-low` *(nuevos en 1.4.0)*
 - `gemini-3.8-flash-high` / `gemini-3.8-flash-medium` / `gemini-3.8-flash-low`
 - `claude-opus-5-5-high` / `claude-opus-5-5-medium` / `claude-opus-5-5-low`
 - `claude-sonnet-5-5-high` / `claude-sonnet-5-5-medium` / `claude-sonnet-5-5-low`
 - `gpt-oss-120b-medium`
 
-En la sesión principal se seleccionan mediante la flag `--model <id>` en el CLI o a través del selector de modelo de la interfaz. Desde la versión 1.3.4, si no se especifica `--effort`, toma el nivel por defecto del modelo.
+En la sesión principal se seleccionan mediante la flag `--model <id>` en el CLI o a través del selector de modelo de la interfaz. Desde la versión 1.3.4, si no se especifica `--effort`, toma el nivel por defecto del modelo. **Nota 1.4.0:** el mapeo de los tiers de subagente (`pro`/`flash`/`flash_lite`/`inherit`) a modelos concretos no está reverificado en 1.4.0; si un tier falla, usa `inherit` con el modelo principal adecuado (p. ej. `claude-sonnet-5-5-high` para potente) y repórtalo en el handoff.
 
 | Nivel | Modelo que usas | Cómo se selecciona (flag, comando o parámetro) |
 |---|---|---|
@@ -90,7 +91,7 @@ Handoff en markdown en `brain\Handoffs\` con:
 
 | Dato | Declarado | Verificado (✅ / ⚠ / ❌) |
 |---|---|---|
-| Versión | 1.3.5 | ✅ `agy --version` = 1.3.5 |
+| Versión | 1.4.0 | ✅ `agy --version` = 1.4.0 (2026-10-17); catálogo `agy models` incluye Gemini 4 Argon |
 | Detección en Herdr | agy / Antigravity CLI | ✅ detectado como `agy` (pane w2:p1C); hooks `antigravity-cli` current (v2) |
 | Engram | Sí (MCP `engram`) | ✅ `agy mcp list` activo (`engram.exe mcp --tools=agent`); ENGRAM_DATA_DIR en resto/engram |
 | Rutas de skills | .agents/skills (7), builtin/skills (2), .gemini/config/skills (3) | ✅ confirmadas en entorno: proyecto, builtin y usuario existen |

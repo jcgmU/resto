@@ -171,7 +171,7 @@ describe('H8 Admin Dashboard — Métricas Reales y KPIs', () => {
 
       const style = alDiaChip.getAttribute('style') || '';
       expect(style).not.toContain('var(--bento-destructive)');
-      expect(style).toContain('var(--bento-hueso)');
+      expect(style).toContain('var(--bento-page-bg)');
     } finally {
       ApiClient.request = originalRequest;
     }

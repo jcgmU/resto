@@ -42,22 +42,39 @@ import { QrcodeGeneratorAdapter } from './infrastructure/qr/QrcodeGeneratorAdapt
 import { internalAuthMiddleware } from './interfaces/http/internalAuth.middleware';
 import { config } from './config';
 
+import { HttpOrderingServiceCallAdapter } from './infrastructure/ordering/HttpOrderingServiceCallAdapter';
+import { OrderingServiceCallPort } from './domain/orderingPorts';
+
 export interface SessionAppDeps {
   tableRepo?: TableRepository;
   sessionRepo?: TableSessionRepository;
   zoneRepo?: ZoneRepository;
   reservationRepo?: ReservationRepository;
   identitySettings?: IdentitySettingsPort;
+  orderingServiceCall?: OrderingServiceCallPort;
   redis?: Redis;
 }
 
 let defaultRedisClient: Redis | null = null;
 
-function getRedisClient(): Redis {
+export function getRedisClient(): Redis {
   if (!defaultRedisClient) {
-    defaultRedisClient = new Redis(config.REDIS_URL || 'redis://localhost:6379');
+    defaultRedisClient = new Redis(config.REDIS_URL || 'redis://localhost:6379', {
+      maxRetriesPerRequest: 1,
+      retryStrategy(times) {
+        if (times > 5) return null;
+        return Math.min(times * 50, 500);
+      },
+    });
   }
   return defaultRedisClient;
+}
+
+export async function closeDefaultSessionAppConnections(): Promise<void> {
+  if (defaultRedisClient) {
+    defaultRedisClient.disconnect();
+    defaultRedisClient = null;
+  }
 }
 
 export function createSessionApp(deps?: SessionAppDeps): express.Application {
@@ -103,6 +120,9 @@ export function createSessionApp(deps?: SessionAppDeps): express.Application {
   const identitySettings =
     deps?.identitySettings || new HttpIdentitySettingsAdapter(config.IDENTITY_INTERNAL_URL);
 
+  const orderingServiceCall =
+    deps?.orderingServiceCall || new HttpOrderingServiceCallAdapter(config.ORDERING_INTERNAL_URL);
+
   const openTableSessionUseCase = new OpenTableSessionUseCaseImpl(
     sessionRepo,
     tableRepo,
@@ -119,7 +139,7 @@ export function createSessionApp(deps?: SessionAppDeps): express.Application {
   const closeTableSessionUseCase = new CloseTableSessionUseCaseImpl(sessionRepo);
   const getTableSessionUseCase = new GetTableSessionUseCaseImpl(sessionRepo);
   const listTableSessionsUseCase = new ListTableSessionsUseCaseImpl(sessionRepo);
-  const requestBillSessionUseCase = new RequestBillSessionUseCaseImpl(sessionRepo);
+  const requestBillSessionUseCase = new RequestBillSessionUseCaseImpl(sessionRepo, orderingServiceCall);
   const reopenBillSessionUseCase = new ReopenBillSessionUseCaseImpl(sessionRepo);
 
   // Mount routers
@@ -164,7 +184,6 @@ export function createSessionApp(deps?: SessionAppDeps): express.Application {
   });
 
   app.use('/sessions', sessionsRouter);
-  app.use('/v1/sessions', sessionsRouter);
 
   // Error handling
   app.use(errorHandler);

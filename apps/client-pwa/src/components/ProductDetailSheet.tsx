@@ -9,6 +9,7 @@ export interface ProductDetailSheetProps {
   onClose: () => void;
   onAddToCart?: (product: ProductDTO, selectedModifiers: any[], quantity: number, notes?: string) => void;
   isOrderable?: boolean;
+  orderBlockReason?: 'bill_requested' | 'waiter_only';
 }
 
 const FOCUSABLE_SELECTOR =
@@ -20,6 +21,7 @@ export function ProductDetailSheet({
   onClose,
   onAddToCart,
   isOrderable = true,
+  orderBlockReason,
 }: ProductDetailSheetProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -216,7 +218,7 @@ export function ProductDetailSheet({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'var(--bento-text-muted, #888)',
+              color: 'var(--bento-text-muted)',
             }}
           >
             <svg
@@ -284,9 +286,9 @@ export function ProductDetailSheet({
             <span
               data-testid="badge-agotado"
               style={{
-                color: 'var(--bento-destructive, #ef4444)',
+                color: 'var(--bento-destructive)',
                 backgroundColor: 'var(--bento-destructive-subtle, rgba(239, 68, 68, 0.1))',
-                border: '1px solid var(--bento-destructive, #ef4444)',
+                border: '1px solid var(--bento-destructive)',
                 borderRadius: 'var(--bento-pill-radius, 12px)',
                 padding: '2px 8px',
                 fontSize: '0.75rem',
@@ -337,9 +339,9 @@ export function ProductDetailSheet({
               boxSizing: 'border-box',
               padding: '8px 12px',
               borderRadius: 'var(--bento-card-radius, 8px)',
-              border: '1px solid var(--bento-border, #ccc)',
-              background: 'var(--bento-bg, #fff)',
-              color: 'var(--bento-text, #333)',
+              border: '1px solid var(--bento-border)',
+              background: 'var(--bento-card-bg-solid)',
+              color: 'var(--bento-text)',
               fontSize: '0.875rem',
             }}
           />
@@ -388,7 +390,9 @@ export function ProductDetailSheet({
               fontWeight: 600,
             }}
           >
-            La cuenta ya fue solicitada y no se pueden agregar más pedidos.
+            {orderBlockReason === 'waiter_only'
+              ? 'El pedido por celular está desactivado. Un mesero tomará su orden.'
+              : 'La cuenta ya fue solicitada y no se pueden agregar más pedidos.'}
           </p>
         ) : !isModifierValid ? (
           <p
@@ -412,7 +416,7 @@ export function ProductDetailSheet({
             style={{
               minHeight: 'var(--bento-touch-target)',
               width: '100%',
-              backgroundColor: isModifierValid && isOrderable && isAvailable ? 'var(--bento-accent-strong)' : 'var(--bento-papel)',
+              backgroundColor: isModifierValid && isOrderable && isAvailable ? 'var(--bento-accent-strong)' : 'var(--bento-card-bg-solid)',
               color: isModifierValid && isOrderable && isAvailable ? 'var(--bento-card-bg)' : 'var(--bento-text-muted)',
               borderRadius: 'var(--bento-card-radius)',
               border: isModifierValid && isOrderable && isAvailable ? 'none' : '1px solid var(--bento-border)',
@@ -422,7 +426,13 @@ export function ProductDetailSheet({
               opacity: isModifierValid && isOrderable && isAvailable ? 1 : 0.6,
             }}
           >
-            {!isAvailable ? 'Agotado' : !isOrderable ? 'Cuenta solicitada' : 'Añadir al carrito'}
+            {!isAvailable
+              ? 'Agotado'
+              : !isOrderable
+              ? orderBlockReason === 'waiter_only'
+                ? 'Desactivado (Solo meseros)'
+                : 'Cuenta solicitada'
+              : 'Añadir al carrito'}
           </button>
         </div>
       </div>

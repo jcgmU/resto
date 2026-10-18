@@ -158,6 +158,18 @@ El flujo completo de un servicio, de punta a punta:
 
 Una vez que el comensal pide la cuenta (`POST /v1/sessions/:id/bill-request`), la sesión deja de aceptar pedidos nuevos (`409 SESSION_NOT_ORDERABLE`) hasta que el cobro la cierre o el staff la reabra.
 
+### Llamadas de servicio (asistencia y cuenta)
+
+El sistema centraliza las solicitudes de atención y cuenta entre los comensales y el personal mediante llamadas de servicio en tiempo real:
+
+- **Tipos de llamadas:**
+  - `WAITER_CALL`: Solicitud de asistencia presencial en mesa ("Llamar al mesero").
+  - `BILL_REQUEST`: Solicitud de cuenta para liquidación y cobro.
+  - `GENERIC`: Solicitudes operativas o de asistencia genérica.
+- **Quién las produce:** El comensal las produce desde la PWA móvil al pulsar **Llamar al mesero** (`POST /v1/service-calls` con tipo `WAITER_CALL`). Por su parte, la acción de **Pedir la cuenta** genera automáticamente una llamada de tipo `BILL_REQUEST` desde el backend de Session Service (`POST /v1/sessions/:id/bill-request`), pasando la sesión a estado `billRequested` y bloqueando nuevos pedidos (`409 SESSION_NOT_ORDERABLE`), pero permitiendo continuar emitiendo llamadas de servicio como excepción explícita a la barrera de liquidación.
+- **Visualización y resolución en KDS:** Todas las llamadas aparecen de inmediato en el panel lateral de **Llamadas de servicio** en el Monitor de Cocina (`/kds`), recibidas en tiempo real vía WebSocket. El personal de cocina o meseros atiende la solicitud y pulsa el botón **Resolver** (`PATCH /v1/service-calls/:id/resolve`) para retirarla del panel.
+- **Auto-resolución en cobro:** Al confirmar el cobro en **Checkout** (`POST /v1/checkout/confirm`), el backend de Ordering resuelve automáticamente todas las llamadas de servicio pendientes asociadas a la sesión que se liquida, garantizando que el KDS quede libre de llamadas huérfanas al liberar la mesa.
+
 Lo que está marcado "Próximamente" está protegido por *feature flags* y no es una pantalla rota: ver [sección 6](#6-configuración-variables-de-entorno).
 
 ---

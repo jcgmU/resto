@@ -329,6 +329,77 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
     spyRequest.mockRestore();
   });
 
+  test('26b. Si el refresco de órdenes falla habiendo órdenes en estado, el board permanece montado (último snapshot) y se muestra un banner superior con reintento', async () => {
+    localStorage.setItem('token', 'staff-token');
+    const provider = new StaticFeatureFlagProvider({ 'kitchen-display': true });
+
+    let failOrders = false;
+    const spyRequest = jest.spyOn(ApiClient, 'request').mockImplementation(async (url: string) => {
+      if (url === '/v1/orders') {
+        if (failOrders) {
+          throw new Error('Error al conectar con el servicio de cocina');
+        }
+        return { data: [sampleOrder] };
+      }
+      return { data: [] };
+    });
+
+    let connectHandler: any = null;
+    const mockSocket = {
+      on: jest.fn((event, handler) => {
+        if (event === 'connect') connectHandler = handler;
+      }),
+      disconnect: jest.fn(),
+    };
+    const socketSpy = jest.spyOn(realtimeModule, 'connectOrdersSocket').mockReturnValue(mockSocket as any);
+
+    await act(async () => {
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <KdsPage />
+        </FeatureFlagProviderRoot>
+      );
+    });
+
+    // 1. Tablero montado con la orden inicial
+    expect(screen.getByTestId('kds-board')).toBeInTheDocument();
+    expect(screen.getByText('Mesa 4')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    // 2. Simular reconexión o refresco que falla
+    failOrders = true;
+    await act(async () => {
+      if (connectHandler) {
+        await connectHandler();
+      }
+    });
+
+    // 3. El tablero SIGUE en el DOM con las órdenes previas (no se desmonta)
+    expect(screen.getByTestId('kds-board')).toBeInTheDocument();
+    expect(screen.getByText('Mesa 4')).toBeInTheDocument();
+
+    // 4. Se muestra el banner superior de error con role="alert" y botón de reintento
+    const banner = screen.getByRole('alert');
+    expect(banner).toBeInTheDocument();
+    expect(banner).toHaveTextContent('Error al conectar con el servicio de cocina');
+    const retryBtn = screen.getByRole('button', { name: /reintentar/i });
+    expect(retryBtn).toBeInTheDocument();
+
+    // 5. Al reintentar con el backend recuperado
+    failOrders = false;
+    await act(async () => {
+      fireEvent.click(retryBtn);
+    });
+
+    // 6. El banner desaparece y el tablero continúa visible
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByTestId('kds-board')).toBeInTheDocument();
+    expect(screen.getByText('Mesa 4')).toBeInTheDocument();
+
+    socketSpy.mockRestore();
+    spyRequest.mockRestore();
+  });
+
   test('27. El fallo al avanzar orden revierte optimísticamente el estado y muestra toast de error', async () => {
     localStorage.setItem('token', 'staff-token');
     const provider = new StaticFeatureFlagProvider({ 'kitchen-display': true });
@@ -530,7 +601,7 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
     const barGreen = screen.getByTestId('sla-bar');
     expect(barGreen).toHaveAttribute('data-sla-tone', 'ok');
     expect(barGreen).toHaveAttribute('data-sla-color', 'green');
-    expect(barGreen).toHaveStyle({ backgroundColor: '#8fbf95' });
+    expect(barGreen).toHaveStyle({ backgroundColor: 'var(--bento-status-available)' });
     expect(screen.getByTestId('sla-counter')).toHaveTextContent('5m / 20m');
     unmount1();
 
@@ -546,7 +617,7 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
     const barAmber = screen.getByTestId('sla-bar');
     expect(barAmber).toHaveAttribute('data-sla-tone', 'warning');
     expect(barAmber).toHaveAttribute('data-sla-color', 'amber');
-    expect(barAmber).toHaveStyle({ backgroundColor: '#dcc98a' });
+    expect(barAmber).toHaveStyle({ backgroundColor: 'var(--bento-status-reserved)' });
     expect(screen.getByTestId('sla-counter')).toHaveTextContent('16m / 20m');
     unmount2();
 
@@ -562,7 +633,7 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
     const barRed = screen.getByTestId('sla-bar');
     expect(barRed).toHaveAttribute('data-sla-tone', 'destructive');
     expect(barRed).toHaveAttribute('data-sla-color', 'red');
-    expect(barRed).toHaveStyle({ backgroundColor: '#e0a6a6' });
+    expect(barRed).toHaveStyle({ backgroundColor: 'var(--bento-status-occupied)' });
     expect(screen.getByTestId('sla-counter')).toHaveTextContent('22m / 20m');
     unmount3();
 
@@ -579,7 +650,7 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
     const barOverdue = screen.getByTestId('sla-bar');
     expect(barOverdue).toHaveAttribute('data-sla-tone', 'destructive');
     expect(barOverdue).toHaveAttribute('data-sla-color', 'red');
-    expect(barOverdue).toHaveStyle({ backgroundColor: '#e0a6a6' });
+    expect(barOverdue).toHaveStyle({ backgroundColor: 'var(--bento-status-occupied)' });
     unmount4();
 
     // 5. Con demora asignada: 16m transcurridos, SLA tenant 20m + demora 5m = 25m SLA efectivo -> 64% (< 75% -> verde)
@@ -595,7 +666,7 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
     const barDelay = screen.getByTestId('sla-bar');
     expect(barDelay).toHaveAttribute('data-sla-tone', 'ok');
     expect(barDelay).toHaveAttribute('data-sla-color', 'green');
-    expect(barDelay).toHaveStyle({ backgroundColor: '#8fbf95' });
+    expect(barDelay).toHaveStyle({ backgroundColor: 'var(--bento-status-available)' });
     expect(screen.getByTestId('sla-counter')).toHaveTextContent('16m / 25m');
     unmount5();
   });
@@ -727,7 +798,7 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
     expect(screen.queryByTestId('order-history-panel')).not.toBeInTheDocument();
   });
 
-  test('34. REF-4 & N01: Notas visibles con Estilo Suite (ítem: fondo rojo pastel #fbeaea, general: fondo ámbar pastel #fdf6e7)', () => {
+  test('34. REF-4 & N01: Notas visibles con Estilo Suite (ítem: fondo rojo pastel var(--bento-note-item-bg), general: fondo ámbar pastel var(--bento-note-general-bg))', () => {
     const orderWithNotes: OrderDTO = {
       ...sampleOrder,
       notes: 'Sin picante por favor, mesa de niños',
@@ -746,22 +817,24 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
 
     render(<KdsOrderCard order={orderWithNotes} />);
 
-    // Nota por ítem con fondo rojo pastel #fbeaea y texto #7a3030
+    // Nota por ítem con fondo rojo pastel var(--bento-note-item-bg) y texto var(--bento-status-occupied-text)
     const itemNoteEl = screen.getByTestId('item-notes');
     expect(itemNoteEl).toBeInTheDocument();
     expect(itemNoteEl).toHaveTextContent('Nota: Término medio, sin pepinillos');
+    expect(itemNoteEl).toHaveAttribute('data-note-type', 'item');
     expect(itemNoteEl).toHaveStyle({
-      backgroundColor: '#fbeaea',
-      color: '#7a3030',
+      backgroundColor: 'var(--bento-note-item-bg)',
+      color: 'var(--bento-status-occupied-text)',
     });
 
-    // Nota general con fondo ámbar pastel #fdf6e7 y texto #8a6b32
+    // Nota general con fondo ámbar pastel var(--bento-note-general-bg) y texto var(--bento-status-reserved-text)
     const generalNoteEl = screen.getByTestId('order-general-notes');
     expect(generalNoteEl).toBeInTheDocument();
     expect(generalNoteEl).toHaveTextContent('Nota general: Sin picante por favor, mesa de niños');
+    expect(generalNoteEl).toHaveAttribute('data-note-type', 'general');
     expect(generalNoteEl).toHaveStyle({
-      backgroundColor: '#fdf6e7',
-      color: '#8a6b32',
+      backgroundColor: 'var(--bento-note-general-bg)',
+      color: 'var(--bento-status-reserved-text)',
     });
   });
 

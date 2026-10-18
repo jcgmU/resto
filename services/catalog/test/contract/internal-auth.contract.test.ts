@@ -72,4 +72,49 @@ describe('Catalog Internal Auth Middleware Contract (R08)', () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toBeDefined();
   });
+
+  describe('FAIL-CLOSED en ausencia de INTERNAL_SHARED_SECRET', () => {
+    const origEnv = process.env.NODE_ENV;
+    const origRequire = process.env.REQUIRE_INTERNAL_AUTH;
+
+    afterEach(() => {
+      process.env.INTERNAL_SHARED_SECRET = 'test-catalog-secret-2026';
+      if (origEnv !== undefined) process.env.NODE_ENV = origEnv; else delete process.env.NODE_ENV;
+      if (origRequire !== undefined) process.env.REQUIRE_INTERNAL_AUTH = origRequire; else delete process.env.REQUIRE_INTERNAL_AUTH;
+    });
+
+    it('responde 500 INTERNAL_AUTH_MISCONFIGURED si falta secreto y REQUIRE_INTERNAL_AUTH=true', async () => {
+      delete process.env.INTERNAL_SHARED_SECRET;
+      process.env.REQUIRE_INTERNAL_AUTH = 'true';
+      const res = await request(app)
+        .post('/graphql')
+        .send({ query: '{ categories { id } }' });
+      expect(res.status).toBe(500);
+      expect(res.body.error.code).toBe('INTERNAL_AUTH_MISCONFIGURED');
+    });
+
+    it('responde 500 INTERNAL_AUTH_MISCONFIGURED si falta secreto y NODE_ENV=production', async () => {
+      delete process.env.INTERNAL_SHARED_SECRET;
+      process.env.NODE_ENV = 'production';
+      const res = await request(app)
+        .post('/graphql')
+        .send({ query: '{ categories { id } }' });
+      expect(res.status).toBe(500);
+      expect(res.body.error.code).toBe('INTERNAL_AUTH_MISCONFIGURED');
+    });
+
+    it('permite paso con warn en dev/test cuando no se exige secreto (escape dev)', async () => {
+      delete process.env.INTERNAL_SHARED_SECRET;
+      process.env.NODE_ENV = 'test';
+      delete process.env.REQUIRE_INTERNAL_AUTH;
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const res = await request(app)
+        .post('/graphql')
+        .set('x-tenant-id', 'test-tenant')
+        .send({ query: '{ categories { id } }' });
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('[SECURITY WARN]'));
+      expect(res.status).toBe(200);
+      warnSpy.mockRestore();
+    });
+  });
 });

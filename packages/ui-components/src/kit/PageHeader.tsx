@@ -27,7 +27,7 @@ const CSS = `
 .bento-header__search:focus-within{outline:var(--bento-focus-ring);outline-offset:2px}
 .bento-header__search svg,.bento-header__btn svg{width:1.125rem;height:1.125rem;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .bento-header__input{border:0;outline:none;background:transparent;color:var(--bento-text);font:inherit;font-size:0.875rem;min-width:12rem}
-.bento-header__btn{display:inline-flex;align-items:center;gap:0.5rem;min-height:2.75rem;padding:0 1.25rem;border:0;border-radius:var(--bento-pill-radius);background:var(--bento-primary, var(--bento-tinta));color:var(--bento-card-bg-solid, var(--bento-papel));font:inherit;font-size:0.875rem;font-weight:500;cursor:pointer;transition:transform .15s ease,opacity .15s ease,background-color .15s ease}
+.bento-header__btn{display:inline-flex;align-items:center;gap:0.5rem;min-height:2.75rem;padding:0 1.25rem;border:0;border-radius:var(--bento-pill-radius);background:var(--bento-primary);color:var(--bento-card-bg-solid);font:inherit;font-size:0.875rem;font-weight:500;cursor:pointer;transition:transform .15s ease,opacity .15s ease,background-color .15s ease}
 .bento-header__btn:hover{background:var(--bento-primary-hover);transform:scale(var(--bento-hover-scale))}
 .bento-header__btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
 .bento-header__btn:focus-visible{outline:var(--bento-focus-ring);outline-offset:2px}

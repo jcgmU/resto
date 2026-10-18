@@ -32,6 +32,10 @@ export function getTestRedis(): Redis {
   if (!redisClient) {
     redisClient = new Redis(TEST_ORDERING_REDIS_URL, {
       maxRetriesPerRequest: 1,
+      retryStrategy(times) {
+        if (times > 5) return null;
+        return Math.min(times * 50, 500);
+      },
     });
   }
   return redisClient;
@@ -81,11 +85,6 @@ export async function disconnectTestInfra(): Promise<void> {
     prismaClient = null;
   }
   if (redisClient) {
-    try {
-      await redisClient.quit();
-    } catch {
-      redisClient.disconnect();
-    }
     redisClient.disconnect();
     redisClient = null;
   }

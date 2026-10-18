@@ -134,4 +134,26 @@ describe('U4: layout (panel) con SidebarRail + PageHeader (Línea Suite)', () =>
     mainEl = container.querySelector('main');
     expect(mainEl).toHaveStyle({ maxWidth: '1200px', margin: '0 auto', padding: '24px' });
   });
+
+  test('U20: los 6 iconos del panel lateral interior tienen fill="none" y stroke="currentColor"', async () => {
+    ApiClient.token = 'tok';
+    render(
+      <PanelLayout>
+        <div>Contenido Dashboard</div>
+      </PanelLayout>,
+    );
+    await screen.findByText('Contenido Dashboard');
+    const nav = screen.getByRole('navigation', { name: /Módulos del panel/i });
+    const expectedHrefs = ['/dashboard', '/kds', '/meseros', '/menu', '/checkout', '/ajustes'];
+
+    for (const href of expectedHrefs) {
+      const link = nav.querySelector(`a[href="${href}"]`);
+      expect(link).not.toBeNull();
+      const svg = link?.querySelector('svg');
+      expect(svg).not.toBeNull();
+      expect(svg).toHaveAttribute('fill', 'none');
+      expect(svg).toHaveAttribute('stroke', 'currentColor');
+    }
+  });
 });
+

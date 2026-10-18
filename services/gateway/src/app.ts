@@ -9,18 +9,17 @@ import { attachSocketGateway } from './proxy/socketProxy';
 import { routeTable } from './routes/routeTable';
 
 // Hook http.createServer to attach Socket.io gateway when our Express app is passed
-if (!(http as any)._isGatewayHooked) {
-  (http as any)._isGatewayHooked = true;
-  const originalCreateServer = http.createServer;
-  (http as any).createServer = function (this: any, ...args: any[]) {
-    const server = originalCreateServer.apply(this, args as any);
-    if (args[0] && (args[0] as any)._isGatewayApp && (args[0] as any)._attachSockets && !(server as any)._hasSocketGateway) {
-      (server as any)._hasSocketGateway = true;
-      attachSocketGateway(server);
-    }
-    return server;
-  };
+if (!(http as any)._originalCreateServer) {
+  (http as any)._originalCreateServer = http.createServer;
 }
+(http as any).createServer = function (this: any, ...args: any[]) {
+  const server = (http as any)._originalCreateServer.apply(this, args as any);
+  if (args[0] && (args[0] as any)._isGatewayApp && (args[0] as any)._attachSockets && !(server as any)._hasSocketGateway) {
+    (server as any)._hasSocketGateway = true;
+    (server as any)._socketGatewayIo = attachSocketGateway(server);
+  }
+  return server;
+};
 
 function checkServiceHealth(baseUrl: string, timeoutMs = 2000): Promise<'up' | 'down'> {
   return new Promise((resolve) => {

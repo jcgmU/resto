@@ -123,6 +123,8 @@ export class CartUseCases {
 
   removeCartItem: RemoveCartItemUseCase = {
     execute: async (input) => {
+      await this.assertSessionOrderable(input.tenantId, input.sessionId);
+
       return this.cartRepo.removeItem(
         input.tenantId,
         input.sessionId,

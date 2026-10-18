@@ -288,7 +288,7 @@ describe('Flujo de Mesas, Zonas y Reservas en Admin Dashboard (V23 Flow Tests)',
     const cobrarBtn = within(cardMesa2).getByRole('button', { name: /Cobrar y liberar/i });
     fireEvent.click(cobrarBtn);
 
-    expect(mockPush).toHaveBeenCalledWith('/checkout');
+    expect(mockPush).toHaveBeenCalledWith('/checkout?tableId=tbl-2');
   });
 
   test('7. CRUD Mesas: Crear mesa envía POST /v1/tables con label, capacity, zoneId y status', async () => {

@@ -21,8 +21,8 @@ describe('KpiDelta', () => {
     expect(value.style.fontVariantNumeric).toBe('tabular-nums');
     const chip = screen.getByText('+12%').closest('[data-component="kpi-delta-chip"]') as HTMLElement;
     expect(chip).toHaveAttribute('data-trend', 'up');
-    expect(chip.getAttribute('style')).toContain('var(--bento-lima)');
-    expect(chip.getAttribute('style')).toContain('--kit-chip-fg: var(--bento-tinta)');
+    expect(chip.getAttribute('style')).toContain('var(--bento-status-available)');
+    expect(chip.getAttribute('style')).toContain('--kit-chip-fg: var(--bento-status-available-strong)');
     expect(screen.getByText('vs ayer')).toBeInTheDocument();
   });
 
@@ -176,7 +176,7 @@ describe('Toast', () => {
     render(<Toast message="Cobro registrado" />);
     const toast = screen.getByRole('status');
     expect(toast).toHaveTextContent('Cobro registrado');
-    expect(toast.getAttribute('style')).toContain('var(--bento-tinta)');
+    expect(toast.getAttribute('style')).toContain('var(--bento-accent-strong)');
     expect(toast.querySelector('svg[aria-hidden="true"]')).toBeTruthy();
   });
 

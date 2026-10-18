@@ -415,10 +415,10 @@ export default function MenuPage() {
 
   const primaryBtnStyle: React.CSSProperties = {
     padding: '10px 18px',
-    backgroundColor: 'var(--bento-tinta)',
-    color: 'var(--bento-papel)',
+    backgroundColor: 'var(--bento-primary)',
+    color: 'var(--bento-card-bg-solid)',
     borderRadius: 'var(--bento-pill-radius)',
-    border: '1px solid var(--bento-tinta)',
+    border: '1px solid var(--bento-primary)',
     fontFamily: 'var(--bento-font-body)',
     fontWeight: 600,
     fontSize: '0.875rem',
@@ -432,7 +432,7 @@ export default function MenuPage() {
 
   const secondaryBtnStyle: React.CSSProperties = {
     padding: '10px 18px',
-    backgroundColor: 'var(--bento-papel)',
+    backgroundColor: 'var(--bento-card-bg-solid)',
     color: 'var(--bento-text)',
     borderRadius: 'var(--bento-pill-radius)',
     border: '1px solid var(--bento-border)',
@@ -558,7 +558,7 @@ export default function MenuPage() {
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'color-mix(in srgb, var(--bento-hueso) 70%, transparent)',
+            backgroundColor: 'color-mix(in srgb, var(--bento-page-bg) 70%, transparent)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -576,7 +576,7 @@ export default function MenuPage() {
               maxWidth: '520px',
               maxHeight: '90vh',
               overflowY: 'auto',
-              backgroundColor: 'var(--bento-papel)',
+              backgroundColor: 'var(--bento-card-bg-solid)',
               borderRadius: 'var(--bento-card-radius)',
               border: '1px solid var(--bento-border)',
               boxShadow: 'var(--bento-card-shadow)',
@@ -604,7 +604,7 @@ export default function MenuPage() {
                   marginBottom: '16px',
                   borderRadius: 'var(--bento-inner-radius)',
                   border: '1px solid var(--bento-destructive)',
-                  backgroundColor: 'var(--bento-papel)',
+                  backgroundColor: 'var(--bento-card-bg-solid)',
                   color: 'var(--bento-destructive)',
                   fontSize: '0.85rem',
                   fontWeight: 600,
@@ -805,7 +805,7 @@ export default function MenuPage() {
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'color-mix(in srgb, var(--bento-hueso) 70%, transparent)',
+            backgroundColor: 'color-mix(in srgb, var(--bento-page-bg) 70%, transparent)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -820,7 +820,7 @@ export default function MenuPage() {
             style={{
               width: '100%',
               maxWidth: '440px',
-              backgroundColor: 'var(--bento-papel)',
+              backgroundColor: 'var(--bento-card-bg-solid)',
               borderRadius: 'var(--bento-card-radius)',
               border: '1px solid var(--bento-border)',
               boxShadow: 'var(--bento-card-shadow)',
@@ -848,7 +848,7 @@ export default function MenuPage() {
                   marginBottom: '16px',
                   borderRadius: 'var(--bento-inner-radius)',
                   border: '1px solid var(--bento-destructive)',
-                  backgroundColor: 'var(--bento-papel)',
+                  backgroundColor: 'var(--bento-card-bg-solid)',
                   color: 'var(--bento-destructive)',
                   fontSize: '0.85rem',
                   fontWeight: 600,

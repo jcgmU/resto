@@ -19,7 +19,7 @@ const TONE_COLOR: Record<TimelineTone, string> = {
   success: 'var(--bento-success)',
   warning: 'var(--bento-amber)',
   destructive: 'var(--bento-destructive)',
-  neutral: 'var(--bento-tinta)',
+  neutral: 'var(--bento-accent-strong)',
 };
 
 export function Timeline({ items, className }: TimelineProps) {

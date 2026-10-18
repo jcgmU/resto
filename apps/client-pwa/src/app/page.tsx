@@ -12,7 +12,7 @@ export default function ClientRootPage() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'var(--bento-hueso)',
+        backgroundColor: 'var(--bento-page-bg-pwa)',
         padding: '24px 16px',
         boxSizing: 'border-box',
         fontFamily: 'var(--bento-font-body)',
@@ -38,7 +38,7 @@ export default function ClientRootPage() {
 
         <BentoCard
           style={{
-            background: 'var(--bento-papel)',
+            background: 'var(--bento-card-bg-solid)',
             border: '1px solid var(--bento-border)',
             borderRadius: 'var(--bento-card-radius)',
             padding: '32px 24px',
@@ -55,7 +55,7 @@ export default function ClientRootPage() {
               width: '72px',
               height: '72px',
               borderRadius: 'var(--bento-inner-radius)',
-              background: 'var(--bento-hueso)',
+              background: 'var(--bento-page-bg-pwa)',
               border: '1px solid var(--bento-border)',
               display: 'flex',
               alignItems: 'center',
@@ -68,7 +68,7 @@ export default function ClientRootPage() {
               height="36"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="var(--bento-tinta)"
+              stroke="var(--bento-text-strong)"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -92,7 +92,7 @@ export default function ClientRootPage() {
                 lineHeight: 1.25,
                 fontFamily: 'var(--bento-font-heading)',
                 fontWeight: 700,
-                color: 'var(--bento-tinta)',
+                color: 'var(--bento-text-strong)',
               }}
             >
               Menú Digital
@@ -118,8 +118,8 @@ export default function ClientRootPage() {
               gap: '8px',
               padding: '6px 14px',
               borderRadius: 'var(--bento-pill-radius)',
-              background: 'var(--bento-lima)',
-              color: 'var(--bento-tinta)',
+              background: 'var(--bento-status-available)',
+              color: 'var(--bento-status-available-strong)',
               fontSize: '12px',
               fontWeight: 700,
             }}
@@ -130,7 +130,7 @@ export default function ClientRootPage() {
               height="14"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="var(--bento-tinta)"
+              stroke="currentColor"
               strokeWidth="3"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -158,7 +158,7 @@ export default function ClientRootPage() {
                 textAlign: 'left',
                 padding: '8px 12px',
                 borderRadius: 'var(--bento-inner-radius)',
-                background: 'var(--bento-hueso)',
+                background: 'var(--bento-page-bg-pwa)',
               }}
             >
               <span
@@ -166,8 +166,8 @@ export default function ClientRootPage() {
                   width: '20px',
                   height: '20px',
                   borderRadius: '50%',
-                  background: 'var(--bento-tinta)',
-                  color: 'var(--bento-papel)',
+                  background: 'var(--bento-primary)',
+                  color: 'var(--bento-card-bg-solid)',
                   fontSize: '11px',
                   fontWeight: 700,
                   display: 'flex',
@@ -190,7 +190,7 @@ export default function ClientRootPage() {
                 textAlign: 'left',
                 padding: '8px 12px',
                 borderRadius: 'var(--bento-inner-radius)',
-                background: 'var(--bento-hueso)',
+                background: 'var(--bento-page-bg-pwa)',
               }}
             >
               <span
@@ -198,8 +198,8 @@ export default function ClientRootPage() {
                   width: '20px',
                   height: '20px',
                   borderRadius: '50%',
-                  background: 'var(--bento-tinta)',
-                  color: 'var(--bento-papel)',
+                  background: 'var(--bento-primary)',
+                  color: 'var(--bento-card-bg-solid)',
                   fontSize: '11px',
                   fontWeight: 700,
                   display: 'flex',

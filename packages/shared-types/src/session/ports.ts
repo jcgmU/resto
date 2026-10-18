@@ -77,4 +77,16 @@ export type ListTableSessionsUseCase = UseCase<
   TableSessionDTO[]
 >;
 export type StaffOpenSessionUseCase = UseCase<{ tenantId: string; tableId: string }, { session: TableSessionDTO }>;
+export type UpdateReservationUseCase = UseCase<
+  {
+    tenantId: string;
+    reservationId: string;
+    customerName?: string;
+    phone?: string;
+    partySize?: number;
+    reservedFor?: string;
+    notes?: string;
+  },
+  import('./dtos').ReservationDTO
+>;
 

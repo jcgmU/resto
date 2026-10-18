@@ -12,6 +12,8 @@ import {
   ORDER_STATUS_TRANSITIONS,
   OrderHistoryEventDTO,
   TableDTO,
+  computeOrderOverdue,
+  computeEffectiveSlaMinutes,
 } from '@packages/shared-types';
 import { fetchOrderHistory, updateOrderDelay } from '../../lib/api/kds';
 
@@ -49,17 +51,23 @@ export function KdsOrderCard({
   const now = Date.now();
   const elapsedMinutes = Math.max(0, Math.floor((now - createdAtTime) / 60000));
 
-  // SLA efectivo: estimatedMinutes || (tenantSLA + (order.delayMinutes || 0))
+  // SLA efectivo: estimatedMinutes + delayMinutes (usando función compartida de shared-types)
   const baseTenantSla = tenantSlaMinutes ?? alertMinutes ?? 18;
-  const effectiveSLA =
-    order.estimatedMinutes || (baseTenantSla + (order.delayMinutes || 0));
+  const effectiveSLA = computeEffectiveSlaMinutes(order, baseTenantSla);
 
   const ratio = effectiveSLA > 0 ? elapsedMinutes / effectiveSLA : 1;
-  const isOverdue = order.overdue === true || ratio >= 1;
+  const isOverdue =
+    order.overdue === true ||
+    computeOrderOverdue(order, now, baseTenantSla) ||
+    ratio >= 1;
   const isWarning = ratio >= 0.75 && !isOverdue;
 
   // Colores dinámicos SLA (REF-2): Verde (< 75%), Ámbar (>= 75% y < 100%), Rojo (>= 100% o overdue)
-  const slaColor = isOverdue ? '#e0a6a6' : isWarning ? '#dcc98a' : '#8fbf95';
+  const slaColor = isOverdue
+    ? 'var(--bento-status-occupied)'
+    : isWarning
+    ? 'var(--bento-status-reserved)'
+    : 'var(--bento-status-available)';
   const slaTone = isOverdue ? 'destructive' : isWarning ? 'warning' : 'ok';
   const slaColorName = isOverdue ? 'red' : isWarning ? 'amber' : 'green';
 
@@ -163,8 +171,8 @@ export function KdsOrderCard({
               style={{
                 fontSize: '12px',
                 fontWeight: 600,
-                color: isOverdue ? '#7a3030' : isWarning ? '#8a6b32' : 'var(--bento-text)',
-                backgroundColor: isOverdue ? '#fbeaea' : isWarning ? '#fdf6e7' : 'rgba(255, 255, 255, 0.8)',
+                color: isOverdue ? 'var(--bento-status-occupied-text)' : isWarning ? 'var(--bento-status-reserved-text)' : 'var(--bento-text)',
+                backgroundColor: isOverdue ? 'var(--bento-note-item-bg)' : isWarning ? 'var(--bento-note-general-bg)' : 'rgba(255, 255, 255, 0.8)',
                 padding: '2px 8px',
                 borderRadius: 'var(--bento-pill-radius, 9999px)',
                 border: '1px solid var(--bento-border)',
@@ -203,19 +211,20 @@ export function KdsOrderCard({
                   {item.modifiers.map((m) => m.optionName).join(', ')}
                 </div>
               )}
-              {/* Notas por ítem con estilo Suite (REF-4, N01): fondo rojo pastel #fbeaea, texto #7a3030 */}
+              {/* Notas por ítem con estilo Suite (REF-4, N01): fondo rojo pastel var(--bento-note-item-bg), texto var(--bento-status-occupied-text) */}
               {item.notes && (
                 <div
                   data-testid="item-notes"
+                  data-note-type="item"
                   style={{
                     fontSize: '12px',
                     fontWeight: 500,
-                    backgroundColor: '#fbeaea',
-                    color: '#7a3030',
+                    backgroundColor: 'var(--bento-note-item-bg)',
+                    color: 'var(--bento-status-occupied-text)',
                     padding: '4px 8px',
                     borderRadius: '6px',
                     marginTop: '4px',
-                    border: '1px solid rgba(122, 48, 48, 0.2)',
+                    border: '1px solid var(--bento-note-item-border)',
                   }}
                 >
                   Nota: {item.notes}
@@ -225,19 +234,20 @@ export function KdsOrderCard({
           ))}
         </div>
 
-        {/* Notas generales de la orden (REF-4, N01): fondo ámbar pastel #fdf6e7, texto #8a6b32 */}
+        {/* Notas generales de la orden (REF-4, N01): fondo ámbar pastel var(--bento-note-general-bg), texto var(--bento-status-reserved-text) */}
         {order.notes && (
           <div
             data-testid="order-general-notes"
+            data-note-type="general"
             style={{
               fontSize: '12px',
               fontWeight: 500,
-              backgroundColor: '#fdf6e7',
-              color: '#8a6b32',
+              backgroundColor: 'var(--bento-note-general-bg)',
+              color: 'var(--bento-status-reserved-text)',
               padding: '6px 10px',
               borderRadius: '8px',
               marginTop: '4px',
-              border: '1px solid rgba(138, 107, 50, 0.2)',
+              border: '1px solid var(--bento-note-general-border)',
             }}
           >
             Nota general: {order.notes}
@@ -274,8 +284,8 @@ export function KdsOrderCard({
                   fontWeight: 600,
                   borderRadius: 'var(--bento-pill-radius)',
                   border: '1px solid var(--bento-border)',
-                  backgroundColor: 'var(--bento-card-bg-solid, #ffffff)',
-                  color: 'var(--bento-primary, #5c6784)',
+                  backgroundColor: 'var(--bento-card-bg-solid)',
+                  color: 'var(--bento-primary)',
                   cursor: 'pointer',
                   minHeight: '28px',
                   minWidth: '36px',
@@ -297,7 +307,7 @@ export function KdsOrderCard({
             style={{
               background: 'none',
               border: 'none',
-              color: 'var(--bento-primary, #5c6784)',
+              color: 'var(--bento-primary)',
               fontSize: '12px',
               fontWeight: 600,
               cursor: 'pointer',
@@ -409,8 +419,8 @@ export function KdsOrderCard({
               fontSize: '12px',
               fontWeight: 600,
               borderRadius: 'var(--bento-pill-radius)',
-              backgroundColor: 'var(--bento-tinta)',
-              color: 'var(--bento-papel)',
+              backgroundColor: 'var(--bento-primary)',
+              color: 'var(--bento-card-bg-solid)',
               border: 'none',
               cursor: 'pointer',
               display: 'flex',

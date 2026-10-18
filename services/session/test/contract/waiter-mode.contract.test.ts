@@ -176,11 +176,11 @@ describe('V21 Waiter Mode Contract Test (Session Service con Redis Real db2)', (
       expect(res.body.error.code).toBe('FORBIDDEN');
     });
 
-    it('también funciona en la ruta /v1/sessions/staff-open', async () => {
+    it('permite abrir sesión con rol staff en modo waiter_only en /sessions/staff-open', async () => {
       inMemorySettings.setOperatingMode(tenantId, 'waiter_only');
 
       const res = await request(app)
-        .post('/v1/sessions/staff-open')
+        .post('/sessions/staff-open')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'WAITER')
         .send({

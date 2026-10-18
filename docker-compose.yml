@@ -91,6 +91,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-key-oleada-0}
       PWA_BASE_URL: ${PWA_BASE_URL:-http://localhost:3001}
       IDENTITY_INTERNAL_URL: http://identity:4001
+      ORDERING_INTERNAL_URL: http://ordering:4004
     depends_on:
       redis:
         condition: service_healthy
@@ -113,6 +114,7 @@ services:
       REDIS_URL: redis://redis:6379/1
       CATALOG_INTERNAL_URL: http://catalog:4002/graphql
       SESSION_INTERNAL_URL: http://session:4003
+      IDENTITY_INTERNAL_URL: http://identity:4001
       JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-key-oleada-0}
     depends_on:
       postgres:

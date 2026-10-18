@@ -44,7 +44,9 @@ export class GraphqlCatalogValidationAdapter implements CatalogValidationPort {
             headers: {
               'Content-Type': 'application/json',
               'x-tenant-id': tenantId,
-              'x-internal-token': process.env.INTERNAL_SHARED_SECRET || 'resto-internal-shared-secret-dev-2026',
+              ...(process.env.INTERNAL_SHARED_SECRET
+                ? { 'x-internal-token': process.env.INTERNAL_SHARED_SECRET }
+                : {}),
             },
             body: JSON.stringify({
               query,

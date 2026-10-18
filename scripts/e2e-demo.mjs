@@ -347,7 +347,7 @@ async function main() {
       body: JSON.stringify({
         sessionId,
         tableId,
-        type: 'BILL',
+        type: 'BILL_REQUEST',
         note: 'Solicitud de cuenta desde E2E',
       }),
     });

@@ -62,15 +62,15 @@ export default function TableLandingPage({ params, searchParams }: TableLandingP
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: 'var(--bento-hueso)',
+          backgroundColor: 'var(--bento-page-bg-pwa)',
           fontFamily: 'var(--bento-font-body)',
         } as React.CSSProperties}
       >
         <div style={{ width: '100%', maxWidth: '400px' }}>
           <BentoCard
             style={{
-              backgroundColor: 'var(--bento-papel)',
-              '--bento-card-bg': 'var(--bento-papel)',
+              backgroundColor: 'var(--bento-card-bg-solid)',
+              '--bento-card-bg': 'var(--bento-card-bg-solid)',
               border: '1px solid var(--bento-destructive)',
               borderRadius: 'var(--bento-card-radius)',
               padding: '24px',
@@ -91,7 +91,7 @@ export default function TableLandingPage({ params, searchParams }: TableLandingP
                   width: '48px',
                   height: '48px',
                   borderRadius: '50%',
-                  backgroundColor: 'var(--bento-hueso)',
+                  backgroundColor: 'var(--bento-page-bg-pwa)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -163,15 +163,15 @@ export default function TableLandingPage({ params, searchParams }: TableLandingP
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'var(--bento-hueso)',
+        backgroundColor: 'var(--bento-page-bg-pwa)',
         fontFamily: 'var(--bento-font-body)',
       } as React.CSSProperties}
     >
       <div style={{ width: '100%', maxWidth: '400px' }}>
         <BentoCard
           style={{
-            backgroundColor: 'var(--bento-papel)',
-            '--bento-card-bg': 'var(--bento-papel)',
+            backgroundColor: 'var(--bento-card-bg-solid)',
+            '--bento-card-bg': 'var(--bento-card-bg-solid)',
             border: '1px solid var(--bento-border)',
             borderRadius: 'var(--bento-card-radius)',
             padding: '32px 24px',
@@ -194,7 +194,7 @@ export default function TableLandingPage({ params, searchParams }: TableLandingP
                 fontSize: '18px',
                 fontFamily: 'var(--bento-font-heading)',
                 fontWeight: 700,
-                color: 'var(--bento-tinta)',
+                color: 'var(--bento-text-strong)',
               }}
             >
               Conectando con tu mesa...

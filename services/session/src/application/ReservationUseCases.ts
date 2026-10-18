@@ -124,3 +124,73 @@ export class SeatReservationUseCaseImpl {
     return { reservation: updatedReservation, session };
   }
 }
+
+export class UpdateReservationUseCaseImpl {
+  constructor(
+    private readonly reservationRepo: ReservationRepository,
+    private readonly tableRepo?: TableRepository
+  ) {}
+
+  async execute(input: {
+    tenantId: string;
+    reservationId: string;
+    customerName?: string;
+    phone?: string;
+    partySize?: number;
+    reservedFor?: string;
+    notes?: string;
+    tableId?: string;
+  }): Promise<ReservationDTO> {
+    const reservation = await this.reservationRepo.findById(input.tenantId, input.reservationId);
+    if (!reservation) {
+      throw new DomainError('RESERVATION_NOT_FOUND', `Reserva ${input.reservationId} no encontrada`);
+    }
+
+    if (input.customerName !== undefined) {
+      if (typeof input.customerName !== 'string' || input.customerName.trim() === '') {
+        throw new DomainError('VALIDATION_ERROR', 'El nombre del cliente es requerido');
+      }
+      reservation.customerName = input.customerName.trim();
+    }
+
+    if (input.phone !== undefined) {
+      if (typeof input.phone !== 'string' || input.phone.trim() === '') {
+        throw new DomainError('VALIDATION_ERROR', 'El teléfono es requerido');
+      }
+      reservation.phone = input.phone.trim();
+    }
+
+    if (input.partySize !== undefined) {
+      if (!Number.isInteger(input.partySize) || input.partySize <= 0) {
+        throw new DomainError('VALIDATION_ERROR', 'El número de personas debe ser un entero positivo');
+      }
+      reservation.partySize = input.partySize;
+    }
+
+    if (input.reservedFor !== undefined) {
+      if (typeof input.reservedFor !== 'string' || isNaN(new Date(input.reservedFor).getTime())) {
+        throw new DomainError('VALIDATION_ERROR', 'Fecha de reserva inválida');
+      }
+      reservation.reservedFor = new Date(input.reservedFor).toISOString();
+    }
+
+    if (input.tableId !== undefined) {
+      if (typeof input.tableId !== 'string' || input.tableId.trim() === '') {
+        throw new DomainError('VALIDATION_ERROR', 'El tableId es requerido');
+      }
+      if (this.tableRepo) {
+        const table = await this.tableRepo.findById(input.tenantId, input.tableId);
+        if (!table) {
+          throw new DomainError('TABLE_NOT_FOUND', `Mesa ${input.tableId} no encontrada`);
+        }
+      }
+      reservation.tableId = input.tableId.trim();
+    }
+
+    if (input.notes !== undefined) {
+      reservation.notes = typeof input.notes === 'string' && input.notes.trim() !== '' ? input.notes.trim() : undefined;
+    }
+
+    return this.reservationRepo.save(input.tenantId, reservation);
+  }
+}

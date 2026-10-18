@@ -67,6 +67,17 @@ export interface OrderHistoryEventDTO {
   occurredAt: string;
 }
 
+export function computeEffectiveSlaMinutes(
+  order: {
+    estimatedMinutes?: number | null;
+    delayMinutes?: number | null;
+  },
+  defaultSlaMinutes: number = 18
+): number {
+  const baseMinutes = order.estimatedMinutes ?? defaultSlaMinutes;
+  return baseMinutes + (order.delayMinutes || 0);
+}
+
 export function computeOrderOverdue(
   order: {
     status: OrderStatus;
@@ -74,18 +85,20 @@ export function computeOrderOverdue(
     estimatedMinutes?: number | null;
     delayMinutes?: number | null;
   },
-  now: number = Date.now()
+  now: number = Date.now(),
+  defaultSlaMinutes?: number
 ): boolean {
   const activeStatuses: OrderStatus[] = ['PLACED', 'IN_KITCHEN', 'READY'];
   if (!activeStatuses.includes(order.status)) {
     return false;
   }
-  if (order.estimatedMinutes == null) {
+  const baseMinutes = order.estimatedMinutes ?? defaultSlaMinutes;
+  if (baseMinutes == null) {
     return false;
   }
   const createdTime =
     order.createdAt instanceof Date ? order.createdAt.getTime() : new Date(order.createdAt).getTime();
-  const totalMinutes = order.estimatedMinutes + (order.delayMinutes || 0);
+  const totalMinutes = baseMinutes + (order.delayMinutes || 0);
   const allowedMs = totalMinutes * 60000;
   return now - createdTime > allowedMs;
 }
@@ -115,7 +128,7 @@ export interface OrderEvent {
 }
 
 export type ServiceCallStatus = 'pending' | 'resolved';
-export type ServiceCallType = 'WAITER_CALL' | 'BILL_REQUEST' | 'GENERIC' | string;
+export type ServiceCallType = 'WAITER_CALL' | 'BILL_REQUEST' | 'GENERIC';
 
 export interface ServiceCallDTO {
   callId: string;

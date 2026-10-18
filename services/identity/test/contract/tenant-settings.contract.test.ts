@@ -15,6 +15,8 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
   const prisma = getTestPrisma();
   let tenantRepo: PrismaTenantRepository;
 
+  const origSecret = process.env.INTERNAL_SHARED_SECRET;
+
   function authRequest(method: 'get' | 'patch', path: string) {
     const req = request(app)[method](path);
     if (process.env.INTERNAL_SHARED_SECRET) {
@@ -24,6 +26,7 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
   }
 
   beforeAll(async () => {
+    process.env.INTERNAL_SHARED_SECRET = 'test-internal-secret-settings';
     await ensureContractEnv();
     tenantRepo = new PrismaTenantRepository(prisma);
     app = createIdentityApp({
@@ -39,6 +42,11 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
   });
 
   afterAll(async () => {
+    if (origSecret !== undefined) {
+      process.env.INTERNAL_SHARED_SECRET = origSecret;
+    } else {
+      delete process.env.INTERNAL_SHARED_SECRET;
+    }
     await disconnectTestPrisma();
   });
 
@@ -122,6 +130,19 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
         .set('x-tenant-id', 'tenant-no-existe');
       expect(res.status).toBe(404);
       expect(res.body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('GET con parámetro tenantId ajeno o mismatch devuelve 400 TENANT_MISMATCH', async () => {
+      const tenant = await createTestTenant('tenant-mismatch-check');
+      const res = await authRequest('get', '/tenant/settings?tenantId=tenant-ajeno')
+        .set('x-tenant-id', tenant.id);
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('TENANT_MISMATCH');
+
+      // Si viene solo query sin cabecera x-tenant-id también devuelve 400 TENANT_MISMATCH
+      const resOnlyQuery = await authRequest('get', '/tenant/settings?tenantId=tenant-ajeno');
+      expect(resOnlyQuery.status).toBe(400);
+      expect(resOnlyQuery.body.error.code).toBe('TENANT_MISMATCH');
     });
   });
 
@@ -286,5 +307,57 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
     });
+
+    it('PATCH con parámetro tenantId ajeno o mismatch devuelve 400 TENANT_MISMATCH', async () => {
+      const tenant = await createTestTenant('tenant-patch-mismatch');
+      const res = await authRequest('patch', '/tenant/settings?tenantId=tenant-ajeno')
+        .set('x-tenant-id', tenant.id)
+        .set('x-user-role', 'ADMIN')
+        .send({ operatingMode: 'waiter_only' });
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('TENANT_MISMATCH');
+    });
+  });
+
+  describe('GET /internal/tenant/:tenantId/settings (Internal Endpoint)', () => {
+    it('devuelve respuesta COMPLETA (operatingMode y estimatedPrepMinutes) sin importar x-user-role', async () => {
+      const tenant = await createTestTenant('tenant-internal-check');
+
+      // 1. Sin rol de usuario
+      const res1 = await authRequest('get', `/internal/tenant/${tenant.id}/settings`);
+      expect(res1.status).toBe(200);
+      expect(res1.body).toEqual({
+        operatingMode: 'hybrid',
+        estimatedPrepMinutes: 18,
+      });
+
+      // 2. Con rol guest (no debe censurarse en internal)
+      const res2 = await authRequest('get', `/internal/tenant/${tenant.id}/settings`)
+        .set('x-user-role', 'guest');
+      expect(res2.status).toBe(200);
+      expect(res2.body).toEqual({
+        operatingMode: 'hybrid',
+        estimatedPrepMinutes: 18,
+      });
+
+      // 3. Con custom values
+      await prisma.tenant.update({
+        where: { id: tenant.id },
+        data: { operatingMode: 'waiter_only', estimatedPrepMinutes: 45 },
+      });
+      const res3 = await authRequest('get', `/internal/tenant/${tenant.id}/settings`);
+      expect(res3.status).toBe(200);
+      expect(res3.body).toEqual({
+        operatingMode: 'waiter_only',
+        estimatedPrepMinutes: 45,
+      });
+    });
+
+    it('devuelve 404 NOT_FOUND si el tenant no existe', async () => {
+      const res = await authRequest('get', '/internal/tenant/inexistente/settings');
+      expect(res.status).toBe(404);
+      expect(res.body.error.code).toBe('NOT_FOUND');
+    });
   });
 });
+

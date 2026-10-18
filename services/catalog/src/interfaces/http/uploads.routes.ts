@@ -97,7 +97,7 @@ export function createUploadsRouter(deps?: UploadsRouterDeps): Router {
       next();
     },
     (req: Request, res: Response) => {
-      upload.any()(req, res, (err: any) => {
+      upload.single('file')(req, res, (err: any) => {
         if (err) {
           if (err.code === 'LIMIT_FILE_SIZE') {
             return res.status(400).json({
