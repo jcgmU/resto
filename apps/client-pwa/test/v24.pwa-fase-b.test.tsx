@@ -319,6 +319,27 @@ describe('V24: PWA FASE B (Notas, Llamadas con tipo, Modo Waiter-Only e Imágene
       expect(banner).toBeInTheDocument();
       expect(banner).toHaveTextContent(/Mesero avisado/i);
     });
+
+    test('H4: call-waiter-note-input cumple con touch-target mínimo de 44px (U8 adapt)', async () => {
+      PwaApiClient.guestToken = 'token-guest-call';
+      PwaApiClient.session = { sessionId: 'sess-call-1', tableId: 'tb-4', tenantId: 't-call', status: 'active' };
+      global.fetch = jest.fn(async (url: any) => {
+        const urlStr = url.toString();
+        if (urlStr.includes('/tenant/settings')) {
+          return { ok: true, status: 200, json: async () => ({ operatingMode: 'hybrid' }) };
+        }
+        if (urlStr.includes('/graphql')) {
+          return { ok: true, status: 200, json: async () => ({ data: { menu: { categories: [], products: [] } } }) };
+        }
+        return { ok: true, status: 200, json: async () => ({}) };
+      });
+
+      render(<ClientMenuPage params={{ tenantId: 't-call', tableId: 'tb-4' }} />);
+      const noteInput = await screen.findByTestId('call-waiter-note-input');
+      expect(noteInput).toHaveStyle({
+        minHeight: 'var(--bento-touch-target, 44px)',
+      });
+    });
   });
 
   describe('5. Productos Agotados e Imágenes (REF-6, N05, N12)', () => {

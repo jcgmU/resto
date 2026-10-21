@@ -176,6 +176,38 @@ describe('H8 Admin Dashboard — Métricas Reales y KPIs', () => {
       ApiClient.request = originalRequest;
     }
   });
+
+  test('(c) H6: Denominador de mesas en Resumen maneja 0 mesas mostrando "sin mesas configuradas" en vez de "de 0 mesas configuradas"', async () => {
+    const originalRequest = ApiClient.request;
+    ApiClient.request = jest.fn(async (endpoint: string) => {
+      if (endpoint.includes('/v1/sessions?status=active')) {
+        return [];
+      }
+      if (endpoint.includes('/v1/tables')) {
+        return [];
+      }
+      if (endpoint.includes('/v1/orders')) {
+        return [];
+      }
+      if (endpoint.includes('/v1/service-calls')) {
+        return [];
+      }
+      return [];
+    });
+
+    try {
+      render(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesas Activas')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('sin mesas configuradas')).toBeInTheDocument();
+      expect(screen.queryByText(/de 0 mesas configuradas/i)).not.toBeInTheDocument();
+    } finally {
+      ApiClient.request = originalRequest;
+    }
+  });
 });
 
 describe('Unidad V23 — Resumen Operativo y Modo de Operación en Dashboard', () => {

@@ -155,5 +155,21 @@ describe('U4: layout (panel) con SidebarRail + PageHeader (Línea Suite)', () =>
       expect(svg).toHaveAttribute('stroke', 'currentColor');
     }
   });
+
+  test('U9: media query en PanelShell oculta el panel lateral interior a <=1024px para liberar el ancho principal (H5 adapt)', async () => {
+    ApiClient.token = 'tok';
+    const { container } = render(
+      <PanelLayout>
+        <div>Contenido Dashboard</div>
+      </PanelLayout>,
+    );
+    await screen.findByText('Contenido Dashboard');
+    const styleEl = container.querySelector('style');
+    expect(styleEl).not.toBeNull();
+    expect(styleEl?.textContent).toContain('@media (max-width: 1024px)');
+    expect(styleEl?.textContent).toContain('.panel-inner-sidebar');
+    expect(styleEl?.textContent).toContain('display: none !important');
+    expect(container.querySelector('.panel-inner-sidebar')).toBeInTheDocument();
+  });
 });
 

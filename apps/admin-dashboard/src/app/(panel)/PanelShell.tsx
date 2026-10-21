@@ -158,6 +158,7 @@ export default function PanelShell({
 
   return (
     <div
+      className="panel-shell-root"
       style={{
         display: 'flex',
         minHeight: '100vh',
@@ -169,6 +170,17 @@ export default function PanelShell({
         boxSizing: 'border-box',
       }}
     >
+      <style>{`
+        @media (max-width: 1024px) {
+          .panel-shell-root {
+            padding: 0.75rem !important;
+            gap: 0.75rem !important;
+          }
+          .panel-inner-sidebar {
+            display: none !important;
+          }
+        }
+      `}</style>
       {/* 1. Rail lateral flotante oscuro */}
       <SidebarRail
         items={items}
@@ -217,6 +229,7 @@ export default function PanelShell({
         {/* Panel interior lateral (w-[280px]) con 3 puntos pastel y nombres visibles */}
         <div
           data-component="panel-inner-sidebar"
+          className="panel-inner-sidebar"
           style={{
             width: '280px',
             backgroundColor: 'rgba(255, 255, 255, 0.3)',

@@ -374,9 +374,9 @@ export default function DashboardPage() {
     const occupiedCount = enrichedTables.filter((t) => t.effectiveStatus === 'OCUPADA').length;
     const reservedCount = enrichedTables.filter((t) => t.effectiveStatus === 'RESERVADA').length;
     const availableCount = enrichedTables.filter((t) => t.effectiveStatus === 'LIBRE').length;
-    const totalCount = enrichedTables.length;
+    const totalCount = enrichedTables.length || tables.length;
     return { occupiedCount, reservedCount, availableCount, totalCount };
-  }, [enrichedTables]);
+  }, [enrichedTables, tables]);
 
   // Filtro de mesas
   const filteredTables = useMemo(() => {
@@ -887,7 +887,11 @@ export default function DashboardPage() {
                 value={String(metrics.occupiedCount)}
                 delta={metrics.occupiedCount > 0 ? `${metrics.occupiedCount} en sala` : 'sin mesas'}
                 trend={metrics.occupiedCount > 0 ? 'up' : 'neutral'}
-                context={`de ${metrics.totalCount} mesas configuradas`}
+                context={
+                  metrics.totalCount > 0
+                    ? `de ${metrics.totalCount} mesas configuradas`
+                    : 'sin mesas configuradas'
+                }
               />
             </div>
           </BentoCard>

@@ -60,7 +60,7 @@ export const BENTO_TOKENS: Record<string, string> = {
   // Textos y estados extendidos
   '--bento-danger-text': '#a05a5a',
   '--bento-status-reserved-soft-text': '#9a8542',
-  '--bento-status-available-strong': '#2d5a31',
+  '--bento-status-available-strong': '#163318',
   '--bento-status-occupied-strong': '#8a2b2b',
   '--bento-text-strong': '#222222',
   '--bento-text-secondary': '#555555',
@@ -131,7 +131,7 @@ export const BENTO_STYLESHEET = `
   --bento-subtle: rgba(0, 0, 0, 0.03);
   --bento-danger-text: #a05a5a;
   --bento-status-reserved-soft-text: #9a8542;
-  --bento-status-available-strong: #2d5a31;
+  --bento-status-available-strong: #163318;
   --bento-status-occupied-strong: #8a2b2b;
   --bento-text-strong: #222222;
   --bento-text-secondary: #555555;

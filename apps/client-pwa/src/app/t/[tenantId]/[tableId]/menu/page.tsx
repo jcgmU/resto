@@ -727,13 +727,14 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
               data-testid="call-waiter-note-input"
               style={{
                 width: '100%',
+                minHeight: 'var(--bento-touch-target, 44px)',
                 boxSizing: 'border-box',
-                padding: '6px 12px',
+                padding: '10px 14px',
                 borderRadius: 'var(--bento-pill-radius)',
                 border: '1px solid var(--bento-border)',
                 background: 'var(--bento-card-bg-solid)',
                 color: 'var(--bento-text)',
-                fontSize: '0.85rem',
+                fontSize: '0.875rem',
                 fontFamily: 'var(--bento-font-body)',
               }}
             />

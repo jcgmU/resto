@@ -30,6 +30,13 @@ const CSS = `
 .bento-rail__item svg{width:1.25rem;height:1.25rem;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .bento-rail__label{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .bento-rail__badge{position:absolute;top:0;right:0;min-width:1.125rem;height:1.125rem;box-sizing:border-box;padding:0 0.25rem;border-radius:var(--bento-pill-radius);background:var(--bento-status-occupied);color:var(--bento-status-occupied-text);font-size:0.6875rem;font-weight:700;line-height:1.125rem;text-align:center;font-variant-numeric:tabular-nums}
+@media (max-width: 1024px) {
+  .bento-rail {
+    height: calc(100vh - 1.5rem);
+    top: 0.75rem;
+    padding: 1rem 0;
+  }
+}
 @media (prefers-reduced-motion:reduce){.bento-rail__item{transition:none}}
 `;
 

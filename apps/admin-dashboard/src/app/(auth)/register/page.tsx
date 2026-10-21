@@ -91,22 +91,10 @@ export default function RegisterPage() {
           }}
         >
           <div>
-            <div
-              style={{
-                fontSize: '0.6875rem',
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                color: 'var(--bento-text-muted)',
-                marginBottom: '4px',
-              }}
-            >
-              Resto Admin
-            </div>
             <h1
               style={{
                 margin: '0 0 8px 0',
-                fontSize: '1.625rem',
+                fontSize: '1.75rem',
                 fontWeight: 700,
                 fontFamily: 'var(--bento-font-heading)',
                 color: 'var(--bento-text-strong)',
@@ -119,7 +107,7 @@ export default function RegisterPage() {
               style={{
                 margin: '0 0 24px 0',
                 color: 'var(--bento-text-muted)',
-                fontSize: '0.875rem',
+                fontSize: '0.9375rem',
                 fontFamily: 'var(--bento-font-body)',
                 lineHeight: 1.4,
               }}
@@ -134,10 +122,10 @@ export default function RegisterPage() {
                   padding: '12px 14px',
                   marginBottom: '20px',
                   borderRadius: 'var(--bento-inner-radius)',
-                  backgroundColor: 'var(--bento-card-bg-solid)',
-                  border: '1px solid var(--bento-destructive)',
-                  color: 'var(--bento-destructive)',
-                  fontSize: '0.875rem',
+                  backgroundColor: 'var(--bento-note-item-bg, #fbeaea)',
+                  border: '1px solid var(--bento-status-occupied)',
+                  color: 'var(--bento-status-occupied-text)',
+                  fontSize: '0.9375rem',
                   fontWeight: 500,
                   display: 'flex',
                   alignItems: 'center',
@@ -173,9 +161,9 @@ export default function RegisterPage() {
                     style={{
                       padding: '4px 12px',
                       backgroundColor: 'transparent',
-                      border: '1px solid var(--bento-destructive)',
+                      border: '1px solid var(--bento-status-occupied)',
                       borderRadius: 'var(--bento-pill-radius)',
-                      color: 'var(--bento-destructive)',
+                      color: 'var(--bento-status-occupied-text)',
                       fontSize: '0.8125rem',
                       fontWeight: 600,
                       cursor: loading ? 'not-allowed' : 'pointer',
@@ -193,7 +181,7 @@ export default function RegisterPage() {
                 <label
                   htmlFor="restaurantName"
                   style={{
-                    fontSize: '0.875rem',
+                    fontSize: '0.8125rem',
                     fontWeight: 600,
                     color: 'var(--bento-text)',
                     fontFamily: 'var(--bento-font-body)',
@@ -210,12 +198,13 @@ export default function RegisterPage() {
                   required
                   disabled={loading}
                   style={{
+                    minHeight: 'var(--bento-touch-target, 44px)',
                     padding: '10px 14px',
                     borderRadius: 'var(--bento-inner-radius)',
                     border: '1px solid var(--bento-border)',
                     backgroundColor: 'var(--bento-card-bg-solid)',
                     color: 'var(--bento-text)',
-                    fontSize: '0.95rem',
+                    fontSize: '0.9375rem',
                     fontFamily: 'var(--bento-font-body)',
                     boxSizing: 'border-box',
                     width: '100%',
@@ -227,7 +216,7 @@ export default function RegisterPage() {
                 <label
                   htmlFor="adminEmail"
                   style={{
-                    fontSize: '0.875rem',
+                    fontSize: '0.8125rem',
                     fontWeight: 600,
                     color: 'var(--bento-text)',
                     fontFamily: 'var(--bento-font-body)',
@@ -244,12 +233,13 @@ export default function RegisterPage() {
                   required
                   disabled={loading}
                   style={{
+                    minHeight: 'var(--bento-touch-target, 44px)',
                     padding: '10px 14px',
                     borderRadius: 'var(--bento-inner-radius)',
                     border: '1px solid var(--bento-border)',
                     backgroundColor: 'var(--bento-card-bg-solid)',
                     color: 'var(--bento-text)',
-                    fontSize: '0.95rem',
+                    fontSize: '0.9375rem',
                     fontFamily: 'var(--bento-font-body)',
                     boxSizing: 'border-box',
                     width: '100%',
@@ -261,7 +251,7 @@ export default function RegisterPage() {
                 <label
                   htmlFor="adminPassword"
                   style={{
-                    fontSize: '0.875rem',
+                    fontSize: '0.8125rem',
                     fontWeight: 600,
                     color: 'var(--bento-text)',
                     fontFamily: 'var(--bento-font-body)',
@@ -278,12 +268,13 @@ export default function RegisterPage() {
                   required
                   disabled={loading}
                   style={{
+                    minHeight: 'var(--bento-touch-target, 44px)',
                     padding: '10px 14px',
                     borderRadius: 'var(--bento-inner-radius)',
                     border: '1px solid var(--bento-border)',
                     backgroundColor: 'var(--bento-card-bg-solid)',
                     color: 'var(--bento-text)',
-                    fontSize: '0.95rem',
+                    fontSize: '0.9375rem',
                     fontFamily: 'var(--bento-font-body)',
                     boxSizing: 'border-box',
                     width: '100%',
@@ -295,7 +286,7 @@ export default function RegisterPage() {
                 <label
                   htmlFor="slug"
                   style={{
-                    fontSize: '0.875rem',
+                    fontSize: '0.8125rem',
                     fontWeight: 600,
                     color: 'var(--bento-text)',
                     fontFamily: 'var(--bento-font-body)',
@@ -311,12 +302,13 @@ export default function RegisterPage() {
                   placeholder="mi-restaurante"
                   disabled={loading}
                   style={{
+                    minHeight: 'var(--bento-touch-target, 44px)',
                     padding: '10px 14px',
                     borderRadius: 'var(--bento-inner-radius)',
                     border: '1px solid var(--bento-border)',
                     backgroundColor: 'var(--bento-card-bg-solid)',
                     color: 'var(--bento-text)',
-                    fontSize: '0.95rem',
+                    fontSize: '0.9375rem',
                     fontFamily: 'var(--bento-font-body)',
                     boxSizing: 'border-box',
                     width: '100%',
@@ -330,12 +322,13 @@ export default function RegisterPage() {
                 aria-busy={loading}
                 style={{
                   marginTop: '8px',
+                  minHeight: 'var(--bento-touch-target, 44px)',
                   padding: '12px 20px',
                   backgroundColor: 'var(--bento-primary)',
                   color: 'var(--bento-card-bg-solid)',
                   border: '1px solid var(--bento-primary)',
                   borderRadius: 'var(--bento-pill-radius)',
-                  fontSize: '0.95rem',
+                  fontSize: '0.9375rem',
                   fontWeight: 600,
                   fontFamily: 'var(--bento-font-body)',
                   cursor: loading ? 'not-allowed' : 'pointer',
@@ -370,7 +363,7 @@ export default function RegisterPage() {
                 style={{
                   textAlign: 'center',
                   marginTop: '12px',
-                  fontSize: '0.875rem',
+                  fontSize: '0.8125rem',
                   color: 'var(--bento-text-muted)',
                   fontFamily: 'var(--bento-font-body)',
                 }}

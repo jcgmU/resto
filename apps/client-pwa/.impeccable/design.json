@@ -1,0 +1,214 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-21T13:00:00Z",
+  "title": "Design System: Restaurante OS",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Slate Indigo",
+        "canonical": "#5c6784"
+      },
+      "primary-hover": {
+        "role": "primary",
+        "displayName": "Slate Indigo Deep",
+        "canonical": "#4a536b"
+      },
+      "page-bg-admin": {
+        "role": "neutral",
+        "displayName": "Suite Canvas Neutral",
+        "canonical": "#d0d3d6"
+      },
+      "page-bg-pwa": {
+        "role": "neutral",
+        "displayName": "Mobile Canvas Light",
+        "canonical": "#f2f4f5"
+      },
+      "card-bg": {
+        "role": "neutral",
+        "displayName": "Card Frost Translucent",
+        "canonical": "rgba(255, 255, 255, 0.65)"
+      },
+      "card-bg-solid": {
+        "role": "neutral",
+        "displayName": "Card Solid White",
+        "canonical": "#ffffff"
+      },
+      "rail-bg": {
+        "role": "neutral",
+        "displayName": "Obsidian Rail",
+        "canonical": "#1d1f22"
+      },
+      "rail-active": {
+        "role": "secondary",
+        "displayName": "Muted Cyan Ice",
+        "canonical": "#a5b9c6"
+      },
+      "status-occupied": {
+        "role": "status",
+        "displayName": "Pastel Crimson",
+        "canonical": "#e0a6a6"
+      },
+      "status-occupied-text": {
+        "role": "status",
+        "displayName": "Dark Maroon Text",
+        "canonical": "#7a3030"
+      },
+      "status-reserved": {
+        "role": "status",
+        "displayName": "Pastel Amber",
+        "canonical": "#dcc98a"
+      },
+      "status-reserved-text": {
+        "role": "status",
+        "displayName": "Dark Ochre Text",
+        "canonical": "#8a6b32"
+      },
+      "status-available": {
+        "role": "status",
+        "displayName": "Pastel Sage",
+        "canonical": "#8fbf95"
+      },
+      "status-available-text": {
+        "role": "status",
+        "displayName": "Dark Forest Text",
+        "canonical": "#527a55"
+      },
+      "status-available-strong": {
+        "role": "status",
+        "displayName": "Deep Forest Text Contrast",
+        "canonical": "#163318"
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Charcoal Text",
+        "canonical": "#3a3c3e"
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Muted Slate Text",
+        "canonical": "#666666"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Encabezados principales y bienvenida de mesa"
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Títulos de vista y categorías principales"
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Títulos de tarjeta y nombres de platos o mesas"
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Texto de lectura, descripciones y datos operativos"
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Etiquetas de chip, botones e indicadores de estado"
+      }
+    },
+    "shadows": [
+      {
+        "name": "bento-neumorphic",
+        "value": "4px 6px 30px rgba(150, 155, 160, 0.2), -4px -4px 20px rgba(255, 255, 255, 0.8)",
+        "purpose": "Sombra neumorfa dual para tarjetas bento y paneles de contenido"
+      },
+      {
+        "name": "rail-floating",
+        "value": "0 8px 32px rgba(0, 0, 0, 0.25)",
+        "purpose": "Elevación pronunciada para el riel lateral flotante oscuro"
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Transición estándar para hover en botones y tarjetas"
+      }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "375px" },
+      { "name": "tablet", "value": "1024px" },
+      { "name": "desktop", "value": "1440px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Botón de acción principal con radio de píldora y altura mínima táctil de 44px.",
+      "html": "<button class=\"ds-btn-primary\">Confirmar Orden</button>",
+      "css": ".ds-btn-primary { background: var(--bento-primary, #5c6784); color: #ffffff; min-height: 44px; padding: 12px 24px; border-radius: 9999px; font-family: var(--font-dm-sans, sans-serif); font-weight: 500; font-size: 0.9375rem; border: none; cursor: pointer; transition: background 0.2s, transform 0.1s; display: inline-flex; align-items: center; justify-content: center; } .ds-btn-primary:hover { background: var(--bento-primary-hover, #4a536b); } .ds-btn-primary:focus-visible { outline: 2px solid #5c6784; outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Chip Available",
+      "kind": "chip",
+      "refersTo": "chip-status-available",
+      "description": "Chip pastel verde con texto oscuro de alto contraste para mesas libres.",
+      "html": "<span class=\"ds-chip-available\">Libre</span>",
+      "css": ".ds-chip-available { background: var(--bento-status-available, #8fbf95); color: var(--bento-status-available-text, #527a55); border-radius: 9999px; padding: 6px 14px; font-family: var(--font-dm-sans, sans-serif); font-size: 0.8125rem; font-weight: 600; display: inline-flex; align-items: center; }"
+    },
+    {
+      "name": "Status Chip Occupied",
+      "kind": "chip",
+      "refersTo": "chip-status-occupied",
+      "description": "Chip pastel rojo con texto oscuro de alto contraste para mesas ocupadas.",
+      "html": "<span class=\"ds-chip-occupied\">Ocupada</span>",
+      "css": ".ds-chip-occupied { background: var(--bento-status-occupied, #e0a6a6); color: var(--bento-status-occupied-text, #7a3030); border-radius: 9999px; padding: 6px 14px; font-family: var(--font-dm-sans, sans-serif); font-size: 0.8125rem; font-weight: 600; display: inline-flex; align-items: center; }"
+    },
+    {
+      "name": "Status Chip Reserved",
+      "kind": "chip",
+      "refersTo": "chip-status-reserved",
+      "description": "Chip pastel ámbar con texto oscuro de alto contraste para mesas reservadas.",
+      "html": "<span class=\"ds-chip-reserved\">Reservada</span>",
+      "css": ".ds-chip-reserved { background: var(--bento-status-reserved, #dcc98a); color: var(--bento-status-reserved-text, #8a6b32); border-radius: 9999px; padding: 6px 14px; font-family: var(--font-dm-sans, sans-serif); font-size: 0.8125rem; font-weight: 600; display: inline-flex; align-items: center; }"
+    },
+    {
+      "name": "Bento Card Surface",
+      "kind": "card",
+      "refersTo": "card-surface",
+      "description": "Tarjeta bento translúcida con sombras neumorfas duales y desenfoque de fondo.",
+      "html": "<div class=\"ds-card-surface\"><h3>Módulo Operativo</h3><p>Contenido del panel de servicio.</p></div>",
+      "css": ".ds-card-surface { background: var(--bento-card-bg, rgba(255, 255, 255, 0.65)); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--bento-border, rgba(255, 255, 255, 0.6)); border-radius: 2rem; padding: 24px; box-shadow: 4px 6px 30px rgba(150, 155, 160, 0.2), -4px -4px 20px rgba(255, 255, 255, 0.8); color: var(--bento-text, #3a3c3e); font-family: var(--font-dm-sans, sans-serif); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "La Suite Neumorfa",
+    "overview": "Restaurante OS implementa la línea visual Suite: equilibrio entre neumorfismo pastel sereno, tarjetas bento translúcidas y riel lateral oscuro de alta precisión para operaciones gastronómicas en vivo.",
+    "keyCharacteristics": [
+      "Riel lateral flotante oscuro en píldora con panel interior expandido en desktop",
+      "Tarjetas bento con radio de 2rem y sombras neumorfas suaves",
+      "Tipografía Bricolage Grotesque en titulares y DM Sans en controles y datos",
+      "Semáforo de estados en pastel con texto oscuro asociado de alto contraste WCAG AA"
+    ],
+    "rules": [
+      {
+        "name": "The Pastel-Dark Pairing Rule",
+        "body": "Todo chip o indicador pastel debe acompañarse de su texto oscuro contrastado correspondiente (≥4.5:1). Queda prohibido el texto blanco sobre fondos pastel.",
+        "section": "colors"
+      },
+      {
+        "name": "The 44px Touch Target Rule",
+        "body": "Todo elemento interactivo, botón o input debe garantizar una altura mínima de 44px.",
+        "section": "layout"
+      }
+    ],
+    "dos": [
+      "Usar exclusivamente tokens CSS --bento-* para colores, sombras y radios.",
+      "Garantizar que todo botón o input táctil mida al menos 44px de alto.",
+      "Formatear precios y totales siempre en COP entero sin decimales."
+    ],
+    "donts": [
+      "No escribir colores hexadecimales sueltos en el código de componentes o páginas.",
+      "No usar texto blanco sobre fondos pastel.",
+      "No emplear sombras duras neobrutalistas ni bordes gruesos."
+    ]
+  }
+}

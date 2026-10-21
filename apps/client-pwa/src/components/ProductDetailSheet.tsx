@@ -232,8 +232,10 @@ export function ProductDetailSheet({
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 6v6l4 2" />
+              <path d="M3 18h18" />
+              <path d="M4 18a8 8 0 0 1 16 0" />
+              <path d="M12 6V4" />
+              <path d="M10 4h4" />
             </svg>
           </div>
         )}
