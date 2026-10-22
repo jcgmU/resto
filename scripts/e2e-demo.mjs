@@ -79,6 +79,16 @@ async function main() {
     }
     console.log(`  ✓ Admin autenticado exitosamente. Tenant: ${tenantId}`);
 
+    // Asegurar que el restaurante comience en modo hybrid para pruebas de comensal
+    await fetch(`${GATEWAY_URL}/v1/tenant/settings`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify({ operatingMode: 'hybrid' }),
+    });
+
     // -------------------------------------------------------------------------
     // Paso 2: Conectar Socket.io cliente a /orders con token admin
     // -------------------------------------------------------------------------
@@ -241,7 +251,7 @@ async function main() {
     // Paso 7: Agregar producto al carrito
     // -------------------------------------------------------------------------
     console.log('[Paso 7/12] 🛒 Agregando producto al carrito...');
-    const cartRes = await fetch(`${GATEWAY_URL}/v1/cart/items`, {
+    let cartRes = await fetch(`${GATEWAY_URL}/v1/cart/items`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -253,6 +263,28 @@ async function main() {
         addedBy: 'e2e-tester',
       }),
     });
+
+    // Si ordering tenía en caché 'waiter_only' de la corrida anterior, sondear hasta que expire el caché (máx 35s)
+    const cartPollStart = Date.now();
+    while (!cartRes.ok && cartRes.status === 409 && Date.now() - cartPollStart < 35000) {
+      const errText = await cartRes.text();
+      if (!errText.includes('SESSION_NOT_ORDERABLE')) {
+        throw new Error(`Agregar al carrito falló (${cartRes.status}): ${errText}`);
+      }
+      await new Promise((r) => setTimeout(r, 2000));
+      cartRes = await fetch(`${GATEWAY_URL}/v1/cart/items`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${guestToken}`,
+        },
+        body: JSON.stringify({
+          productId: selectedProduct.id,
+          quantity: 1,
+          addedBy: 'e2e-tester',
+        }),
+      });
+    }
 
     if (!cartRes.ok) {
       throw new Error(`Agregar al carrito falló (${cartRes.status}): ${await cartRes.text()}`);
@@ -771,10 +803,10 @@ async function main() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${adminToken}`,
           },
-          body: JSON.stringify({ operatingMode: 'hybrid' }),
+          body: JSON.stringify({ operatingMode: 'waiter_only', estimatedPrepMinutes: 22 }),
         });
         if (restoreRes.ok) {
-          if (settingsMayBeChanged) console.log('\n🧹 [Cleanup] Modo de operación restaurado a hybrid.');
+          if (settingsMayBeChanged) console.log('\n🧹 [Cleanup] Modo de operación restaurado a waiter_only/22.');
         } else {
           console.warn(`  ⚠️ [Cleanup] No se pudo restaurar hybrid (${restoreRes.status}): ${await restoreRes.text()}`);
         }

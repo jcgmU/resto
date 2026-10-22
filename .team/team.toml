@@ -9,6 +9,7 @@ kind = "claude"
 version = "2.1.296"
 
 # 2026-10-17: kimi sin presupuesto (429). Planificador TEMPORAL = claude por decision del usuario (via Hermes); volver a kimi cuando recupere cuota.
+# 2026-10-21: kimi sin credito de nuevo (429 "credit balance running low"). Planificador TEMPORAL = claude por decision del usuario (via Hermes). Devolver el rol a kimi cuando recupere credito.
 [roles.planner]
 agent_name = "kimi"
 kind = "kimi"

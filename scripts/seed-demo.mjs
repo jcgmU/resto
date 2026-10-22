@@ -14,10 +14,11 @@ const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:4000';
 const DEMO_ADMIN_PASSWORD = process.env.DEMO_ADMIN_PASSWORD || 'admin';
 
 const DESIRED_CATEGORIES = [
-  { name: 'Entradas', sortOrder: 1 },
-  { name: 'Platos Fuertes', sortOrder: 2 },
-  { name: 'Bebidas', sortOrder: 3 },
-  { name: 'Postres', sortOrder: 4 },
+  { name: 'Entradas', sortOrder: 1, destination: 'bar' },
+  { name: 'Platos Fuertes', sortOrder: 2, destination: 'kitchen' },
+  { name: 'Bebidas', sortOrder: 3, destination: 'bar' },
+  { name: 'Postres', sortOrder: 4, destination: 'kitchen' },
+  { name: 'Cócteles', sortOrder: 5, destination: 'bar' },
 ];
 
 const DESIRED_MODIFIER_GROUPS = [
@@ -119,6 +120,15 @@ const DESIRED_PRODUCTS = [
     description: 'Agua mineral de manantial con o sin gas',
     price: 8000,
     prepTimeMinutes: 10,
+    modifierGroupNames: [],
+  },
+  // Cócteles (bar)
+  {
+    categoryName: 'Cócteles',
+    name: 'Mojito Clásico',
+    description: 'Ron blanco, hierbabuena fresca, azúcar de caña y soda',
+    price: 26000,
+    prepTimeMinutes: 8,
     modifierGroupNames: [],
   },
   // Postres (14000 a 24000 COP)
@@ -273,6 +283,7 @@ async function main() {
         id
         name
         sortOrder
+        destination
       }
     }
   `;
@@ -293,6 +304,15 @@ async function main() {
         id
         name
         sortOrder
+        destination
+      }
+    }
+  `;
+  const updateCatMutation = `
+    mutation UpdateCategory($id: ID!, $input: UpdateCategoryInput!) {
+      updateCategory(id: $id, input: $input) {
+        id
+        destination
       }
     }
   `;
@@ -300,11 +320,19 @@ async function main() {
   for (const desired of DESIRED_CATEGORIES) {
     if (categoryMap.has(desired.name)) {
       categoriesExisting++;
+      const existing = existingCategories.find((c) => c.name === desired.name);
+      if (existing && existing.destination !== desired.destination) {
+        await graphqlRequest(GATEWAY_URL, accessToken, updateCatMutation, {
+          id: existing.id,
+          input: { destination: desired.destination },
+        });
+      }
     } else {
       const res = await graphqlRequest(GATEWAY_URL, accessToken, createCatMutation, {
         input: {
           name: desired.name,
           sortOrder: desired.sortOrder,
+          destination: desired.destination,
         },
       });
       const createdId = res.createCategory.id;
@@ -667,6 +695,83 @@ async function main() {
     reservationsCreated++;
   }
 
+  // 8. Reconciliacion de Empleados Demo (U4 R2)
+  console.log('[Users] Reconciliando empleados demo...');
+  const DESIRED_EMPLOYEES = [
+    {
+      displayName: 'Carlos Mesero',
+      email: 'mesero@resto.com',
+      role: 'WAITER',
+      password: process.env.DEMO_WAITER_PASSWORD || 'admin1234',
+    },
+    {
+      displayName: 'Monitor Cocina',
+      email: 'monitor@resto.com',
+      role: 'MONITOR',
+      monitorKind: 'kitchen',
+      password: process.env.DEMO_MONITOR_PASSWORD || 'admin1234',
+    },
+    {
+      displayName: 'Monitor Bar',
+      email: 'monitorbar@resto.com',
+      role: 'MONITOR',
+      monitorKind: 'bar',
+      password: process.env.DEMO_MONITOR_BAR_PASSWORD || 'admin1234',
+    },
+    {
+      displayName: 'Laura Caja',
+      email: 'cajero@resto.com',
+      role: 'CASHIER',
+      password: process.env.DEMO_CASHIER_PASSWORD || 'admin1234',
+    },
+  ];
+
+  const usersListRes = await fetch(`${GATEWAY_URL}/v1/identity/users`, { headers: authHeaders });
+  if (!usersListRes.ok) {
+    throw new Error(`GET /v1/identity/users fallo (${usersListRes.status}): ${await usersListRes.text()}`);
+  }
+  const existingUsers = (await usersListRes.json()) || [];
+  const existingUserEmails = new Set(existingUsers.map((u) => u.email.toLowerCase()));
+
+  let employeesCreated = 0;
+  let employeesExisting = 0;
+
+  for (const emp of DESIRED_EMPLOYEES) {
+    if (existingUserEmails.has(emp.email.toLowerCase())) {
+      employeesExisting++;
+    } else {
+      const createEmpRes = await fetch(`${GATEWAY_URL}/v1/identity/users`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify(emp),
+      });
+      if (!createEmpRes.ok) {
+        throw new Error(`POST /v1/identity/users fallo para ${emp.email} (${createEmpRes.status}): ${await createEmpRes.text()}`);
+      }
+      employeesCreated++;
+    }
+  }
+
+  // 9. Asignar Mesero Demo a Zona 'Terraza' (U7 R2)
+  const allUsersRes = await fetch(`${GATEWAY_URL}/v1/identity/users`, { headers: authHeaders });
+  const allUsers = (await allUsersRes.json()) || [];
+  const waiterUser = allUsers.find((u) => u.email.toLowerCase() === 'mesero@resto.com');
+  const terrazaId = zoneMap.get('Terraza');
+  if (waiterUser && terrazaId) {
+    const freshZonesRes = await fetch(`${GATEWAY_URL}/v1/zones`, { headers: authHeaders });
+    const freshZones = (await freshZonesRes.json()) || [];
+    const terrazaZone = freshZones.find((z) => (z.id || z.zoneId) === terrazaId);
+    if (!terrazaZone?.staffIds?.includes(waiterUser.id)) {
+      const nextStaffIds = [...(terrazaZone?.staffIds || []), waiterUser.id];
+      await fetch(`${GATEWAY_URL}/v1/zones/${terrazaId}`, {
+        method: 'PATCH',
+        headers: authHeaders,
+        body: JSON.stringify({ staffIds: nextStaffIds }),
+      });
+      console.log(`[Zones] Asignado mesero demo (${waiterUser.email}) a zona Terraza.`);
+    }
+  }
+
   const totalDesiredOptions = DESIRED_MODIFIER_GROUPS.reduce((acc, g) => acc + g.options.length, 0);
   const totalDesiredRelations = DESIRED_PRODUCTS.reduce((acc, p) => acc + p.modifierGroupNames.length, 0);
 
@@ -680,6 +785,7 @@ async function main() {
   console.log(`Zonas:              creadas ${zonesCreated.toString().padStart(2)} / existentes ${zonesExisting.toString().padStart(2)} (total ${DESIRED_ZONES.length})`);
   console.log(`Mesas:              creadas ${tablesCreated.toString().padStart(2)} / existentes ${tablesExisting.toString().padStart(2)} / actualizadas ${tablesUpdated} (total ${DESIRED_TABLES.length})`);
   console.log(`Reservas demo:      creadas ${reservationsCreated.toString().padStart(2)} / existentes ${reservationsExisting.toString().padStart(2)} (total 1)`);
+  console.log(`Empleados demo:     creados ${employeesCreated.toString().padStart(2)} / existentes ${employeesExisting.toString().padStart(2)} (total ${DESIRED_EMPLOYEES.length})`);
   console.log('============================\n');
   console.log('Seed demo completado con éxito.');
   process.exit(0);
