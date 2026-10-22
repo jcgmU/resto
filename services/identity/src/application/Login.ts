@@ -68,6 +68,7 @@ export class LoginUseCaseImpl implements LoginUseCase {
       tenantId: userWithHash.tenantId,
       role: userWithHash.role,
       email: userWithHash.email,
+      displayName: userWithHash.displayName || userWithHash.email,
     });
 
     const refresh = this.tokenIssuer.generateRefreshToken();

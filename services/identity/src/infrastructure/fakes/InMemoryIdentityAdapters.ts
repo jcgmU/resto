@@ -20,6 +20,7 @@ export class InMemoryTenantRepository implements TenantRepository {
       status: 'ACTIVE',
       operatingMode: 'hybrid',
       estimatedPrepMinutes: 18,
+      invoiceMode: 'simple',
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -30,6 +31,7 @@ export class InMemoryTenantRepository implements TenantRepository {
       status: 'ACTIVE',
       operatingMode: 'hybrid',
       estimatedPrepMinutes: 18,
+      invoiceMode: 'simple',
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -55,7 +57,7 @@ export class InMemoryTenantRepository implements TenantRepository {
 
   async updateSettings(
     id: string,
-    settings: { operatingMode?: string; estimatedPrepMinutes?: number }
+    settings: { operatingMode?: string; estimatedPrepMinutes?: number; invoiceMode?: string }
   ): Promise<TenantDTO> {
     const tenant = this.tenants.find((t) => t.id === id);
     if (!tenant) {
@@ -66,6 +68,9 @@ export class InMemoryTenantRepository implements TenantRepository {
     }
     if (settings.estimatedPrepMinutes !== undefined) {
       tenant.estimatedPrepMinutes = settings.estimatedPrepMinutes;
+    }
+    if (settings.invoiceMode !== undefined) {
+      tenant.invoiceMode = settings.invoiceMode as any;
     }
     tenant.updatedAt = new Date();
     return tenant;

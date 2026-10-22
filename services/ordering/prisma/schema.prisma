@@ -22,6 +22,8 @@ model Order {
   sessionId   String
   tableId     String
   status           OrderStatus        @default(PLACED)
+  kitchenStatus    OrderStatus?
+  barStatus        OrderStatus?
   total            Decimal            @db.Decimal(10, 2)
   notes            String?
   estimatedMinutes Int?
@@ -56,6 +58,7 @@ model OrderItem {
   unitPrice   Decimal             @db.Decimal(10, 2)
   quantity    Int
   notes       String?
+  destination String              @default("kitchen")
   modifiers   OrderItemModifier[]
 
   @@index([orderId])
@@ -88,8 +91,11 @@ model Payment {
   amount      Decimal       @db.Decimal(10, 2)
   method      PaymentMethod
   ordersCount Int
-  recordedBy  String
-  createdAt   DateTime      @default(now())
+  recordedBy    String
+  createdAt     DateTime      @default(now())
+  invoiceStatus String        @default("none")
+  invoiceRef    String?
+  invoiceError  String?
 
   @@unique([tenantId, sessionId])
   @@index([tenantId, createdAt])

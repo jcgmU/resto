@@ -42,6 +42,7 @@ export class PrismaUserRepository implements UserRepository {
         displayName: user.displayName,
         role: user.role as any,
         status: user.status as any,
+        monitorKind: (user.monitorKind as any) ?? null,
       },
       create: {
         id: user.id,
@@ -51,6 +52,7 @@ export class PrismaUserRepository implements UserRepository {
         displayName: user.displayName,
         role: user.role as any,
         status: user.status as any,
+        monitorKind: (user.monitorKind as any) ?? null,
       },
     });
     return this.mapToDto(u);
@@ -64,6 +66,7 @@ export class PrismaUserRepository implements UserRepository {
       displayName: u.displayName,
       role: u.role,
       status: u.status,
+      monitorKind: u.monitorKind,
       createdAt: u.createdAt,
       updatedAt: u.updatedAt,
     };

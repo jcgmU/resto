@@ -129,6 +129,7 @@ exports.Prisma.TenantScalarFieldEnum = {
   status: 'status',
   operatingMode: 'operatingMode',
   estimatedPrepMinutes: 'estimatedPrepMinutes',
+  invoiceMode: 'invoiceMode',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -141,6 +142,7 @@ exports.Prisma.UserScalarFieldEnum = {
   displayName: 'displayName',
   role: 'role',
   status: 'status',
+  monitorKind: 'monitorKind',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -177,7 +179,10 @@ exports.Role = exports.$Enums.Role = {
   ADMIN: 'ADMIN',
   MANAGER: 'MANAGER',
   STAFF: 'STAFF',
-  CUSTOMER: 'CUSTOMER'
+  CUSTOMER: 'CUSTOMER',
+  WAITER: 'WAITER',
+  MONITOR: 'MONITOR',
+  CASHIER: 'CASHIER'
 };
 
 exports.UserStatus = exports.$Enums.UserStatus = {

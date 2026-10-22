@@ -14,6 +14,7 @@ export class PrismaTenantRepository implements TenantRepository {
       status: t.status,
       operatingMode: (t.operatingMode as any) || 'hybrid',
       estimatedPrepMinutes: t.estimatedPrepMinutes ?? 18,
+      invoiceMode: (t.invoiceMode as any) || 'simple',
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
     };
@@ -29,6 +30,7 @@ export class PrismaTenantRepository implements TenantRepository {
       status: t.status,
       operatingMode: (t.operatingMode as any) || 'hybrid',
       estimatedPrepMinutes: t.estimatedPrepMinutes ?? 18,
+      invoiceMode: (t.invoiceMode as any) || 'simple',
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
     };
@@ -43,6 +45,7 @@ export class PrismaTenantRepository implements TenantRepository {
         status: tenant.status as any,
         operatingMode: tenant.operatingMode ?? 'hybrid',
         estimatedPrepMinutes: tenant.estimatedPrepMinutes ?? 18,
+        invoiceMode: tenant.invoiceMode ?? 'simple',
       },
       create: {
         id: tenant.id,
@@ -51,6 +54,7 @@ export class PrismaTenantRepository implements TenantRepository {
         status: tenant.status as any,
         operatingMode: tenant.operatingMode ?? 'hybrid',
         estimatedPrepMinutes: tenant.estimatedPrepMinutes ?? 18,
+        invoiceMode: tenant.invoiceMode ?? 'simple',
       },
     });
     return {
@@ -60,6 +64,7 @@ export class PrismaTenantRepository implements TenantRepository {
       status: t.status,
       operatingMode: t.operatingMode as any,
       estimatedPrepMinutes: t.estimatedPrepMinutes,
+      invoiceMode: (t.invoiceMode as any) || 'simple',
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
     };
@@ -67,7 +72,7 @@ export class PrismaTenantRepository implements TenantRepository {
 
   async updateSettings(
     id: string,
-    settings: { operatingMode?: string; estimatedPrepMinutes?: number }
+    settings: { operatingMode?: string; estimatedPrepMinutes?: number; invoiceMode?: string }
   ): Promise<TenantDTO> {
     const data: any = {};
     if (settings.operatingMode !== undefined) {
@@ -75,6 +80,9 @@ export class PrismaTenantRepository implements TenantRepository {
     }
     if (settings.estimatedPrepMinutes !== undefined) {
       data.estimatedPrepMinutes = settings.estimatedPrepMinutes;
+    }
+    if (settings.invoiceMode !== undefined) {
+      data.invoiceMode = settings.invoiceMode;
     }
 
     const t = await this.prisma.tenant.update({
@@ -89,6 +97,7 @@ export class PrismaTenantRepository implements TenantRepository {
       status: t.status,
       operatingMode: t.operatingMode as any,
       estimatedPrepMinutes: t.estimatedPrepMinutes,
+      invoiceMode: (t.invoiceMode as any) || 'simple',
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
     };

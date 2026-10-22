@@ -4,13 +4,14 @@ import { InMemoryCategoryRepository } from '../infrastructure/fakes/InMemoryCata
 export class CreateCategoryUseCaseImpl {
   constructor(private readonly categoryRepo: CategoryRepository = new InMemoryCategoryRepository()) {}
 
-  async execute(input: { tenantId: string; name: string; sortOrder?: number }): Promise<CategoryDTO> {
+  async execute(input: { tenantId: string; name: string; sortOrder?: number; destination?: 'kitchen' | 'bar' }): Promise<CategoryDTO> {
     const category: CategoryDTO = {
       id: `cat-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       tenantId: input.tenantId,
       name: input.name,
       sortOrder: input.sortOrder ?? 0,
       isActive: true,
+      destination: input.destination || 'kitchen',
       createdAt: new Date(),
       updatedAt: new Date(),
     };

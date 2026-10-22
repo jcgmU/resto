@@ -46,7 +46,7 @@ export function getTableDisplayName(
 ): string {
   if (!tableId) return '';
   if (tables && Array.isArray(tables)) {
-    const found = tables.find((t) => t.tableId === tableId);
+    const found = tables.find((t) => t.tableId === tableId || (t as any).id === tableId);
     if (found && found.label) {
       return found.label;
     }

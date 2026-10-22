@@ -10,14 +10,15 @@ datasource db {
 }
 
 model Category {
-  id        String    @id @default(uuid())
-  tenantId  String // referencia LÓGICA a identity.Tenant — sin FK física
-  name      String
-  sortOrder Int       @default(0)
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  products  Product[]
+  id          String    @id @default(uuid())
+  tenantId    String // referencia LÓGICA a identity.Tenant — sin FK física
+  name        String
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  destination String    @default("kitchen")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
 
   @@unique([tenantId, name])
   @@index([tenantId])

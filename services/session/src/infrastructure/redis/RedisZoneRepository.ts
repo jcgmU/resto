@@ -14,6 +14,7 @@ export class RedisZoneRepository implements ZoneRepository {
       tenantId,
       name: zone.name,
       sortOrder: String(zone.sortOrder ?? 0),
+      staffIds: JSON.stringify(zone.staffIds || []),
     };
 
     await this.redis
@@ -32,11 +33,21 @@ export class RedisZoneRepository implements ZoneRepository {
       return null;
     }
 
+    let staffIds: string[] = [];
+    if (raw.staffIds) {
+      try {
+        staffIds = JSON.parse(raw.staffIds);
+      } catch {
+        staffIds = [];
+      }
+    }
+
     return {
       id: raw.id,
       tenantId: raw.tenantId,
       name: raw.name,
       sortOrder: Number(raw.sortOrder ?? 0),
+      staffIds,
     };
   }
 
@@ -53,11 +64,20 @@ export class RedisZoneRepository implements ZoneRepository {
     for (const [err, raw] of results || []) {
       if (!err && raw && (raw as Record<string, string>).id && (raw as Record<string, string>).tenantId === tenantId) {
         const item = raw as Record<string, string>;
+        let staffIds: string[] = [];
+        if (item.staffIds) {
+          try {
+            staffIds = JSON.parse(item.staffIds);
+          } catch {
+            staffIds = [];
+          }
+        }
         zones.push({
           id: item.id,
           tenantId: item.tenantId,
           name: item.name,
           sortOrder: Number(item.sortOrder ?? 0),
+          staffIds,
         });
       }
     }

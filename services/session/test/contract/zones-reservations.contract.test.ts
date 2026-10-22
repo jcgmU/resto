@@ -136,6 +136,46 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       expect(listAfterDel.body[0].id).toBe(resZ1.body.id);
     });
 
+    test('U7 [R2]: Asignación mesero↔ZONA con staffIds en creación, lectura y actualización', async () => {
+      // 1. Crear zona con staffIds
+      const createRes = await request(app)
+        .post('/zones')
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'admin')
+        .send({ name: 'Zona VIP', sortOrder: 5, staffIds: ['mesero-1', 'mesero-2'] });
+      expect(createRes.status).toBe(201);
+      expect(createRes.body.staffIds).toEqual(['mesero-1', 'mesero-2']);
+
+      const zoneId = createRes.body.id;
+
+      // 2. Lectura permitida para rol waiter y preserva staffIds
+      const waiterGetRes = await request(app)
+        .get('/zones')
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'waiter');
+      expect(waiterGetRes.status).toBe(200);
+      const vipZone = waiterGetRes.body.find((z: any) => z.id === zoneId);
+      expect(vipZone).toBeDefined();
+      expect(vipZone.staffIds).toEqual(['mesero-1', 'mesero-2']);
+
+      // 3. PATCH actualiza staffIds
+      const patchRes = await request(app)
+        .patch(`/zones/${zoneId}`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'admin')
+        .send({ staffIds: ['mesero-3'] });
+      expect(patchRes.status).toBe(200);
+      expect(patchRes.body.staffIds).toEqual(['mesero-3']);
+
+      // 4. Verificar persistencia tras relectura
+      const reread = await request(app)
+        .get('/zones')
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'admin');
+      const updatedVip = reread.body.find((z: any) => z.id === zoneId);
+      expect(updatedVip.staffIds).toEqual(['mesero-3']);
+    });
+
     test('DELETE /zones/:id bloqueado con 409 si la zona tiene mesas asignadas', async () => {
       // 1. Crear zona
       const zoneRes = await request(app)

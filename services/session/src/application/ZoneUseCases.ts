@@ -3,7 +3,7 @@ import { ZoneDTO, ZoneRepository, TableRepository, DomainError } from '@packages
 export class CreateZoneUseCaseImpl {
   constructor(private readonly zoneRepo: ZoneRepository) {}
 
-  async execute(input: { tenantId: string; name: string; sortOrder?: number; id?: string }): Promise<ZoneDTO> {
+  async execute(input: { tenantId: string; name: string; sortOrder?: number; id?: string; staffIds?: string[] }): Promise<ZoneDTO> {
     if (!input.name || typeof input.name !== 'string' || input.name.trim() === '') {
       throw new DomainError('VALIDATION_ERROR', 'El nombre de la zona es requerido');
     }
@@ -16,6 +16,7 @@ export class CreateZoneUseCaseImpl {
       tenantId: input.tenantId,
       name: input.name.trim(),
       sortOrder,
+      staffIds: Array.isArray(input.staffIds) ? input.staffIds : [],
     };
 
     return this.zoneRepo.save(input.tenantId, zone);
@@ -25,7 +26,7 @@ export class CreateZoneUseCaseImpl {
 export class UpdateZoneUseCaseImpl {
   constructor(private readonly zoneRepo: ZoneRepository) {}
 
-  async execute(input: { tenantId: string; zoneId: string; name?: string; sortOrder?: number }): Promise<ZoneDTO> {
+  async execute(input: { tenantId: string; zoneId: string; name?: string; sortOrder?: number; staffIds?: string[] }): Promise<ZoneDTO> {
     const zone = await this.zoneRepo.findById(input.tenantId, input.zoneId);
     if (!zone) {
       throw new DomainError('ZONE_NOT_FOUND', `Zona ${input.zoneId} no encontrada`);
@@ -43,6 +44,13 @@ export class UpdateZoneUseCaseImpl {
         throw new DomainError('VALIDATION_ERROR', 'sortOrder debe ser un número');
       }
       zone.sortOrder = input.sortOrder;
+    }
+
+    if (input.staffIds !== undefined) {
+      if (!Array.isArray(input.staffIds)) {
+        throw new DomainError('VALIDATION_ERROR', 'staffIds debe ser una lista');
+      }
+      zone.staffIds = input.staffIds;
     }
 
     return this.zoneRepo.save(input.tenantId, zone);

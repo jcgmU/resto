@@ -138,6 +138,28 @@ export class InMemoryTableSessionRepository implements TableSessionRepository {
     return { ...this.sessions[index] };
   }
 
+  async moveToTable(tenantId: string, sessionId: string, targetTableId: string): Promise<TableSessionDTO> {
+    const session = this.sessions.find((s) => s.tenantId === tenantId && s.sessionId === sessionId);
+    if (!session) {
+      throw new DomainError('SESSION_NOT_FOUND', `SESSION_NOT_FOUND: Sesión ${sessionId} no encontrada`);
+    }
+    if (session.status !== 'active' && session.status !== 'billRequested') {
+      throw new DomainError('INVALID_SESSION_STATE', 'No se puede cambiar de mesa una sesión que no está activa');
+    }
+    const occupied = this.sessions.find(
+      (s) =>
+        s.tenantId === tenantId &&
+        s.tableId === targetTableId &&
+        s.sessionId !== sessionId &&
+        (s.status === 'active' || s.status === 'billRequested')
+    );
+    if (occupied) {
+      throw new DomainError('TABLE_HAS_ACTIVE_SESSION', `La mesa de destino ${targetTableId} ya tiene una sesión activa`);
+    }
+    session.tableId = targetTableId;
+    return { ...session };
+  }
+
   async listByTenant(
     tenantId: string,
     filter?: { status?: 'active' | 'billRequested' | 'closed'; tableId?: string }
@@ -290,5 +312,3 @@ export class InMemoryIdentitySettingsAdapter implements IdentitySettingsPort {
     return this.prepMinutes.get(tenantId) ?? 18;
   }
 }
-
-

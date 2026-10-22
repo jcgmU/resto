@@ -1,3 +1,4 @@
+import { SessionEventPublisherPort } from '../domain/events';
 import {
   OpenSessionRequest,
   OpenSessionResult,
@@ -15,9 +16,10 @@ export class OpenTableSessionUseCaseImpl {
     private readonly sessionRepo: TableSessionRepository,
     private readonly tableRepo: TableRepository,
     private readonly tokenIssuer: GuestTokenIssuer,
-    private readonly ttlSeconds: number = 14400,
+    private readonly ttlSeconds: number = 3600,
     private readonly reservationRepo?: ReservationRepository,
-    private readonly identitySettings?: IdentitySettingsPort
+    private readonly identitySettings?: IdentitySettingsPort,
+    private readonly eventPublisher?: SessionEventPublisherPort
   ) {}
 
   async execute(input: OpenSessionRequest): Promise<OpenSessionResult> {
@@ -95,12 +97,27 @@ export class OpenTableSessionUseCaseImpl {
       this.ttlSeconds
     );
 
+    if (this.eventPublisher) {
+      await this.eventPublisher.publishSessionEvent(input.tenantId, {
+        event: 'table:status-changed',
+        tenantId: input.tenantId,
+        tableId: input.tableId,
+        sessionId: session.sessionId,
+        status: 'OCCUPIED',
+        action: 'session_opened',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     return { session, guestToken };
   }
 }
 
 export class CloseTableSessionUseCaseImpl {
-  constructor(private readonly sessionRepo: TableSessionRepository) {}
+  constructor(
+    private readonly sessionRepo: TableSessionRepository,
+    private readonly eventPublisher?: SessionEventPublisherPort
+  ) {}
 
   async execute(input: { tenantId: string; sessionId: string }): Promise<TableSessionDTO> {
     const session = await this.sessionRepo.findById(input.tenantId, input.sessionId);
@@ -112,7 +129,19 @@ export class CloseTableSessionUseCaseImpl {
       return session;
     }
 
-    return this.sessionRepo.close(input.tenantId, input.sessionId, new Date());
+    const closed = await this.sessionRepo.close(input.tenantId, input.sessionId, new Date());
+    if (this.eventPublisher) {
+      await this.eventPublisher.publishSessionEvent(input.tenantId, {
+        event: 'table:status-changed',
+        tenantId: input.tenantId,
+        tableId: session.tableId,
+        sessionId: input.sessionId,
+        status: 'AVAILABLE',
+        action: 'session_closed',
+        timestamp: new Date().toISOString(),
+      });
+    }
+    return closed;
   }
 }
 
@@ -142,7 +171,9 @@ export class GetTableSessionUseCaseImpl {
 export class RequestBillSessionUseCaseImpl {
   constructor(
     private readonly sessionRepo: TableSessionRepository,
-    private readonly orderingServiceCall?: import('../domain/orderingPorts').OrderingServiceCallPort
+    private readonly orderingServiceCall?: import('../domain/orderingPorts').OrderingServiceCallPort,
+    private readonly eventPublisher?: SessionEventPublisherPort,
+    private readonly ttlSeconds: number = 3600
   ) {}
 
   async execute(input: { tenantId: string; sessionId: string }): Promise<TableSessionDTO> {
@@ -163,6 +194,7 @@ export class RequestBillSessionUseCaseImpl {
     }
 
     const updatedSession = await this.sessionRepo.requestBill(input.tenantId, input.sessionId);
+    await this.sessionRepo.touch(input.tenantId, input.sessionId, this.ttlSeconds);
 
     if (this.orderingServiceCall) {
       try {
@@ -177,12 +209,27 @@ export class RequestBillSessionUseCaseImpl {
       }
     }
 
+    if (this.eventPublisher) {
+      await this.eventPublisher.publishSessionEvent(input.tenantId, {
+        event: 'table:status-changed',
+        tenantId: input.tenantId,
+        tableId: session.tableId,
+        sessionId: input.sessionId,
+        status: 'BILL_REQUESTED',
+        action: 'bill_requested',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     return updatedSession;
   }
 }
 
 export class ReopenBillSessionUseCaseImpl {
-  constructor(private readonly sessionRepo: TableSessionRepository) {}
+  constructor(
+    private readonly sessionRepo: TableSessionRepository,
+    private readonly eventPublisher?: SessionEventPublisherPort
+  ) {}
 
   async execute(input: { tenantId: string; sessionId: string }): Promise<TableSessionDTO> {
     const session = await this.sessionRepo.findById(input.tenantId, input.sessionId);
@@ -197,7 +244,19 @@ export class ReopenBillSessionUseCaseImpl {
       );
     }
 
-    return this.sessionRepo.reopenBill(input.tenantId, input.sessionId);
+    const reopened = await this.sessionRepo.reopenBill(input.tenantId, input.sessionId);
+    if (this.eventPublisher) {
+      await this.eventPublisher.publishSessionEvent(input.tenantId, {
+        event: 'table:status-changed',
+        tenantId: input.tenantId,
+        tableId: session.tableId,
+        sessionId: input.sessionId,
+        status: 'OCCUPIED',
+        action: 'bill_reopened',
+        timestamp: new Date().toISOString(),
+      });
+    }
+    return reopened;
   }
 }
 
@@ -216,7 +275,8 @@ export class StaffOpenSessionUseCaseImpl {
   constructor(
     private readonly sessionRepo: TableSessionRepository,
     private readonly tableRepo: TableRepository,
-    private readonly ttlSeconds: number = 14400
+    private readonly ttlSeconds: number = 3600,
+    private readonly eventPublisher?: SessionEventPublisherPort
   ) {}
 
   async execute(input: { tenantId: string; tableId: string }): Promise<{ session: TableSessionDTO }> {
@@ -262,7 +322,129 @@ export class StaffOpenSessionUseCaseImpl {
       }
     }
 
+    if (this.eventPublisher) {
+      await this.eventPublisher.publishSessionEvent(input.tenantId, {
+        event: 'table:status-changed',
+        tenantId: input.tenantId,
+        tableId: input.tableId,
+        sessionId: session.sessionId,
+        status: 'OCCUPIED',
+        action: 'session_opened',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     return { session };
   }
 }
+
+export class MoveTableSessionUseCaseImpl {
+  constructor(
+    private readonly sessionRepo: TableSessionRepository,
+    private readonly tableRepo: TableRepository,
+    private readonly reservationRepo?: ReservationRepository,
+    private readonly eventPublisher?: SessionEventPublisherPort
+  ) {}
+
+  async execute(input: {
+    tenantId: string;
+    sessionId: string;
+    targetTableId: string;
+  }): Promise<TableSessionDTO> {
+    const { tenantId, sessionId, targetTableId } = input;
+    if (!tenantId || !sessionId || !targetTableId) {
+      throw new DomainError('VALIDATION_ERROR', 'tenantId, sessionId y targetTableId son requeridos');
+    }
+
+    const currentSession = await this.sessionRepo.findById(tenantId, sessionId);
+    if (!currentSession) {
+      throw new DomainError('SESSION_NOT_FOUND', `SESSION_NOT_FOUND: Sesión ${sessionId} no encontrada`);
+    }
+
+    if (currentSession.status !== 'active' && currentSession.status !== 'billRequested') {
+      throw new DomainError(
+        'INVALID_SESSION_STATE',
+        `No se puede cambiar de mesa una sesión en estado '${currentSession.status}'`
+      );
+    }
+
+    const sourceTableId = currentSession.tableId;
+    if (sourceTableId === targetTableId) {
+      return currentSession;
+    }
+
+    const targetTable = await this.tableRepo.findById(tenantId, targetTableId);
+    if (!targetTable) {
+      throw new DomainError('TABLE_NOT_FOUND', `TABLE_NOT_FOUND: Mesa ${targetTableId} no encontrada`);
+    }
+
+    if (targetTable.status === 'DISABLED' || targetTable.status === 'inactive') {
+      throw new DomainError('TABLE_INACTIVE', `TABLE_INACTIVE: Mesa ${targetTableId} inactiva`);
+    }
+
+    if (this.reservationRepo) {
+      const reservations = await this.reservationRepo.listByTable(tenantId, targetTableId);
+      const now = Date.now();
+      const windowStart = now - 30 * 60 * 1000;
+      const windowEnd = now + 2 * 60 * 60 * 1000;
+
+      const blockingReservation = reservations.find((r) => {
+        if (r.status !== 'active') return false;
+        const resTime = new Date(r.reservedFor).getTime();
+        return resTime >= windowStart && resTime <= windowEnd;
+      });
+
+      if (blockingReservation) {
+        throw new DomainError(
+          'TABLE_RESERVED',
+          `La mesa ${targetTableId} tiene una reserva activa para ${blockingReservation.reservedFor}`
+        );
+      }
+    }
+
+    // Atomic move in repository
+    let movedSession: TableSessionDTO;
+    if (typeof this.sessionRepo.moveToTable === 'function') {
+      movedSession = await this.sessionRepo.moveToTable(tenantId, sessionId, targetTableId);
+    } else {
+      const occupied = await this.sessionRepo.findActiveByTable(tenantId, targetTableId);
+      if (occupied && occupied.sessionId !== sessionId) {
+        throw new DomainError('TABLE_HAS_ACTIVE_SESSION', `La mesa de destino ${targetTableId} ya tiene una sesión activa`);
+      }
+      currentSession.tableId = targetTableId;
+      movedSession = await this.sessionRepo.save(tenantId, currentSession, 3600);
+    }
+
+    // Publish session events
+    if (this.eventPublisher) {
+      const timestamp = new Date().toISOString();
+      await this.eventPublisher.publishSessionEvent(tenantId, {
+        event: 'table:status-changed',
+        tenantId,
+        tableId: sourceTableId,
+        sessionId,
+        status: 'AVAILABLE',
+        action: 'session_moved',
+        sourceTableId,
+        targetTableId,
+        timestamp,
+      });
+
+      await this.eventPublisher.publishSessionEvent(tenantId, {
+        event: 'table:status-changed',
+        tenantId,
+        tableId: targetTableId,
+        sessionId,
+        status: movedSession.status === 'billRequested' ? 'BILL_REQUESTED' : 'OCCUPIED',
+        action: 'session_moved',
+        sourceTableId,
+        targetTableId,
+        timestamp,
+      });
+    }
+
+    return movedSession;
+  }
+}
+
 

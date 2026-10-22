@@ -19,6 +19,7 @@ export interface CartItemDTO {
   modifiers: CartItemModifierDTO[];
   quantity: number;
   notes?: string;
+  destination?: 'kitchen' | 'bar';
   addedBy?: string;
   addedAt: string;
   lineTotal: number;
@@ -46,6 +47,7 @@ export interface OrderItemDTO {
   unitPrice: number;
   quantity: number;
   notes?: string;
+  destination?: 'kitchen' | 'bar';
   modifiers: OrderModifierDTO[];
 }
 
@@ -81,6 +83,9 @@ export function computeEffectiveSlaMinutes(
 export function computeOrderOverdue(
   order: {
     status: OrderStatus;
+  kitchenStatus?: OrderStatus;
+  barStatus?: OrderStatus;
+  destinationStatus?: { kitchen?: OrderStatus; bar?: OrderStatus };
     createdAt: string | Date;
     estimatedMinutes?: number | null;
     delayMinutes?: number | null;
@@ -109,13 +114,20 @@ export interface OrderDTO {
   sessionId: string;
   tableId: string;
   status: OrderStatus;
+  kitchenStatus?: OrderStatus;
+  barStatus?: OrderStatus;
+  destinationStatus?: { kitchen?: OrderStatus; bar?: OrderStatus };
   total: number;
   items: OrderItemDTO[];
   notes?: string;
+  destination?: 'kitchen' | 'bar';
   estimatedMinutes?: number;
   delayMinutes?: number;
   overdue?: boolean;
   createdAt: string;
+  invoiceStatus?: InvoiceStatus;
+  invoiceRef?: string;
+  invoiceError?: string;
   cancelledAt?: string;
 }
 
@@ -124,6 +136,7 @@ export interface OrderEvent {
   type: OrderEventType;
   order: OrderDTO;
   previousStatus?: OrderStatus;
+  destination?: 'kitchen' | 'bar';
   occurredAt: string;
 }
 
@@ -151,6 +164,8 @@ export interface ServiceCallEvent {
 
 export type PaymentMethod = 'CASH' | 'CARD' | 'OTHER';
 
+export type InvoiceStatus = 'none' | 'pending' | 'issued' | 'error';
+
 export interface PaymentDTO {
   id: string;
   tenantId: string;
@@ -161,6 +176,9 @@ export interface PaymentDTO {
   ordersCount: number;
   recordedBy: string;
   createdAt: string;
+  invoiceStatus?: InvoiceStatus;
+  invoiceRef?: string;
+  invoiceError?: string;
 }
 
 export interface BillDTO {

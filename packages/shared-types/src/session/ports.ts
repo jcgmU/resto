@@ -42,6 +42,7 @@ export interface TableSessionRepository {
   reopenBill(tenantId: string, sessionId: string): Promise<TableSessionDTO>;
   listByTenant(tenantId: string, filter?: { status?: 'active' | 'billRequested' | 'closed'; tableId?: string }): Promise<TableSessionDTO[]>;
   touch(tenantId: string, sessionId: string, ttlSeconds: number): Promise<void>;
+  moveToTable?(tenantId: string, sessionId: string, targetTableId: string): Promise<TableSessionDTO>;
   getOrCreateActive?(
     tenantId: string,
     tableId: string,

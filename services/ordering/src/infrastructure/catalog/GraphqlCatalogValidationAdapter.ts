@@ -20,6 +20,10 @@ export class GraphqlCatalogValidationAdapter implements CatalogValidationPort {
           name
           price
           isAvailable
+          category {
+            id
+            destination
+          }
           modifierGroups {
             id
             name
@@ -88,6 +92,7 @@ export class GraphqlCatalogValidationAdapter implements CatalogValidationPort {
             name: rawProduct.name,
             price: Number(rawProduct.price),
             isAvailable: Boolean(rawProduct.isAvailable),
+            destination: (rawProduct.category?.destination as 'kitchen' | 'bar') || 'kitchen',
             modifierGroups,
           };
 

@@ -29,7 +29,7 @@ export function createZonesRouter(deps: {
   // GET /zones -> staff+
   router.get(
     '/',
-    requireStaffRole(['staff', 'manager', 'admin']),
+    requireStaffRole(['staff', 'manager', 'admin', 'waiter', 'cashier']),
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const tenantId = req.headers['x-tenant-id'] as string;
@@ -53,6 +53,7 @@ export function createZonesRouter(deps: {
           name: req.body.name,
           sortOrder: req.body.sortOrder,
           id: req.body.id,
+          staffIds: req.body.staffIds,
         });
         res.status(201).json(zone);
       } catch (err) {
@@ -73,6 +74,7 @@ export function createZonesRouter(deps: {
           zoneId: req.params.id,
           name: req.body.name,
           sortOrder: req.body.sortOrder,
+          staffIds: req.body.staffIds,
         });
         res.status(200).json(updated);
       } catch (err) {

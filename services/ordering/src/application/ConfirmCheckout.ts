@@ -10,6 +10,7 @@ import {
   PaymentRepository,
   ServiceCallRepository,
   SessionServicePort,
+  InvoiceProvider,
 } from '@packages/shared-types';
 import { calculateBill } from '../domain/bill';
 import { validatePaymentMethod } from '../domain/payment';
@@ -29,7 +30,8 @@ export class ConfirmCheckout implements ConfirmCheckoutUseCase {
     private readonly sessionService: SessionServicePort,
     private readonly cartRepo: CartRepository,
     private readonly serviceCallRepo: ServiceCallRepository,
-    private readonly eventPublisher?: EventPublisher
+    private readonly eventPublisher?: EventPublisher,
+    private readonly invoiceProvider?: InvoiceProvider
   ) {}
 
   async execute(input: {
@@ -38,6 +40,13 @@ export class ConfirmCheckout implements ConfirmCheckoutUseCase {
     tableId?: string;
     method: PaymentMethod;
     recordedBy: string;
+    invoiceMode?: 'simple' | 'dian';
+    invoiceCustomer?: {
+      type?: 'final_consumer' | 'business';
+      taxId?: string;
+      legalName?: string;
+      email?: string;
+    };
   }): Promise<ConfirmCheckoutResult> {
     const { tenantId, sessionId, tableId, recordedBy } = input;
     const method = validatePaymentMethod(input.method);
@@ -70,8 +79,42 @@ export class ConfirmCheckout implements ConfirmCheckoutUseCase {
       payment = existingPayment;
       isExisting = true;
     } else {
+      let invoiceStatus: any = 'none';
+      let invoiceRef: string | undefined;
+      let invoiceError: string | undefined;
+
+      const paymentId = randomUUID();
+
+      if (this.invoiceProvider && (input.invoiceMode === 'dian' || input.invoiceCustomer)) {
+        try {
+          const itemsPayload = calculated.orders.flatMap((o) =>
+            o.items.map((i) => ({
+              name: i.productName,
+              quantity: i.quantity,
+              unitPrice: i.unitPrice,
+              total: i.unitPrice * i.quantity,
+            }))
+          );
+
+          const invoiceRes = await this.invoiceProvider.issue({
+            tenantId,
+            paymentId,
+            amount: calculated.total,
+            customer: input.invoiceCustomer,
+            items: itemsPayload,
+          });
+
+          invoiceStatus = invoiceRes.status;
+          invoiceRef = invoiceRes.ref;
+          invoiceError = invoiceRes.error;
+        } catch (invoiceErr: any) {
+          invoiceStatus = 'error';
+          invoiceError = invoiceErr?.message || 'Error al emitir factura DIAN';
+        }
+      }
+
       const paymentToSave: PaymentDTO = {
-        id: randomUUID(),
+        id: paymentId,
         tenantId,
         sessionId,
         tableId: effectiveTableId,
@@ -80,6 +123,9 @@ export class ConfirmCheckout implements ConfirmCheckoutUseCase {
         ordersCount: calculated.ordersCount,
         recordedBy,
         createdAt: new Date().toISOString(),
+        invoiceStatus,
+        invoiceRef,
+        invoiceError,
       };
 
       try {

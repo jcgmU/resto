@@ -88,6 +88,7 @@ services:
       PORT: 4003
       INTERNAL_SHARED_SECRET: ${INTERNAL_SHARED_SECRET:-resto-internal-shared-secret-dev-2026}
       REDIS_URL: redis://redis:6379
+      SESSION_TTL_SECONDS: ${SESSION_TTL_SECONDS:-3600}
       JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-key-oleada-0}
       PWA_BASE_URL: ${PWA_BASE_URL:-http://localhost:3001}
       IDENTITY_INTERNAL_URL: http://identity:4001

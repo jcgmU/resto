@@ -113,7 +113,7 @@ export function createTablesRouter(deps: {
   // GET /tables -> staff
   router.get(
     '/',
-    requireStaffRole(['staff', 'manager', 'admin']),
+    requireStaffRole(['staff', 'manager', 'admin', 'waiter', 'cashier', 'monitor']),
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const tenantId = req.headers['x-tenant-id'] as string;
@@ -276,7 +276,7 @@ export function createTablesRouter(deps: {
   // GET /tables/:tableId/qr -> staff
   router.get(
     '/:tableId/qr',
-    requireStaffRole(['staff', 'manager', 'admin']),
+    requireStaffRole(['staff', 'manager', 'admin', 'waiter']),
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const tenantId = req.headers['x-tenant-id'] as string;

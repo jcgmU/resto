@@ -32,6 +32,8 @@ import {
   SessionServicePort,
   IdentitySettingsPort,
 } from '@packages/shared-types';
+import { MocaInvoiceProvider } from './infrastructure/invoice/MocaInvoiceProvider';
+import { InvoiceProvider } from '@packages/shared-types';
 import { HttpIdentitySettingsAdapter } from './infrastructure/identity/HttpIdentitySettingsAdapter';
 
 export interface AppDependencies {
@@ -43,6 +45,7 @@ export interface AppDependencies {
   paymentRepo?: PaymentRepository;
   sessionService?: SessionServicePort;
   identitySettings?: IdentitySettingsPort;
+  invoiceProvider?: InvoiceProvider;
   prisma?: PrismaClient;
   redis?: Redis;
 }
@@ -151,13 +154,15 @@ export function createOrderingApp(deps?: AppDependencies): Express {
     eventPublisher,
     sessionService
   );
+  const invoiceProvider = deps?.invoiceProvider || new MocaInvoiceProvider();
   const checkoutUseCases = new CheckoutUseCases(
     orderRepo,
     paymentRepo,
     sessionService,
     cartRepo,
     serviceCallRepo,
-    eventPublisher
+    eventPublisher,
+    invoiceProvider
   );
 
   // Protected routes require Gateway headers

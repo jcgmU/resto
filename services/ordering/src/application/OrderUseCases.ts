@@ -46,15 +46,65 @@ export class OrderUseCases {
         throw new OrderNotFoundError();
       }
 
-      if (!canTransition(order.status, input.status)) {
-        throw new InvalidStatusTransitionError();
+      const hasKitchen = order.items.some((i) => (i.destination || 'kitchen') === 'kitchen');
+      const hasBar = order.items.some((i) => i.destination === 'bar');
+
+      let targetKitchenStatus = order.kitchenStatus || (hasKitchen ? order.status : undefined);
+      let targetBarStatus = order.barStatus || (hasBar ? order.status : undefined);
+
+      if (input.destination === 'kitchen') {
+        const currentDestStatus = targetKitchenStatus || 'PLACED';
+        if (!canTransition(currentDestStatus, input.status)) {
+          throw new InvalidStatusTransitionError();
+        }
+        targetKitchenStatus = input.status;
+      } else if (input.destination === 'bar') {
+        const currentDestStatus = targetBarStatus || 'PLACED';
+        if (!canTransition(currentDestStatus, input.status)) {
+          throw new InvalidStatusTransitionError();
+        }
+        targetBarStatus = input.status;
+      } else {
+        if (!canTransition(order.status, input.status)) {
+          throw new InvalidStatusTransitionError();
+        }
+        if (hasKitchen) targetKitchenStatus = input.status;
+        if (hasBar) targetBarStatus = input.status;
+      }
+
+      const STATUS_RANK: Record<string, number> = {
+        PLACED: 1,
+        IN_KITCHEN: 2,
+        READY: 3,
+        DELIVERED: 4,
+        CANCELLED: 99,
+      };
+
+      let computedGlobalStatus: any = input.status;
+      if (input.status === 'CANCELLED') {
+        computedGlobalStatus = 'CANCELLED';
+      } else {
+        const activeStatuses: any[] = [];
+        if (hasKitchen && targetKitchenStatus) activeStatuses.push(targetKitchenStatus);
+        if (hasBar && targetBarStatus) activeStatuses.push(targetBarStatus);
+
+        if (activeStatuses.length > 0) {
+          activeStatuses.sort((a, b) => (STATUS_RANK[a] ?? 0) - (STATUS_RANK[b] ?? 0));
+          computedGlobalStatus = activeStatuses[0];
+        } else {
+          computedGlobalStatus = input.status;
+        }
       }
 
       const updated = await this.orderRepo.updateStatus(
         input.tenantId,
         input.orderId,
-        input.status,
-        new Date()
+        computedGlobalStatus,
+        new Date(),
+        {
+          kitchenStatus: targetKitchenStatus,
+          barStatus: targetBarStatus,
+        }
       );
 
       if (this.eventPublisher) {
@@ -62,8 +112,9 @@ export class OrderUseCases {
           type: 'order.status-changed',
           order: updated,
           previousStatus: order.status,
+          destination: input.destination,
           occurredAt: new Date().toISOString(),
-        });
+        } as any);
       }
 
       return updated;
@@ -137,12 +188,21 @@ export class OrderUseCases {
         }
 
         const orderId = `ord-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        const hasKitchen = priced.items.some((i) => (i.destination || 'kitchen') === 'kitchen');
+        const hasBar = priced.items.some((i) => i.destination === 'bar');
+
         const order: OrderDTO = {
           id: orderId,
           tenantId: input.tenantId,
           sessionId: input.sessionId,
           tableId: effectiveTableId,
           status: 'PLACED',
+          kitchenStatus: hasKitchen ? 'PLACED' : undefined,
+          barStatus: hasBar ? 'PLACED' : undefined,
+          destinationStatus: {
+            ...(hasKitchen ? { kitchen: 'PLACED' } : {}),
+            ...(hasBar ? { bar: 'PLACED' } : {}),
+          },
           total: priced.total,
           items: priced.items,
           notes: input.notes && input.notes.trim() !== '' ? input.notes.trim() : undefined,
@@ -205,7 +265,7 @@ export class OrderUseCases {
       }
 
       const role = input.requester.role?.toLowerCase();
-      const isStaff = role && ['staff', 'manager', 'admin'].includes(role);
+      const isStaff = role && ['staff', 'manager', 'admin', 'monitor', 'waiter'].includes(role);
       if (!isStaff && order.sessionId !== input.requester.sessionId) {
         throw new ForbiddenError('No puedes ver el historial de órdenes de otra mesa');
       }
@@ -248,6 +308,15 @@ export class OrderUseCases {
         input.orderId,
         input.delayMinutes
       );
+
+      if (this.eventPublisher) {
+        await this.eventPublisher.publishOrderEvent(input.tenantId, {
+          type: 'order.delay-updated',
+          order: updated,
+          delayMinutes: input.delayMinutes,
+          occurredAt: new Date().toISOString(),
+        } as any);
+      }
 
       return updated;
     },

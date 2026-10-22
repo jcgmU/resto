@@ -45,7 +45,10 @@ export const Role: {
   ADMIN: 'ADMIN',
   MANAGER: 'MANAGER',
   STAFF: 'STAFF',
-  CUSTOMER: 'CUSTOMER'
+  CUSTOMER: 'CUSTOMER',
+  WAITER: 'WAITER',
+  MONITOR: 'MONITOR',
+  CASHIER: 'CASHIER'
 };
 
 export type Role = (typeof Role)[keyof typeof Role]
@@ -1147,6 +1150,7 @@ export namespace Prisma {
     status: $Enums.TenantStatus | null
     operatingMode: string | null
     estimatedPrepMinutes: number | null
+    invoiceMode: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1158,6 +1162,7 @@ export namespace Prisma {
     status: $Enums.TenantStatus | null
     operatingMode: string | null
     estimatedPrepMinutes: number | null
+    invoiceMode: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1169,6 +1174,7 @@ export namespace Prisma {
     status: number
     operatingMode: number
     estimatedPrepMinutes: number
+    invoiceMode: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -1190,6 +1196,7 @@ export namespace Prisma {
     status?: true
     operatingMode?: true
     estimatedPrepMinutes?: true
+    invoiceMode?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1201,6 +1208,7 @@ export namespace Prisma {
     status?: true
     operatingMode?: true
     estimatedPrepMinutes?: true
+    invoiceMode?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1212,6 +1220,7 @@ export namespace Prisma {
     status?: true
     operatingMode?: true
     estimatedPrepMinutes?: true
+    invoiceMode?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -1310,6 +1319,7 @@ export namespace Prisma {
     status: $Enums.TenantStatus
     operatingMode: string
     estimatedPrepMinutes: number
+    invoiceMode: string
     createdAt: Date
     updatedAt: Date
     _count: TenantCountAggregateOutputType | null
@@ -1340,6 +1350,7 @@ export namespace Prisma {
     status?: boolean
     operatingMode?: boolean
     estimatedPrepMinutes?: boolean
+    invoiceMode?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     users?: boolean | Tenant$usersArgs<ExtArgs>
@@ -1353,6 +1364,7 @@ export namespace Prisma {
     status?: boolean
     operatingMode?: boolean
     estimatedPrepMinutes?: boolean
+    invoiceMode?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["tenant"]>
@@ -1364,6 +1376,7 @@ export namespace Prisma {
     status?: boolean
     operatingMode?: boolean
     estimatedPrepMinutes?: boolean
+    invoiceMode?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -1386,6 +1399,7 @@ export namespace Prisma {
       status: $Enums.TenantStatus
       operatingMode: string
       estimatedPrepMinutes: number
+      invoiceMode: string
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["tenant"]>
@@ -1788,6 +1802,7 @@ export namespace Prisma {
     readonly status: FieldRef<"Tenant", 'TenantStatus'>
     readonly operatingMode: FieldRef<"Tenant", 'String'>
     readonly estimatedPrepMinutes: FieldRef<"Tenant", 'Int'>
+    readonly invoiceMode: FieldRef<"Tenant", 'String'>
     readonly createdAt: FieldRef<"Tenant", 'DateTime'>
     readonly updatedAt: FieldRef<"Tenant", 'DateTime'>
   }
@@ -2156,6 +2171,7 @@ export namespace Prisma {
     displayName: string | null
     role: $Enums.Role | null
     status: $Enums.UserStatus | null
+    monitorKind: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -2168,6 +2184,7 @@ export namespace Prisma {
     displayName: string | null
     role: $Enums.Role | null
     status: $Enums.UserStatus | null
+    monitorKind: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -2180,6 +2197,7 @@ export namespace Prisma {
     displayName: number
     role: number
     status: number
+    monitorKind: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -2194,6 +2212,7 @@ export namespace Prisma {
     displayName?: true
     role?: true
     status?: true
+    monitorKind?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -2206,6 +2225,7 @@ export namespace Prisma {
     displayName?: true
     role?: true
     status?: true
+    monitorKind?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -2218,6 +2238,7 @@ export namespace Prisma {
     displayName?: true
     role?: true
     status?: true
+    monitorKind?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -2303,6 +2324,7 @@ export namespace Prisma {
     displayName: string
     role: $Enums.Role
     status: $Enums.UserStatus
+    monitorKind: string | null
     createdAt: Date
     updatedAt: Date
     _count: UserCountAggregateOutputType | null
@@ -2332,6 +2354,7 @@ export namespace Prisma {
     displayName?: boolean
     role?: boolean
     status?: boolean
+    monitorKind?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     tenant?: boolean | TenantDefaultArgs<ExtArgs>
@@ -2347,6 +2370,7 @@ export namespace Prisma {
     displayName?: boolean
     role?: boolean
     status?: boolean
+    monitorKind?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     tenant?: boolean | TenantDefaultArgs<ExtArgs>
@@ -2360,6 +2384,7 @@ export namespace Prisma {
     displayName?: boolean
     role?: boolean
     status?: boolean
+    monitorKind?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -2387,6 +2412,7 @@ export namespace Prisma {
       displayName: string
       role: $Enums.Role
       status: $Enums.UserStatus
+      monitorKind: string | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["user"]>
@@ -2791,6 +2817,7 @@ export namespace Prisma {
     readonly displayName: FieldRef<"User", 'String'>
     readonly role: FieldRef<"User", 'Role'>
     readonly status: FieldRef<"User", 'UserStatus'>
+    readonly monitorKind: FieldRef<"User", 'String'>
     readonly createdAt: FieldRef<"User", 'DateTime'>
     readonly updatedAt: FieldRef<"User", 'DateTime'>
   }
@@ -4111,6 +4138,7 @@ export namespace Prisma {
     status: 'status',
     operatingMode: 'operatingMode',
     estimatedPrepMinutes: 'estimatedPrepMinutes',
+    invoiceMode: 'invoiceMode',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -4126,6 +4154,7 @@ export namespace Prisma {
     displayName: 'displayName',
     role: 'role',
     status: 'status',
+    monitorKind: 'monitorKind',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -4285,6 +4314,7 @@ export namespace Prisma {
     status?: EnumTenantStatusFilter<"Tenant"> | $Enums.TenantStatus
     operatingMode?: StringFilter<"Tenant"> | string
     estimatedPrepMinutes?: IntFilter<"Tenant"> | number
+    invoiceMode?: StringFilter<"Tenant"> | string
     createdAt?: DateTimeFilter<"Tenant"> | Date | string
     updatedAt?: DateTimeFilter<"Tenant"> | Date | string
     users?: UserListRelationFilter
@@ -4297,6 +4327,7 @@ export namespace Prisma {
     status?: SortOrder
     operatingMode?: SortOrder
     estimatedPrepMinutes?: SortOrder
+    invoiceMode?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     users?: UserOrderByRelationAggregateInput
@@ -4312,6 +4343,7 @@ export namespace Prisma {
     status?: EnumTenantStatusFilter<"Tenant"> | $Enums.TenantStatus
     operatingMode?: StringFilter<"Tenant"> | string
     estimatedPrepMinutes?: IntFilter<"Tenant"> | number
+    invoiceMode?: StringFilter<"Tenant"> | string
     createdAt?: DateTimeFilter<"Tenant"> | Date | string
     updatedAt?: DateTimeFilter<"Tenant"> | Date | string
     users?: UserListRelationFilter
@@ -4324,6 +4356,7 @@ export namespace Prisma {
     status?: SortOrder
     operatingMode?: SortOrder
     estimatedPrepMinutes?: SortOrder
+    invoiceMode?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: TenantCountOrderByAggregateInput
@@ -4343,6 +4376,7 @@ export namespace Prisma {
     status?: EnumTenantStatusWithAggregatesFilter<"Tenant"> | $Enums.TenantStatus
     operatingMode?: StringWithAggregatesFilter<"Tenant"> | string
     estimatedPrepMinutes?: IntWithAggregatesFilter<"Tenant"> | number
+    invoiceMode?: StringWithAggregatesFilter<"Tenant"> | string
     createdAt?: DateTimeWithAggregatesFilter<"Tenant"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Tenant"> | Date | string
   }
@@ -4358,6 +4392,7 @@ export namespace Prisma {
     displayName?: StringFilter<"User"> | string
     role?: EnumRoleFilter<"User"> | $Enums.Role
     status?: EnumUserStatusFilter<"User"> | $Enums.UserStatus
+    monitorKind?: StringNullableFilter<"User"> | string | null
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
     tenant?: XOR<TenantRelationFilter, TenantWhereInput>
@@ -4372,6 +4407,7 @@ export namespace Prisma {
     displayName?: SortOrder
     role?: SortOrder
     status?: SortOrder
+    monitorKind?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     tenant?: TenantOrderByWithRelationInput
@@ -4390,6 +4426,7 @@ export namespace Prisma {
     displayName?: StringFilter<"User"> | string
     role?: EnumRoleFilter<"User"> | $Enums.Role
     status?: EnumUserStatusFilter<"User"> | $Enums.UserStatus
+    monitorKind?: StringNullableFilter<"User"> | string | null
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
     tenant?: XOR<TenantRelationFilter, TenantWhereInput>
@@ -4404,6 +4441,7 @@ export namespace Prisma {
     displayName?: SortOrder
     role?: SortOrder
     status?: SortOrder
+    monitorKind?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: UserCountOrderByAggregateInput
@@ -4422,6 +4460,7 @@ export namespace Prisma {
     displayName?: StringWithAggregatesFilter<"User"> | string
     role?: EnumRoleWithAggregatesFilter<"User"> | $Enums.Role
     status?: EnumUserStatusWithAggregatesFilter<"User"> | $Enums.UserStatus
+    monitorKind?: StringNullableWithAggregatesFilter<"User"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
   }
@@ -4493,6 +4532,7 @@ export namespace Prisma {
     status?: $Enums.TenantStatus
     operatingMode?: string
     estimatedPrepMinutes?: number
+    invoiceMode?: string
     createdAt?: Date | string
     updatedAt?: Date | string
     users?: UserCreateNestedManyWithoutTenantInput
@@ -4505,6 +4545,7 @@ export namespace Prisma {
     status?: $Enums.TenantStatus
     operatingMode?: string
     estimatedPrepMinutes?: number
+    invoiceMode?: string
     createdAt?: Date | string
     updatedAt?: Date | string
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
@@ -4517,6 +4558,7 @@ export namespace Prisma {
     status?: EnumTenantStatusFieldUpdateOperationsInput | $Enums.TenantStatus
     operatingMode?: StringFieldUpdateOperationsInput | string
     estimatedPrepMinutes?: IntFieldUpdateOperationsInput | number
+    invoiceMode?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     users?: UserUpdateManyWithoutTenantNestedInput
@@ -4529,6 +4571,7 @@ export namespace Prisma {
     status?: EnumTenantStatusFieldUpdateOperationsInput | $Enums.TenantStatus
     operatingMode?: StringFieldUpdateOperationsInput | string
     estimatedPrepMinutes?: IntFieldUpdateOperationsInput | number
+    invoiceMode?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
@@ -4541,6 +4584,7 @@ export namespace Prisma {
     status?: $Enums.TenantStatus
     operatingMode?: string
     estimatedPrepMinutes?: number
+    invoiceMode?: string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -4552,6 +4596,7 @@ export namespace Prisma {
     status?: EnumTenantStatusFieldUpdateOperationsInput | $Enums.TenantStatus
     operatingMode?: StringFieldUpdateOperationsInput | string
     estimatedPrepMinutes?: IntFieldUpdateOperationsInput | number
+    invoiceMode?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4563,6 +4608,7 @@ export namespace Prisma {
     status?: EnumTenantStatusFieldUpdateOperationsInput | $Enums.TenantStatus
     operatingMode?: StringFieldUpdateOperationsInput | string
     estimatedPrepMinutes?: IntFieldUpdateOperationsInput | number
+    invoiceMode?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4574,6 +4620,7 @@ export namespace Prisma {
     displayName: string
     role?: $Enums.Role
     status?: $Enums.UserStatus
+    monitorKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     tenant: TenantCreateNestedOneWithoutUsersInput
@@ -4588,6 +4635,7 @@ export namespace Prisma {
     displayName: string
     role?: $Enums.Role
     status?: $Enums.UserStatus
+    monitorKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     refreshTokens?: RefreshTokenUncheckedCreateNestedManyWithoutUserInput
@@ -4600,6 +4648,7 @@ export namespace Prisma {
     displayName?: StringFieldUpdateOperationsInput | string
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
+    monitorKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     tenant?: TenantUpdateOneRequiredWithoutUsersNestedInput
@@ -4614,6 +4663,7 @@ export namespace Prisma {
     displayName?: StringFieldUpdateOperationsInput | string
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
+    monitorKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     refreshTokens?: RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
@@ -4627,6 +4677,7 @@ export namespace Prisma {
     displayName: string
     role?: $Enums.Role
     status?: $Enums.UserStatus
+    monitorKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -4638,6 +4689,7 @@ export namespace Prisma {
     displayName?: StringFieldUpdateOperationsInput | string
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
+    monitorKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4650,6 +4702,7 @@ export namespace Prisma {
     displayName?: StringFieldUpdateOperationsInput | string
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
+    monitorKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4777,6 +4830,7 @@ export namespace Prisma {
     status?: SortOrder
     operatingMode?: SortOrder
     estimatedPrepMinutes?: SortOrder
+    invoiceMode?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -4792,6 +4846,7 @@ export namespace Prisma {
     status?: SortOrder
     operatingMode?: SortOrder
     estimatedPrepMinutes?: SortOrder
+    invoiceMode?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -4803,6 +4858,7 @@ export namespace Prisma {
     status?: SortOrder
     operatingMode?: SortOrder
     estimatedPrepMinutes?: SortOrder
+    invoiceMode?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -4883,6 +4939,21 @@ export namespace Prisma {
     not?: NestedEnumUserStatusFilter<$PrismaModel> | $Enums.UserStatus
   }
 
+  export type StringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  }
+
   export type TenantRelationFilter = {
     is?: TenantWhereInput
     isNot?: TenantWhereInput
@@ -4892,6 +4963,11 @@ export namespace Prisma {
     every?: RefreshTokenWhereInput
     some?: RefreshTokenWhereInput
     none?: RefreshTokenWhereInput
+  }
+
+  export type SortOrderInput = {
+    sort: SortOrder
+    nulls?: NullsOrder
   }
 
   export type RefreshTokenOrderByRelationAggregateInput = {
@@ -4911,6 +4987,7 @@ export namespace Prisma {
     displayName?: SortOrder
     role?: SortOrder
     status?: SortOrder
+    monitorKind?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -4923,6 +5000,7 @@ export namespace Prisma {
     displayName?: SortOrder
     role?: SortOrder
     status?: SortOrder
+    monitorKind?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -4935,6 +5013,7 @@ export namespace Prisma {
     displayName?: SortOrder
     role?: SortOrder
     status?: SortOrder
+    monitorKind?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -4959,6 +5038,24 @@ export namespace Prisma {
     _max?: NestedEnumUserStatusFilter<$PrismaModel>
   }
 
+  export type StringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+
   export type DateTimeNullableFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
     in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
@@ -4973,11 +5070,6 @@ export namespace Prisma {
   export type UserRelationFilter = {
     is?: UserWhereInput
     isNot?: UserWhereInput
-  }
-
-  export type SortOrderInput = {
-    sort: SortOrder
-    nulls?: NullsOrder
   }
 
   export type RefreshTokenCountOrderByAggregateInput = {
@@ -5109,6 +5201,10 @@ export namespace Prisma {
 
   export type EnumUserStatusFieldUpdateOperationsInput = {
     set?: $Enums.UserStatus
+  }
+
+  export type NullableStringFieldUpdateOperationsInput = {
+    set?: string | null
   }
 
   export type TenantUpdateOneRequiredWithoutUsersNestedInput = {
@@ -5290,6 +5386,20 @@ export namespace Prisma {
     not?: NestedEnumUserStatusFilter<$PrismaModel> | $Enums.UserStatus
   }
 
+  export type NestedStringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  }
+
   export type NestedEnumRoleWithAggregatesFilter<$PrismaModel = never> = {
     equals?: $Enums.Role | EnumRoleFieldRefInput<$PrismaModel>
     in?: $Enums.Role[] | ListEnumRoleFieldRefInput<$PrismaModel>
@@ -5308,6 +5418,34 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumUserStatusFilter<$PrismaModel>
     _max?: NestedEnumUserStatusFilter<$PrismaModel>
+  }
+
+  export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+
+  export type NestedIntNullableFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableFilter<$PrismaModel> | number | null
   }
 
   export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
@@ -5335,17 +5473,6 @@ export namespace Prisma {
     _max?: NestedDateTimeNullableFilter<$PrismaModel>
   }
 
-  export type NestedIntNullableFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntNullableFilter<$PrismaModel> | number | null
-  }
-
   export type UserCreateWithoutTenantInput = {
     id?: string
     email: string
@@ -5353,6 +5480,7 @@ export namespace Prisma {
     displayName: string
     role?: $Enums.Role
     status?: $Enums.UserStatus
+    monitorKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     refreshTokens?: RefreshTokenCreateNestedManyWithoutUserInput
@@ -5365,6 +5493,7 @@ export namespace Prisma {
     displayName: string
     role?: $Enums.Role
     status?: $Enums.UserStatus
+    monitorKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     refreshTokens?: RefreshTokenUncheckedCreateNestedManyWithoutUserInput
@@ -5407,6 +5536,7 @@ export namespace Prisma {
     displayName?: StringFilter<"User"> | string
     role?: EnumRoleFilter<"User"> | $Enums.Role
     status?: EnumUserStatusFilter<"User"> | $Enums.UserStatus
+    monitorKind?: StringNullableFilter<"User"> | string | null
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
   }
@@ -5418,6 +5548,7 @@ export namespace Prisma {
     status?: $Enums.TenantStatus
     operatingMode?: string
     estimatedPrepMinutes?: number
+    invoiceMode?: string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -5429,6 +5560,7 @@ export namespace Prisma {
     status?: $Enums.TenantStatus
     operatingMode?: string
     estimatedPrepMinutes?: number
+    invoiceMode?: string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -5482,6 +5614,7 @@ export namespace Prisma {
     status?: EnumTenantStatusFieldUpdateOperationsInput | $Enums.TenantStatus
     operatingMode?: StringFieldUpdateOperationsInput | string
     estimatedPrepMinutes?: IntFieldUpdateOperationsInput | number
+    invoiceMode?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -5493,6 +5626,7 @@ export namespace Prisma {
     status?: EnumTenantStatusFieldUpdateOperationsInput | $Enums.TenantStatus
     operatingMode?: StringFieldUpdateOperationsInput | string
     estimatedPrepMinutes?: IntFieldUpdateOperationsInput | number
+    invoiceMode?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -5532,6 +5666,7 @@ export namespace Prisma {
     displayName: string
     role?: $Enums.Role
     status?: $Enums.UserStatus
+    monitorKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     tenant: TenantCreateNestedOneWithoutUsersInput
@@ -5545,6 +5680,7 @@ export namespace Prisma {
     displayName: string
     role?: $Enums.Role
     status?: $Enums.UserStatus
+    monitorKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -5572,6 +5708,7 @@ export namespace Prisma {
     displayName?: StringFieldUpdateOperationsInput | string
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
+    monitorKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     tenant?: TenantUpdateOneRequiredWithoutUsersNestedInput
@@ -5585,6 +5722,7 @@ export namespace Prisma {
     displayName?: StringFieldUpdateOperationsInput | string
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
+    monitorKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -5596,6 +5734,7 @@ export namespace Prisma {
     displayName: string
     role?: $Enums.Role
     status?: $Enums.UserStatus
+    monitorKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -5607,6 +5746,7 @@ export namespace Prisma {
     displayName?: StringFieldUpdateOperationsInput | string
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
+    monitorKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     refreshTokens?: RefreshTokenUpdateManyWithoutUserNestedInput
@@ -5619,6 +5759,7 @@ export namespace Prisma {
     displayName?: StringFieldUpdateOperationsInput | string
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
+    monitorKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     refreshTokens?: RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
@@ -5631,6 +5772,7 @@ export namespace Prisma {
     displayName?: StringFieldUpdateOperationsInput | string
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
+    monitorKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

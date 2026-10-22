@@ -172,6 +172,16 @@ export class InMemoryOrderRepository implements OrderRepository {
   }
 
   async save(tenantId: string, order: OrderDTO): Promise<OrderDTO> {
+    const hasKitchen = (order.items || []).some((i) => (i.destination || 'kitchen') === 'kitchen');
+    const hasBar = (order.items || []).some((i) => i.destination === 'bar');
+    if (!order.kitchenStatus && hasKitchen) order.kitchenStatus = 'PLACED';
+    if (!order.barStatus && hasBar) order.barStatus = 'PLACED';
+    if (!order.destinationStatus) {
+      order.destinationStatus = {
+        ...(order.kitchenStatus ? { kitchen: order.kitchenStatus } : {}),
+        ...(order.barStatus ? { bar: order.barStatus } : {}),
+      };
+    }
     const mapped = this.mapOrder(order);
     mapped.tenantId = tenantId;
     this.orders.push(mapped);
@@ -228,7 +238,11 @@ export class InMemoryOrderRepository implements OrderRepository {
     tenantId: string,
     id: string,
     status: OrderStatus,
-    updatedAt: Date
+    updatedAt: Date,
+    destMeta?: {
+      kitchenStatus?: OrderStatus;
+      barStatus?: OrderStatus;
+    }
   ): Promise<OrderDTO> {
     const order = this.orders.find((o) => o.tenantId === tenantId && o.id === id);
     if (!order) {
@@ -236,6 +250,17 @@ export class InMemoryOrderRepository implements OrderRepository {
     }
     const fromStatus = order.status;
     order.status = status;
+    if (destMeta?.kitchenStatus) {
+      order.kitchenStatus = destMeta.kitchenStatus;
+    }
+    if (destMeta?.barStatus) {
+      order.barStatus = destMeta.barStatus;
+    }
+    if (!order.destinationStatus) {
+      order.destinationStatus = {};
+    }
+    if (order.kitchenStatus) order.destinationStatus.kitchen = order.kitchenStatus;
+    if (order.barStatus) order.destinationStatus.bar = order.barStatus;
 
     this.statusEvents.push({
       id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,

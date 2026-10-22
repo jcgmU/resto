@@ -177,6 +177,91 @@ export class RedisTableSessionRepository implements TableSessionRepository {
     return sessions;
   }
 
+  async moveToTable(tenantId: string, sessionId: string, targetTableId: string): Promise<TableSessionDTO> {
+    const sessionKey = RedisKeys.session(sessionId);
+    const targetPointerKey = RedisKeys.tableSessionPointer(tenantId, targetTableId);
+
+    const luaScript = `
+      local sessionKey = KEYS[1]
+      local targetPointerKey = KEYS[2]
+
+      local tenantId = ARGV[1]
+      local targetTableId = ARGV[2]
+
+      local raw = redis.call('GET', sessionKey)
+      if not raw then
+        return 'ERR_SESSION_NOT_FOUND'
+      end
+
+      local ok, session = pcall(cjson.decode, raw)
+      if not ok or not session then
+        return 'ERR_SESSION_NOT_FOUND'
+      end
+
+      if session.tenantId ~= tenantId then
+        return 'ERR_SESSION_NOT_FOUND'
+      end
+
+      if session.status ~= 'active' and session.status ~= 'billRequested' then
+        return 'ERR_INVALID_SESSION_STATE'
+      end
+
+      local oldTableId = session.tableId
+      if oldTableId == targetTableId then
+        return raw
+      end
+
+      local targetSessionId = redis.call('GET', targetPointerKey)
+      if targetSessionId and targetSessionId ~= '' and targetSessionId ~= session.sessionId then
+        local targetSessionKey = 'session:' .. targetSessionId
+        local rawTarget = redis.call('GET', targetSessionKey)
+        if rawTarget then
+          local okTarget, targetSession = pcall(cjson.decode, rawTarget)
+          if okTarget and targetSession and (targetSession.status == 'active' or targetSession.status == 'billRequested') then
+            return 'ERR_TABLE_HAS_ACTIVE_SESSION'
+          end
+        end
+      end
+
+      local currentTtl = redis.call('TTL', sessionKey)
+      local ttl = tonumber(currentTtl)
+      if not ttl or ttl <= 0 then
+        ttl = 3600
+      end
+
+      local oldPointerKey = 'tenant:' .. tenantId .. ':table:' .. oldTableId .. ':session'
+      session.tableId = targetTableId
+      local newPayload = cjson.encode(session)
+
+      redis.call('SET', sessionKey, newPayload, 'EX', ttl)
+      redis.call('DEL', oldPointerKey)
+      redis.call('SET', targetPointerKey, session.sessionId, 'EX', ttl)
+
+      return newPayload
+    `;
+
+    const result = await this.redis.eval(
+      luaScript,
+      2,
+      sessionKey,
+      targetPointerKey,
+      tenantId,
+      targetTableId
+    );
+
+    if (result === 'ERR_SESSION_NOT_FOUND') {
+      throw new DomainError('SESSION_NOT_FOUND', `SESSION_NOT_FOUND: Sesión ${sessionId} no encontrada`);
+    }
+    if (result === 'ERR_INVALID_SESSION_STATE') {
+      throw new DomainError('INVALID_SESSION_STATE', 'No se puede cambiar de mesa una sesión que no está activa');
+    }
+    if (result === 'ERR_TABLE_HAS_ACTIVE_SESSION') {
+      throw new DomainError('TABLE_HAS_ACTIVE_SESSION', `La mesa de destino ${targetTableId} ya tiene una sesión activa`);
+    }
+
+    return JSON.parse(result as string) as TableSessionDTO;
+  }
+
   async touch(tenantId: string, sessionId: string, ttlSeconds: number): Promise<void> {
     const sessionKey = RedisKeys.session(sessionId);
     const raw = await this.redis.get(sessionKey);

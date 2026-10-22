@@ -19,6 +19,16 @@ export function wireRealtimeEvents(subscriber: EventSubscriber, emitter: Realtim
       };
       emitter.emitToTenant(event.order.tenantId, 'order:status-changed', payload);
       emitter.emitToSession(event.order.sessionId, 'order:status-changed', payload);
+    } else if ((event as any).type === 'order.delay-updated') {
+      const e = event as any;
+      const payload = {
+        orderId: e.order.id,
+        delayMinutes: e.delayMinutes,
+        order: e.order,
+        occurredAt: e.occurredAt,
+      };
+      emitter.emitToTenant(e.order.tenantId, 'order:delay-updated', payload);
+      emitter.emitToSession(e.order.sessionId, 'order:delay-updated', payload);
     } else if ((event as any).type === 'session.checkout-completed') {
       const e = event as any;
       const payload = {
@@ -47,4 +57,13 @@ export function wireRealtimeEvents(subscriber: EventSubscriber, emitter: Realtim
       emitter.emitToSession(event.call.sessionId, 'service-call:resolved', payload);
     }
   });
+
+  if (subscriber.onTableStatusChanged) {
+    subscriber.onTableStatusChanged((event) => {
+      emitter.emitToTenant(event.tenantId, 'table:status-changed', event);
+      if (event.sessionId) {
+        emitter.emitToSession(event.sessionId, 'table:status-changed', event);
+      }
+    });
+  }
 }

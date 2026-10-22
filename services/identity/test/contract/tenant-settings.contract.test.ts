@@ -76,6 +76,7 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
         expect(res.body).toEqual({
           operatingMode: 'hybrid',
           estimatedPrepMinutes: 18,
+          invoiceMode: 'simple',
         });
         expect(res.body.operatingMode).toBe('hybrid');
         expect(res.body.estimatedPrepMinutes).toBe(18);
@@ -90,6 +91,7 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
       expect(v1Res.body).toEqual({
         operatingMode: 'hybrid',
         estimatedPrepMinutes: 18,
+        invoiceMode: 'simple',
       });
     });
 
@@ -163,6 +165,7 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
       expect(patchRes.body).toEqual({
         operatingMode: 'waiter_only',
         estimatedPrepMinutes: 25,
+        invoiceMode: 'simple',
       });
 
       // 2. Verificar persistencia REAL en PostgreSQL
@@ -195,6 +198,7 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
       expect(managerPatch.body).toEqual({
         operatingMode: 'waiter_only',
         estimatedPrepMinutes: 45,
+        invoiceMode: 'simple',
       });
 
       const inDbAfterManager = await prisma.tenant.findUnique({
@@ -234,6 +238,27 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
         where: { id: tenant.id },
       });
       expect(inDb!.estimatedPrepMinutes).toBe(18);
+    });
+
+    it('PATCH con invoiceMode válido (simple o dian) actualiza 200; con inválido responde 400 VALIDATION_ERROR', async () => {
+      const tenant = await createTestTenant('tenant-inv-mode');
+
+      const invalidRes = await authRequest('patch', '/tenant/settings')
+        .set('x-tenant-id', tenant.id)
+        .set('x-user-role', 'ADMIN')
+        .send({ invoiceMode: 'invalid_mode' });
+      expect(invalidRes.status).toBe(400);
+      expect(invalidRes.body.error.code).toBe('VALIDATION_ERROR');
+
+      const validRes = await authRequest('patch', '/tenant/settings')
+        .set('x-tenant-id', tenant.id)
+        .set('x-user-role', 'ADMIN')
+        .send({ invoiceMode: 'dian' });
+      expect(validRes.status).toBe(200);
+      expect(validRes.body.invoiceMode).toBe('dian');
+
+      const inDb = await prisma.tenant.findUnique({ where: { id: tenant.id } });
+      expect(inDb?.invoiceMode).toBe('dian');
     });
 
     it('PATCH con operatingMode inválido responde 400 VALIDATION_ERROR', async () => {

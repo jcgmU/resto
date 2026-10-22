@@ -89,6 +89,7 @@ export class RegisterTenantUseCaseImpl implements RegisterTenantUseCase {
       tenantId: savedTenant.id,
       role: savedUser.role,
       email: savedUser.email,
+      displayName: savedUser.displayName || savedUser.email,
     });
 
     const refresh = this.tokenIssuer.generateRefreshToken();

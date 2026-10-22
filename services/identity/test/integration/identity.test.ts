@@ -107,4 +107,91 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
       });
     expect(successRes.status).toBe(201);
   });
+
+  test('16. GET /identity/users -> 200 para ADMIN y MANAGER, 403 para WAITER/STAFF, 401 sin cabecera', async () => {
+    const unauth = await request(app).get('/identity/users');
+    expect(unauth.status).toBe(401);
+
+    const forbidden = await request(app)
+      .get('/identity/users')
+      .set('x-tenant-id', 't-456')
+      .set('x-user-role', 'WAITER');
+    expect(forbidden.status).toBe(403);
+
+    const okAdmin = await request(app)
+      .get('/identity/users')
+      .set('x-tenant-id', 't-456')
+      .set('x-user-role', 'ADMIN');
+    expect(okAdmin.status).toBe(200);
+    expect(Array.isArray(okAdmin.body)).toBe(true);
+
+    const okManager = await request(app)
+      .get('/identity/users')
+      .set('x-tenant-id', 't-456')
+      .set('x-user-role', 'MANAGER');
+    expect(okManager.status).toBe(200);
+  });
+
+  test('17. POST /identity/users con password crea usuario activo con rol WAITER', async () => {
+    const res = await request(app)
+      .post('/identity/users')
+      .set('x-tenant-id', 't-456')
+      .set('x-user-role', 'ADMIN')
+      .send({
+        email: 'mesero.real@bistro.com',
+        displayName: 'Carlos Mesero Real',
+        role: 'WAITER',
+        password: 'password123',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.role).toBe('WAITER');
+    expect(res.body.status).toBe('ACTIVE');
+    expect(res.body.displayName).toBe('Carlos Mesero Real');
+  });
+
+  test('18. POST /identity/users con rol MONITOR valida monitorKind kitchen/bar', async () => {
+    const errRes = await request(app)
+      .post('/identity/users')
+      .set('x-tenant-id', 't-456')
+      .set('x-user-role', 'ADMIN')
+      .send({
+        email: 'monitor.nokind@bistro.com',
+        displayName: 'Monitor Sin Tipo',
+        role: 'MONITOR',
+        password: 'pass',
+      });
+    expect(errRes.status).toBe(400);
+
+    const okRes = await request(app)
+      .post('/identity/users')
+      .set('x-tenant-id', 't-456')
+      .set('x-user-role', 'ADMIN')
+      .send({
+        email: 'monitor.bar@bistro.com',
+        displayName: 'Monitor Bar',
+        role: 'MONITOR',
+        monitorKind: 'bar',
+        password: 'pass',
+      });
+    expect(okRes.status).toBe(201);
+    expect(okRes.body.role).toBe('MONITOR');
+    expect(okRes.body.monitorKind).toBe('bar');
+  });
+
+  test('19. POST /identity/users con rol CASHIER crea usuario con rol CASHIER', async () => {
+    const res = await request(app)
+      .post('/identity/users')
+      .set('x-tenant-id', 't-456')
+      .set('x-user-role', 'ADMIN')
+      .send({
+        email: 'caja.real@bistro.com',
+        displayName: 'Cajero Principal',
+        role: 'CASHIER',
+        password: 'password123',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.role).toBe('CASHIER');
+    expect(res.body.status).toBe('ACTIVE');
+  });
 });

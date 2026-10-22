@@ -115,6 +115,7 @@ export function validateAndPriceCart(
       unitPrice: product.price,
       quantity: item.quantity,
       notes: item.notes,
+      destination: product.destination || 'kitchen',
       modifiers: itemModifiers,
     });
   }

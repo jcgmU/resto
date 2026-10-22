@@ -15,6 +15,7 @@ export class PrismaCategoryRepository implements CategoryRepository {
       name: c.name,
       sortOrder: c.sortOrder,
       isActive: c.isActive,
+      destination: (c.destination as any) || 'kitchen',
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
     }));
@@ -31,6 +32,7 @@ export class PrismaCategoryRepository implements CategoryRepository {
       name: c.name,
       sortOrder: c.sortOrder,
       isActive: c.isActive,
+      destination: (c.destination as any) || 'kitchen',
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
     };
@@ -48,6 +50,7 @@ export class PrismaCategoryRepository implements CategoryRepository {
             name: category.name,
             sortOrder: category.sortOrder,
             isActive: category.isActive,
+            destination: category.destination || 'kitchen',
           },
         });
         return {
@@ -56,6 +59,7 @@ export class PrismaCategoryRepository implements CategoryRepository {
           name: updated.name,
           sortOrder: updated.sortOrder,
           isActive: updated.isActive,
+          destination: (updated.destination as any) || 'kitchen',
           createdAt: updated.createdAt,
           updatedAt: updated.updatedAt,
         };
@@ -72,6 +76,7 @@ export class PrismaCategoryRepository implements CategoryRepository {
       update: {
         sortOrder: category.sortOrder,
         isActive: category.isActive,
+        destination: category.destination || 'kitchen',
       },
       create: {
         id: category.id,
@@ -79,6 +84,7 @@ export class PrismaCategoryRepository implements CategoryRepository {
         name: category.name,
         sortOrder: category.sortOrder,
         isActive: category.isActive,
+        destination: category.destination || 'kitchen',
       },
     });
     return {
@@ -87,6 +93,7 @@ export class PrismaCategoryRepository implements CategoryRepository {
       name: saved.name,
       sortOrder: saved.sortOrder,
       isActive: saved.isActive,
+      destination: (saved.destination as any) || 'kitchen',
       createdAt: saved.createdAt,
       updatedAt: saved.updatedAt,
     };

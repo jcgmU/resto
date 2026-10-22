@@ -34,7 +34,7 @@ export function createServiceCallsRouter(serviceCallUseCases: ServiceCallUseCase
   router.get('/', async (req, res, next) => {
     try {
       const { tenantId, role } = req.auth!;
-      const isStaff = role && ['staff', 'manager', 'admin'].includes(role.toLowerCase());
+      const isStaff = role && ['staff', 'manager', 'admin', 'waiter', 'monitor', 'cashier'].includes(role.toLowerCase());
 
       if (!isStaff) {
         return res.status(403).json({
@@ -57,7 +57,7 @@ export function createServiceCallsRouter(serviceCallUseCases: ServiceCallUseCase
   router.patch('/:id/resolve', async (req, res, next) => {
     try {
       const { tenantId, role } = req.auth!;
-      const isStaff = role && ['staff', 'manager', 'admin'].includes(role.toLowerCase());
+      const isStaff = role && ['staff', 'manager', 'admin', 'waiter', 'monitor', 'cashier'].includes(role.toLowerCase());
 
       if (!isStaff) {
         return res.status(403).json({

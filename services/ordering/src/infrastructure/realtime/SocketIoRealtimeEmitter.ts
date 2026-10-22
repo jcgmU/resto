@@ -38,7 +38,9 @@ export class SocketIoRealtimeEmitter implements RealtimeEmitter {
         const tenantId = decoded.tenantId;
         const sessionId = decoded.sessionId;
 
-        if (role === 'staff' || role === 'manager' || role === 'admin') {
+        const isStaff = ['staff', 'manager', 'admin', 'waiter', 'monitor', 'cashier'].includes(role);
+
+        if (isStaff) {
           if (tenantId) {
             socket.join(`tenant:${tenantId}`);
           }

@@ -4,6 +4,7 @@ export interface CategoryDTO {
   name: string;
   sortOrder: number;
   isActive: boolean;
+  destination?: 'kitchen' | 'bar';
   createdAt?: Date;
   updatedAt?: Date;
   products?: ProductDTO[];

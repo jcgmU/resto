@@ -17,6 +17,7 @@ import {
   ListTableSessionsUseCaseImpl,
   RequestBillSessionUseCaseImpl,
   ReopenBillSessionUseCaseImpl,
+  MoveTableSessionUseCaseImpl,
 } from './application/SessionUseCases';
 import Redis from 'ioredis';
 import {
@@ -44,6 +45,8 @@ import { config } from './config';
 
 import { HttpOrderingServiceCallAdapter } from './infrastructure/ordering/HttpOrderingServiceCallAdapter';
 import { OrderingServiceCallPort } from './domain/orderingPorts';
+import { SessionEventPublisherPort } from './domain/events';
+import { RedisSessionEventPublisher } from './infrastructure/redis/RedisSessionEventPublisher';
 
 export interface SessionAppDeps {
   tableRepo?: TableRepository;
@@ -52,6 +55,7 @@ export interface SessionAppDeps {
   reservationRepo?: ReservationRepository;
   identitySettings?: IdentitySettingsPort;
   orderingServiceCall?: OrderingServiceCallPort;
+  eventPublisher?: SessionEventPublisherPort;
   redis?: Redis;
 }
 
@@ -123,24 +127,40 @@ export function createSessionApp(deps?: SessionAppDeps): express.Application {
   const orderingServiceCall =
     deps?.orderingServiceCall || new HttpOrderingServiceCallAdapter(config.ORDERING_INTERNAL_URL);
 
+  const eventPublisher =
+    deps?.eventPublisher || (redis ? new RedisSessionEventPublisher(redis) : undefined);
+
   const openTableSessionUseCase = new OpenTableSessionUseCaseImpl(
     sessionRepo,
     tableRepo,
     tokenIssuer,
     config.SESSION_TTL_SECONDS,
     reservationRepo,
-    identitySettings
+    identitySettings,
+    eventPublisher
   );
   const staffOpenSessionUseCase = new StaffOpenSessionUseCaseImpl(
     sessionRepo,
     tableRepo,
-    config.SESSION_TTL_SECONDS
+    config.SESSION_TTL_SECONDS,
+    eventPublisher
   );
-  const closeTableSessionUseCase = new CloseTableSessionUseCaseImpl(sessionRepo);
+  const closeTableSessionUseCase = new CloseTableSessionUseCaseImpl(sessionRepo, eventPublisher);
   const getTableSessionUseCase = new GetTableSessionUseCaseImpl(sessionRepo);
   const listTableSessionsUseCase = new ListTableSessionsUseCaseImpl(sessionRepo);
-  const requestBillSessionUseCase = new RequestBillSessionUseCaseImpl(sessionRepo, orderingServiceCall);
-  const reopenBillSessionUseCase = new ReopenBillSessionUseCaseImpl(sessionRepo);
+  const requestBillSessionUseCase = new RequestBillSessionUseCaseImpl(
+    sessionRepo,
+    orderingServiceCall,
+    eventPublisher,
+    config.SESSION_TTL_SECONDS
+  );
+  const reopenBillSessionUseCase = new ReopenBillSessionUseCaseImpl(sessionRepo, eventPublisher);
+  const moveTableSessionUseCase = new MoveTableSessionUseCaseImpl(
+    sessionRepo,
+    tableRepo,
+    reservationRepo,
+    eventPublisher
+  );
 
   // Mount routers
   app.use(
@@ -181,6 +201,7 @@ export function createSessionApp(deps?: SessionAppDeps): express.Application {
     listTableSessionsUseCase,
     requestBillSessionUseCase,
     reopenBillSessionUseCase,
+    moveTableSessionUseCase,
   });
 
   app.use('/sessions', sessionsRouter);

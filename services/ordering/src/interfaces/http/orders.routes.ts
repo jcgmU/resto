@@ -7,7 +7,7 @@ export function createOrdersRouter(orderUseCases: OrderUseCases): Router {
   router.get('/', async (req, res, next) => {
     try {
       const { tenantId, role, sessionId } = req.auth!;
-      const isStaff = role && ['staff', 'manager', 'admin'].includes(role.toLowerCase());
+      const isStaff = role && ['staff', 'manager', 'admin', 'monitor', 'waiter'].includes(role.toLowerCase());
 
       if (!isStaff) {
         if (!sessionId) {
@@ -80,7 +80,7 @@ export function createOrdersRouter(orderUseCases: OrderUseCases): Router {
   router.patch('/:id/delay', async (req, res, next) => {
     try {
       const { tenantId, role } = req.auth!;
-      const isStaff = role && ['staff', 'manager', 'admin'].includes(role.toLowerCase());
+      const isStaff = role && ['staff', 'manager', 'admin', 'monitor', 'waiter'].includes(role.toLowerCase());
 
       if (!isStaff) {
         return res.status(403).json({
@@ -144,7 +144,7 @@ export function createOrdersRouter(orderUseCases: OrderUseCases): Router {
   router.patch('/:id/status', async (req, res, next) => {
     try {
       const { tenantId, role } = req.auth!;
-      const isStaff = role && ['staff', 'manager', 'admin'].includes(role.toLowerCase());
+      const isStaff = role && ['staff', 'manager', 'admin', 'monitor', 'waiter'].includes(role.toLowerCase());
 
       if (!isStaff) {
         return res.status(403).json({
@@ -153,7 +153,7 @@ export function createOrdersRouter(orderUseCases: OrderUseCases): Router {
       }
 
       const { id } = req.params;
-      const { status } = req.body;
+      const { status, destination } = req.body;
 
       if (!status) {
         return res.status(400).json({
@@ -165,6 +165,7 @@ export function createOrdersRouter(orderUseCases: OrderUseCases): Router {
         tenantId,
         orderId: id,
         status,
+        destination,
       });
 
       res.json(updated);

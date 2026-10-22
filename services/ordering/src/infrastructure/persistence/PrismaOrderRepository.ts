@@ -29,6 +29,7 @@ export class PrismaOrderRepository implements OrderRepository {
         unitPrice: Number(item.unitPrice),
         quantity: item.quantity,
         notes: item.notes ?? undefined,
+        destination: (item.destination as 'kitchen' | 'bar') || 'kitchen',
         modifiers,
       };
     });
@@ -50,6 +51,12 @@ export class PrismaOrderRepository implements OrderRepository {
       sessionId: record.sessionId,
       tableId: record.tableId,
       status: record.status,
+      kitchenStatus: (record.kitchenStatus as OrderStatus) || undefined,
+      barStatus: (record.barStatus as OrderStatus) || undefined,
+      destinationStatus: {
+        ...(record.kitchenStatus ? { kitchen: record.kitchenStatus as OrderStatus } : {}),
+        ...(record.barStatus ? { bar: record.barStatus as OrderStatus } : {}),
+      },
       total: Number(record.total),
       items,
       notes,
@@ -74,6 +81,8 @@ export class PrismaOrderRepository implements OrderRepository {
           sessionId: order.sessionId,
           tableId: order.tableId,
           status: order.status as any,
+          kitchenStatus: (order.kitchenStatus as any) ?? (order.items.some((i) => (i.destination || 'kitchen') === 'kitchen') ? 'PLACED' : null),
+          barStatus: (order.barStatus as any) ?? (order.items.some((i) => i.destination === 'bar') ? 'PLACED' : null),
           total: order.total,
           notes: order.notes ?? null,
           estimatedMinutes: order.estimatedMinutes ?? null,
@@ -86,6 +95,7 @@ export class PrismaOrderRepository implements OrderRepository {
               unitPrice: item.unitPrice,
               quantity: item.quantity,
               notes: item.notes,
+              destination: item.destination || 'kitchen',
               modifiers: {
                 create: (item.modifiers || []).map((mod) => ({
                   groupId: mod.groupId,
@@ -206,7 +216,11 @@ export class PrismaOrderRepository implements OrderRepository {
     tenantId: string,
     id: string,
     status: OrderStatus,
-    updatedAt: Date
+    updatedAt: Date,
+    destMeta?: {
+      kitchenStatus?: OrderStatus;
+      barStatus?: OrderStatus;
+    }
   ): Promise<OrderDTO> {
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.order.findFirst({
@@ -220,6 +234,8 @@ export class PrismaOrderRepository implements OrderRepository {
         where: { id },
         data: {
           status: status as any,
+          ...(destMeta?.kitchenStatus ? { kitchenStatus: destMeta.kitchenStatus as any } : {}),
+          ...(destMeta?.barStatus ? { barStatus: destMeta.barStatus as any } : {}),
           updatedAt,
         },
         include: {

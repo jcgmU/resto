@@ -1,5 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
-import { DomainError, TenantRepository, UserRepository, RefreshTokenRepository } from '@packages/shared-types';
+import { DomainError, TenantRepository, UserRepository, RefreshTokenRepository, PasswordHasher, TokenIssuer } from '@packages/shared-types';
 import { RegisterTenantUseCaseImpl } from './application/RegisterTenant';
 import { LoginUseCaseImpl } from './application/Login';
 import { RefreshSessionUseCaseImpl } from './application/RefreshSession';
@@ -16,6 +16,8 @@ export interface IdentityAppDeps {
   tenantRepo?: TenantRepository;
   userRepo?: UserRepository;
   refreshTokenRepo?: RefreshTokenRepository;
+  passwordHasher?: PasswordHasher;
+  tokenIssuer?: TokenIssuer;
   prisma?: PrismaClient;
 }
 
@@ -37,8 +39,8 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
   const tenantRepo = deps?.tenantRepo || new PrismaTenantRepository(prisma!);
   const userRepo = deps?.userRepo || new PrismaUserRepository(prisma!);
   const refreshTokenRepo = deps?.refreshTokenRepo || new PrismaRefreshTokenRepository(prisma!);
-  const sharedPasswordHasher = new BcryptPasswordHasher();
-  const sharedTokenIssuer = new JwtTokenIssuer();
+  const sharedPasswordHasher = deps?.passwordHasher || new BcryptPasswordHasher();
+  const sharedTokenIssuer = deps?.tokenIssuer || new JwtTokenIssuer();
 
   const registerTenant = new RegisterTenantUseCaseImpl(
     tenantRepo,
@@ -62,7 +64,7 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
     sharedTokenIssuer
   );
 
-  const inviteUser = new InviteUserUseCaseImpl(userRepo);
+  const inviteUser = new InviteUserUseCaseImpl(userRepo, sharedPasswordHasher);
 
   // Health
   app.get('/health', async (_req: Request, res: Response) => {
@@ -153,10 +155,40 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
     }
   });
 
+  app.get('/identity/users', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = req.headers['x-tenant-id'] as string;
+      const role = ((req.headers['x-user-role'] as string) || '').toUpperCase();
+
+      if (!tenantId) {
+        return res.status(401).json({
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Cabeceras de identidad requeridas',
+          },
+        });
+      }
+
+      if (role !== 'ADMIN' && role !== 'MANAGER') {
+        return res.status(403).json({
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Permiso denegado. Se requiere rol ADMIN o MANAGER',
+          },
+        });
+      }
+
+      const users = await userRepo.listByTenant(tenantId);
+      res.status(200).json(users);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   app.post('/identity/users', async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const role = req.headers['x-user-role'] as string;
+      const role = ((req.headers['x-user-role'] as string) || '').toUpperCase();
 
       if (!tenantId) {
         return res.status(401).json({
@@ -181,6 +213,8 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
         email: req.body.email,
         displayName: req.body.displayName,
         role: req.body.role || 'STAFF',
+        password: req.body.password,
+        monitorKind: req.body.monitorKind,
       });
 
       res.status(201).json(invited);
@@ -225,16 +259,17 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
       }
 
       const role = (req.headers['x-user-role'] as string || '').toUpperCase();
-      const isStaff = ['ADMIN', 'MANAGER', 'STAFF', 'WAITER'].includes(role);
+      const isStaff = ['ADMIN', 'MANAGER', 'STAFF', 'WAITER', 'CASHIER'].includes(role);
 
       if (isStaff) {
         return res.status(200).json({
           operatingMode: tenant.operatingMode ?? 'hybrid',
           estimatedPrepMinutes: tenant.estimatedPrepMinutes ?? 18,
+          invoiceMode: tenant.invoiceMode ?? 'simple',
         });
       }
 
-      // Guest o no-staff: únicamente campos públicos permitidos. GUEST NUNCA DEBE VER estimatedPrepMinutes
+      // Guest o no-staff: únicamente campos públicos permitidos. GUEST NUNCA DEBE VER estimatedPrepMinutes ni invoiceMode
       return res.status(200).json({
         operatingMode: tenant.operatingMode ?? 'hybrid',
       });
@@ -287,13 +322,13 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
         });
       }
 
-      const { operatingMode, estimatedPrepMinutes } = req.body || {};
+      const { operatingMode, estimatedPrepMinutes, invoiceMode } = req.body || {};
 
-      if (operatingMode === undefined && estimatedPrepMinutes === undefined) {
+      if (operatingMode === undefined && estimatedPrepMinutes === undefined && invoiceMode === undefined) {
         return res.status(400).json({
           error: {
             code: 'VALIDATION_ERROR',
-            message: 'Se requiere al menos un campo a actualizar: operatingMode o estimatedPrepMinutes',
+            message: 'Se requiere al menos un campo a actualizar: operatingMode, estimatedPrepMinutes o invoiceMode',
           },
         });
       }
@@ -325,14 +360,27 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
         }
       }
 
+      if (invoiceMode !== undefined) {
+        if (invoiceMode !== 'simple' && invoiceMode !== 'dian') {
+          return res.status(400).json({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: "invoiceMode debe ser 'simple' o 'dian'",
+            },
+          });
+        }
+      }
+
       const updated = await tenantRepo.updateSettings(tenantId, {
         operatingMode,
         estimatedPrepMinutes,
+        invoiceMode,
       });
 
       return res.status(200).json({
         operatingMode: updated.operatingMode ?? 'hybrid',
         estimatedPrepMinutes: updated.estimatedPrepMinutes ?? 18,
+        invoiceMode: updated.invoiceMode ?? 'simple',
       });
     } catch (err) {
       next(err);

@@ -19,6 +19,9 @@ enum Role {
   MANAGER
   STAFF
   CUSTOMER
+  WAITER
+  MONITOR
+  CASHIER
 }
 
 enum UserStatus {
@@ -34,6 +37,7 @@ model Tenant {
   status               TenantStatus @default(ACTIVE)
   operatingMode        String       @default("hybrid")
   estimatedPrepMinutes Int          @default(18)
+  invoiceMode          String       @default("simple")
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
   users                User[]
@@ -48,6 +52,7 @@ model User {
   displayName   String
   role          Role           @default(ADMIN)
   status        UserStatus     @default(ACTIVE)
+  monitorKind   String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   refreshTokens RefreshToken[]

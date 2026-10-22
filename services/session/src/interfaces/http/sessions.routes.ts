@@ -8,6 +8,7 @@ import {
   ListTableSessionsUseCaseImpl,
   RequestBillSessionUseCaseImpl,
   ReopenBillSessionUseCaseImpl,
+  MoveTableSessionUseCaseImpl,
 } from '../../application/SessionUseCases';
 
 export function createSessionsRouter(deps: {
@@ -18,6 +19,7 @@ export function createSessionsRouter(deps: {
   listTableSessionsUseCase: ListTableSessionsUseCaseImpl;
   requestBillSessionUseCase: RequestBillSessionUseCaseImpl;
   reopenBillSessionUseCase: ReopenBillSessionUseCaseImpl;
+  moveTableSessionUseCase?: MoveTableSessionUseCaseImpl;
 }): Router {
   const router = Router();
   const {
@@ -28,6 +30,7 @@ export function createSessionsRouter(deps: {
     listTableSessionsUseCase,
     requestBillSessionUseCase,
     reopenBillSessionUseCase,
+    moveTableSessionUseCase,
   } = deps;
 
   // POST /sessions/staff-open -> protegido para staff (ADMIN, MANAGER, STAFF, WAITER)
@@ -74,7 +77,7 @@ export function createSessionsRouter(deps: {
       const userRole = (req.headers['x-user-role'] as string || '').toLowerCase();
       const guestSessionId = req.headers['x-session-id'] as string;
 
-      const isStaff = ['staff', 'manager', 'admin'].includes(userRole);
+      const isStaff = ['staff', 'manager', 'admin', 'waiter', 'cashier'].includes(userRole);
 
       if (!isStaff) {
         if (!guestSessionId || guestSessionId !== req.params.id) {
@@ -107,7 +110,7 @@ export function createSessionsRouter(deps: {
       const userRole = ((req.headers['x-user-role'] as string) || '').toLowerCase();
       const guestSessionId = req.headers['x-session-id'] as string;
 
-      const isStaff = ['staff', 'manager', 'admin'].includes(userRole);
+      const isStaff = ['staff', 'manager', 'admin', 'waiter', 'cashier'].includes(userRole);
 
       if (!isStaff) {
         if (!guestSessionId || guestSessionId !== req.params.id) {
@@ -162,13 +165,39 @@ export function createSessionsRouter(deps: {
     }
   };
 
-  router.patch('/:id/close', requireStaffRole(['staff', 'manager', 'admin']), handleClose);
-  router.post('/:id/close', requireStaffRole(['staff', 'manager', 'admin']), handleClose);
+  router.patch('/:id/close', requireStaffRole(['staff', 'manager', 'admin', 'waiter', 'cashier']), handleClose);
+  router.post('/:id/close', requireStaffRole(['staff', 'manager', 'admin', 'waiter', 'cashier']), handleClose);
+
+  // POST /sessions/:id/move y POST /sessions/move -> staff (ADMIN, MANAGER, STAFF, WAITER, CASHIER)
+  const handleMove = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = (req.headers['x-tenant-id'] as string) || req.body?.tenantId;
+      const sessionId = req.params.id || req.body?.sessionId;
+      const targetTableId = req.body?.targetTableId || req.body?.toTableId || req.body?.tableId;
+
+      if (!moveTableSessionUseCase) {
+        throw new Error('moveTableSessionUseCase no configurado');
+      }
+
+      const result = await moveTableSessionUseCase.execute({
+        tenantId,
+        sessionId,
+        targetTableId,
+      });
+
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  router.post('/:id/move', requireStaffRole(['staff', 'manager', 'admin', 'waiter', 'cashier']), handleMove);
+  router.post('/move', requireStaffRole(['staff', 'manager', 'admin', 'waiter', 'cashier']), handleMove);
 
   // GET /sessions -> staff
   router.get(
     '/',
-    requireStaffRole(['staff', 'manager', 'admin']),
+    requireStaffRole(['staff', 'manager', 'admin', 'waiter', 'cashier']),
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const tenantId = req.headers['x-tenant-id'] as string;

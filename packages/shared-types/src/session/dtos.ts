@@ -15,17 +15,20 @@ export interface ZoneDTO {
   tenantId: string;
   name: string;
   sortOrder: number;
+  staffIds?: string[];
 }
 
 export interface CreateZoneRequest {
   name: string;
   sortOrder?: number;
   id?: string;
+  staffIds?: string[];
 }
 
 export interface UpdateZoneRequest {
   name?: string;
   sortOrder?: number;
+  staffIds?: string[];
 }
 
 export type ReservationStatus = 'active' | 'seated' | 'cancelled';

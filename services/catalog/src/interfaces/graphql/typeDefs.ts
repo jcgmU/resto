@@ -4,6 +4,7 @@ export const typeDefs = `#graphql
     name: String!
     sortOrder: Int
     isActive: Boolean
+    destination: String
     products: [Product!]!
   }
 
@@ -64,12 +65,14 @@ export const typeDefs = `#graphql
   input CreateCategoryInput {
     name: String!
     sortOrder: Int
+    destination: String
   }
 
   input UpdateCategoryInput {
     name: String
     sortOrder: Int
     isActive: Boolean
+    destination: String
   }
 
   input CreateProductInput {

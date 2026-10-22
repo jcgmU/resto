@@ -1,10 +1,11 @@
 import Redis from 'ioredis';
-import { EventSubscriber, OrderEvent, ServiceCallEvent } from '@packages/shared-types';
+import { EventSubscriber, OrderEvent, ServiceCallEvent, TableStatusChangedEvent } from '@packages/shared-types';
 
 export class RedisEventSubscriber implements EventSubscriber {
   private dedicatedRedis: Redis | null = null;
   private orderHandlers: ((event: OrderEvent) => void)[] = [];
   private serviceCallHandlers: ((event: ServiceCallEvent) => void)[] = [];
+  private tableStatusHandlers: ((event: TableStatusChangedEvent) => void)[] = [];
   private isRunning = false;
 
   constructor(private readonly redisUrl: string) {}
@@ -15,6 +16,10 @@ export class RedisEventSubscriber implements EventSubscriber {
 
   onServiceCallEvent(handler: (event: ServiceCallEvent) => void): void {
     this.serviceCallHandlers.push(handler);
+  }
+
+  onTableStatusChanged(handler: (event: TableStatusChangedEvent) => void): void {
+    this.tableStatusHandlers.push(handler);
   }
 
   async start(): Promise<void> {
@@ -34,13 +39,21 @@ export class RedisEventSubscriber implements EventSubscriber {
           for (const handler of this.serviceCallHandlers) {
             handler(parsed);
           }
+        } else if (channel.endsWith(':session-events')) {
+          for (const handler of this.tableStatusHandlers) {
+            handler(parsed);
+          }
         }
       } catch (err) {
         // Ignorar mensajes corruptos
       }
     });
 
-    await this.dedicatedRedis.psubscribe('tenant:*:order-events', 'tenant:*:service-calls');
+    await this.dedicatedRedis.psubscribe(
+      'tenant:*:order-events',
+      'tenant:*:service-calls',
+      'tenant:*:session-events'
+    );
   }
 
   async stop(): Promise<void> {

@@ -1,0 +1,8 @@
+-- AlterEnum
+ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'CASHIER';
+
+-- AlterTable
+ALTER TABLE "Tenant" ADD COLUMN IF NOT EXISTS "invoiceMode" TEXT NOT NULL DEFAULT 'simple';
+
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "monitorKind" TEXT;

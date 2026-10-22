@@ -16,6 +16,9 @@ export class PrismaPaymentRepository implements PaymentRepository {
       recordedBy: record.recordedBy,
       createdAt:
         record.createdAt instanceof Date ? record.createdAt.toISOString() : record.createdAt,
+      invoiceStatus: (record.invoiceStatus as any) || 'none',
+      invoiceRef: record.invoiceRef ?? undefined,
+      invoiceError: record.invoiceError ?? undefined,
     };
   }
 
@@ -32,6 +35,9 @@ export class PrismaPaymentRepository implements PaymentRepository {
           ordersCount: payment.ordersCount,
           recordedBy: payment.recordedBy,
           createdAt: payment.createdAt ? new Date(payment.createdAt) : undefined,
+          invoiceStatus: payment.invoiceStatus || 'none',
+          invoiceRef: payment.invoiceRef ?? null,
+          invoiceError: payment.invoiceError ?? null,
         },
       });
       return this.mapToDTO(created);
