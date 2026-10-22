@@ -16,6 +16,8 @@ testsprite_tests/tmp/config.json
 
 # Config local de agentes/skills (no es parte de la app)
 .agents/
+.agent/
+.claude/
 
 # Scripts sueltos de depuración/fix usados durante desarrollo
 /add-use-client.js
