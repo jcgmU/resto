@@ -17,6 +17,7 @@ export interface KdsColumnProps {
   tenantSlaMinutes?: number;
   onUpdateDelay?: (orderId: string, delayMinutes: number) => void;
   onFetchHistory?: (orderId: string) => Promise<OrderHistoryEventDTO[]>;
+  monitorKind?: 'kitchen' | 'bar' | null;
 }
 
 export function KdsColumn({
@@ -29,10 +30,18 @@ export function KdsColumn({
   tenantSlaMinutes,
   onUpdateDelay,
   onFetchHistory,
+  monitorKind,
 }: KdsColumnProps) {
   // Ordenadas siempre por más tiempo transcurrido primero (createdAt asc)
   const columnOrders = orders
-    .filter((o) => o.status === status)
+    .filter((o) => {
+      const orderEffectiveStatus = monitorKind === 'kitchen'
+        ? (o.kitchenStatus || o.status)
+        : monitorKind === 'bar'
+        ? (o.barStatus || o.status)
+        : o.status;
+      return orderEffectiveStatus === status;
+    })
     .sort((a, b) => {
       const timeA = new Date(a.createdAt).getTime();
       const timeB = new Date(b.createdAt).getTime();
@@ -127,6 +136,7 @@ export function KdsColumn({
               tenantSlaMinutes={tenantSlaMinutes}
               onUpdateDelay={onUpdateDelay}
               onFetchHistory={onFetchHistory}
+              monitorKind={monitorKind}
             />
           ))
         )}

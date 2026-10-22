@@ -107,3 +107,10 @@ export async function closeSession(sessionId: string): Promise<TableSessionDTO> 
   }
   return payload as TableSessionDTO;
 }
+
+export async function retryInvoice(sessionId: string): Promise<any> {
+  const res = await ApiClient.request(`/v1/checkout/${sessionId}/retry-invoice`, {
+    method: 'POST',
+  });
+  return res?.data ?? res;
+}

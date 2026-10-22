@@ -18,6 +18,7 @@ import {
 import { KdsBoard, ServiceCallPanel, KdsLiveAnnouncer } from '../../../components/kds';
 import * as realtime from '../../../lib/realtime';
 import { ApiClient, getValidAccessToken } from '../../../lib/api';
+import { fetchTables } from '../../../lib/api/tables';
 import {
   fetchOrders,
   fetchServiceCalls,
@@ -29,7 +30,7 @@ import {
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'reconnecting';
 
-export default function KdsPage() {
+export default function KdsPage({ title: customTitle }: { title?: string } = {}) {
   const [orders, setOrders] = useState<OrderDTO[]>([]);
   const [calls, setCalls] = useState<ServiceCallDTO[]>([]);
   const [tables, setTables] = useState<TableDTO[]>([]);
@@ -44,6 +45,30 @@ export default function KdsPage() {
   const [callsError, setCallsError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [monitorTitle, setMonitorTitle] = useState<string>(customTitle || 'Pantalla de Cocina');
+  const [monitorKind, setMonitorKind] = useState<'kitchen' | 'bar' | null>(null);
+
+  useEffect(() => {
+    if (customTitle) {
+      setMonitorTitle(customTitle);
+      return;
+    }
+    try {
+      const rawUser = typeof window !== 'undefined' ? localStorage.getItem('resto_user') : null;
+      if (rawUser) {
+        const u = JSON.parse(rawUser);
+        if (u.monitorKind === 'bar') {
+          setMonitorKind('bar');
+          setMonitorTitle('Monitor de Bar');
+        } else if (u.monitorKind === 'kitchen') {
+          setMonitorKind('kitchen');
+          setMonitorTitle('Monitor de Cocina');
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [customTitle]);
 
   // Carga / sincronización de snapshot de cocina
   const fetchData = useCallback(async () => {
@@ -52,7 +77,7 @@ export default function KdsPage() {
       const [ordersRes, callsRes, tablesRes, settingsRes] = await Promise.allSettled([
         fetchOrders(),
         fetchServiceCalls(),
-        ApiClient.request('/v1/tables'),
+        fetchTables(),
         ApiClient.request('/v1/tenant/settings'),
       ]);
 
@@ -85,7 +110,7 @@ export default function KdsPage() {
 
       // 3. Mesas
       if (tablesRes.status === 'fulfilled') {
-        const data = tablesRes.value?.data || tablesRes.value;
+        const data = tablesRes.value;
         if (Array.isArray(data)) {
           setTables(data);
         }
@@ -210,7 +235,7 @@ export default function KdsPage() {
     setUpdatingOrderId(orderId);
 
     try {
-      const updated = await updateOrderStatus(orderId, nextStatus);
+      const updated = await updateOrderStatus(orderId, nextStatus, monitorKind || undefined);
       if (updated && updated.id) {
         setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
       }
@@ -312,6 +337,7 @@ export default function KdsPage() {
         >
           <div>
             <h2
+              data-testid="kds-monitor-title"
               style={{
                 margin: 0,
                 fontSize: '24px',
@@ -320,7 +346,7 @@ export default function KdsPage() {
                 fontFamily: 'var(--bento-font-heading)',
               }}
             >
-              Pantalla de Cocina
+              {monitorTitle}
             </h2>
             <p
               style={{
@@ -432,6 +458,7 @@ export default function KdsPage() {
                 tenantSlaMinutes={tenantSla}
                 onUpdateDelay={handleUpdateDelay}
                 onFetchHistory={handleFetchHistory}
+                monitorKind={monitorKind}
               />
             </div>
             <div style={{ width: '320px', flexShrink: 0 }}>
@@ -469,7 +496,11 @@ export default function KdsPage() {
                   <span>{callsError}</span>
                 </div>
               )}
-              <ServiceCallPanel calls={calls} tables={tables} onResolve={handleResolveCall} />
+              <ServiceCallPanel
+                calls={monitorKind ? calls.filter((c) => c.type !== 'BILL_REQUEST' && c.type !== 'WAITER_CALL') : calls}
+                tables={tables}
+                onResolve={handleResolveCall}
+              />
             </div>
           </div>
         </>

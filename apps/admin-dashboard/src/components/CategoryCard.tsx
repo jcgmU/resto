@@ -7,6 +7,7 @@ export interface CategoryCardProps {
     id: string;
     name: string;
     sortOrder?: number;
+    destination?: string;
   };
   productCount?: number;
   canMoveUp?: boolean;
@@ -32,9 +33,26 @@ export function CategoryCard({
       <div style={{ padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: 600, color: 'var(--bento-text)' }}>
-              {category.name}
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 4px 0' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, color: 'var(--bento-text)' }}>
+                {category.name}
+              </h3>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '2px 8px',
+                  borderRadius: 'var(--bento-pill-radius)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  backgroundColor: 'var(--bento-card-bg-solid)',
+                  color: 'var(--bento-accent)',
+                  border: '1px solid var(--bento-border)',
+                }}
+              >
+                {(category as any).destination === 'bar' ? 'Bar' : 'Cocina'}
+              </span>
+            </div>
             <p style={{ margin: 0, color: 'var(--bento-text-muted)', fontSize: '0.85rem' }}>
               {productCount} {productCount === 1 ? 'plato' : 'platos'}
             </p>

@@ -16,11 +16,12 @@ export async function fetchOrders(): Promise<OrderDTO[]> {
 
 export async function updateOrderStatus(
   orderId: string,
-  status: OrderStatus
+  status: OrderStatus,
+  destination?: 'kitchen' | 'bar'
 ): Promise<OrderDTO> {
   const res = await ApiClient.request(`/v1/orders/${orderId}/status`, {
     method: 'PATCH',
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, destination }),
   });
   return res?.data ?? res;
 }

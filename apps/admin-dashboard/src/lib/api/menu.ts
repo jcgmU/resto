@@ -26,12 +26,14 @@ export interface UpdateProductParams {
 export interface CreateCategoryParams {
   name: string;
   sortOrder?: number;
+  destination?: 'kitchen' | 'bar';
 }
 
 export interface UpdateCategoryParams {
   name?: string;
   sortOrder?: number;
   isActive?: boolean;
+  destination?: 'kitchen' | 'bar';
 }
 
 export async function fetchMenu(): Promise<{ categories: CategoryDTO[]; products: ProductDTO[] }> {
@@ -45,6 +47,7 @@ export async function fetchMenu(): Promise<{ categories: CategoryDTO[]; products
             name
             sortOrder
             isActive
+            destination
           }
           products {
             id
@@ -301,6 +304,7 @@ export async function createCategory(input: CreateCategoryParams): Promise<Categ
             id
             name
             sortOrder
+            destination
           }
         }
       `,
@@ -308,6 +312,7 @@ export async function createCategory(input: CreateCategoryParams): Promise<Categ
         input: {
           name: input.name,
           sortOrder: input.sortOrder ?? 0,
+          destination: input.destination || 'kitchen',
         },
       },
     }),
@@ -331,6 +336,7 @@ export async function updateCategory(id: string, input: UpdateCategoryParams): P
             name
             sortOrder
             isActive
+            destination
           }
         }
       `,

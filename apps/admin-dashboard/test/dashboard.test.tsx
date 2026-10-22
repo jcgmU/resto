@@ -375,6 +375,42 @@ describe('Unidad V23 — Resumen Operativo y Modo de Operación en Dashboard', (
     expect(screen.queryByText('Mesa 2')).not.toBeInTheDocument();
     expect(screen.getByText('Mesa 3')).toBeInTheDocument();
   });
+
+  test('R4: Refresco sin F5 — re-evalúa y recarga datos del dashboard ante evento visibilitychange', async () => {
+    let activeSessions: any[] = [];
+    const mockTables = [
+      { tableId: 't-1', label: 'Mesa 1', capacity: 4, zoneId: 'z-1', status: 'AVAILABLE' },
+    ];
+
+    ApiClient.request = jest.fn(async (endpoint: string) => {
+      if (endpoint === '/v1/tables') return mockTables;
+      if (endpoint === '/v1/zones') return [];
+      if (endpoint.includes('/v1/reservations')) return [];
+      if (endpoint.includes('/v1/sessions')) return activeSessions;
+      if (endpoint === '/v1/tenant/settings') return { operatingMode: 'hybrid', estimatedPrepMinutes: 18 };
+      if (endpoint.includes('/v1/orders')) return [];
+      if (endpoint.includes('/v1/service-calls')) return [];
+      return [];
+    });
+
+    render(<DashboardPage />);
+
+    expect(await screen.findByText('Resumen Operativo')).toBeInTheDocument();
+    expect(screen.getByText('1 Libres')).toBeInTheDocument();
+
+    // Simular que otra pestaña o comensal ocupa la mesa en el backend
+    activeSessions = [{ tableId: 't-1', status: 'active' }];
+
+    // Simular regreso del usuario a la pestaña (visibilitychange)
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', writable: true, configurable: true });
+    fireEvent(document, new Event('visibilitychange'));
+
+    // Debe refrescar automáticamente sin F5 y mostrar 0 Libres y 1 en sala
+    await waitFor(() => {
+      expect(screen.getByText('0 Libres')).toBeInTheDocument();
+      expect(screen.getByText('1 en sala')).toBeInTheDocument();
+    });
+  });
 });
 
 

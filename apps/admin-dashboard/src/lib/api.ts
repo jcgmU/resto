@@ -212,6 +212,9 @@ export class ApiClient {
     if (response.status === 200 && response.data?.tokens?.accessToken) {
       this.token = response.data.tokens.accessToken;
       this.refreshToken = response.data.tokens.refreshToken ?? null;
+      if (response.data?.user && typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('resto_user', JSON.stringify(response.data.user));
+      }
     }
     return response;
   }
@@ -228,6 +231,9 @@ export class ApiClient {
       if (response.data?.tokens?.refreshToken) {
         this.refreshToken = response.data.tokens.refreshToken;
       }
+      if (response.data?.user && typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('resto_user', JSON.stringify(response.data.user));
+      }
     }
     return response;
   }
@@ -236,6 +242,9 @@ export class ApiClient {
     this.token = null;
     this.refreshToken = null;
     this._refreshPromise = null;
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem('resto_user');
+    }
   }
 }
 

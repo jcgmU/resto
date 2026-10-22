@@ -109,13 +109,13 @@ describe('C. Admin Dashboard — Vista de Checkout (Tests 13-19)', () => {
     expect(kpi).toHaveTextContent(/\$\s*65/);
   });
 
-  test('15. PaymentMethodPicker es radiogroup accesible con opciones con label visible (solo Efectivo en UI); sin selección, el CTA está disabled', () => {
+  test('15. PaymentMethodPicker es radiogroup accesible con opciones con label visible (Efectivo y Tarjeta en UI); sin selección, el CTA está disabled', () => {
     render(<PaymentMethodPicker selectedMethod={null} onSelect={jest.fn()} />);
     const group = screen.getByRole('radiogroup');
     expect(group).toBeInTheDocument();
 
     expect(screen.getByRole('radio', { name: /efectivo/i })).toBeInTheDocument();
-    expect(screen.queryByRole('radio', { name: /tarjeta/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /tarjeta/i })).toBeInTheDocument();
     expect(screen.queryByRole('radio', { name: /otro/i })).not.toBeInTheDocument();
 
     render(<ConfirmPaymentButton disabled={true} onConfirm={jest.fn()} />);
@@ -304,12 +304,12 @@ describe('C. Admin Dashboard — Vista de Checkout (Tests 13-19)', () => {
     expect(screen.getByText(/Sesión #222222/i)).toBeInTheDocument();
   });
 
-  test('H9 (c) Etiquetas de métodos de pago en español en picker y modal (solo Efectivo en picker UI)', () => {
+  test('H9 (c) Etiquetas de métodos de pago en español en picker y modal (Efectivo y Tarjeta en picker UI)', () => {
     const onSelect = jest.fn();
     const { rerender } = render(<PaymentMethodPicker selectedMethod="CASH" onSelect={onSelect} />);
 
     expect(screen.getByRole('radio', { name: 'Efectivo' })).toBeInTheDocument();
-    expect(screen.queryByRole('radio', { name: 'Tarjeta' })).not.toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Tarjeta' })).toBeInTheDocument();
     expect(screen.queryByRole('radio', { name: 'Otro' })).not.toBeInTheDocument();
 
     rerender(

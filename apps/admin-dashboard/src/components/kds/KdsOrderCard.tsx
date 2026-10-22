@@ -5,6 +5,7 @@ import {
   ORDER_STATUS_LABELS,
   formatOrderNumber,
   getTableDisplayName,
+  SlaDot,
 } from '@packages/ui-components';
 import {
   OrderDTO,
@@ -26,6 +27,7 @@ export interface KdsOrderCardProps {
   tenantSlaMinutes?: number;
   onUpdateDelay?: (orderId: string, delayMinutes: number) => void;
   onFetchHistory?: (orderId: string) => Promise<OrderHistoryEventDTO[]>;
+  monitorKind?: 'kitchen' | 'bar' | null;
 }
 
 export function KdsOrderCard({
@@ -37,6 +39,7 @@ export function KdsOrderCard({
   tenantSlaMinutes,
   onUpdateDelay,
   onFetchHistory,
+  monitorKind,
 }: KdsOrderCardProps) {
   const [showHistory, setShowHistory] = useState(false);
   const [historyEvents, setHistoryEvents] = useState<OrderHistoryEventDTO[]>([]);
@@ -44,7 +47,12 @@ export function KdsOrderCard({
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [isUpdatingDelay, setIsUpdatingDelay] = useState(false);
 
-  const allowedTransitions = ORDER_STATUS_TRANSITIONS[order.status] || [];
+  const currentEffectiveStatus: OrderStatus = monitorKind === 'kitchen'
+    ? (order.kitchenStatus || order.status)
+    : monitorKind === 'bar'
+    ? (order.barStatus || order.status)
+    : order.status;
+  const allowedTransitions = ORDER_STATUS_TRANSITIONS[currentEffectiveStatus] || [];
   const nextStatus = allowedTransitions.find((s) => s !== 'CANCELLED');
 
   const createdAtTime = new Date(order.createdAt).getTime();
@@ -166,6 +174,12 @@ export function KdsOrderCard({
 
           {/* Contador visible SLA: elapsedMinutes m / effectiveSLA m (REF-2, N20) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <SlaDot
+              createdAt={order.createdAt}
+              estimatedPrepMinutes={baseTenantSla}
+              delayMinutes={order.delayMinutes}
+              size="10px"
+            />
             <span
               data-testid="sla-counter"
               style={{
@@ -199,7 +213,19 @@ export function KdsOrderCard({
             gap: '8px',
           }}
         >
-          {order.items.map((item) => (
+          {(() => {
+            const visibleItems = monitorKind
+              ? order.items.filter((i) => (i.destination || 'kitchen') === monitorKind)
+              : order.items;
+            const otherItemsCount = monitorKind
+              ? order.items
+                  .filter((i) => (i.destination || 'kitchen') !== monitorKind)
+                  .reduce((acc, i) => acc + i.quantity, 0)
+              : 0;
+
+            return (
+              <>
+                {visibleItems.map((item) => (
             <div key={item.id} style={{ fontSize: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
                 <span>
@@ -232,6 +258,29 @@ export function KdsOrderCard({
               )}
             </div>
           ))}
+                {otherItemsCount > 0 && (
+                  <div
+                    data-testid="other-monitor-badge"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '3px 8px',
+                      borderRadius: 'var(--bento-pill-radius)',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      backgroundColor: 'var(--bento-card-bg-solid)',
+                      color: 'var(--bento-accent)',
+                      border: '1px solid var(--bento-border)',
+                      marginTop: '4px',
+                      alignSelf: 'flex-start',
+                    }}
+                  >
+                    +{otherItemsCount} {otherItemsCount === 1 ? 'ítem más' : 'ítems más'} en otro monitor
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* Notas generales de la orden (REF-4, N01): fondo ámbar pastel var(--bento-note-general-bg), texto var(--bento-status-reserved-text) */}

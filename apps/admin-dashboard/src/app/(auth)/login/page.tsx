@@ -22,12 +22,19 @@ export default function LoginPage() {
       if (tenantSlug.trim()) {
         payload.tenantSlug = tenantSlug.trim();
       }
-      await ApiClient.login(payload);
+      const res = await ApiClient.login(payload);
+      const user = res?.data?.user;
+      const role = user?.role?.toLowerCase();
+      let targetPath = '/menu';
+      if (role === 'waiter') targetPath = '/terminal-mesero';
+      else if (role === 'cashier') targetPath = '/terminal-caja';
+      else if (role === 'monitor') targetPath = '/monitor';
+
       // Fallback for tests or non-Next environments
       if (typeof window !== 'undefined' && window.location) {
-        window.history.pushState({}, '', '/menu');
+        window.history.pushState({}, '', targetPath);
       }
-      router.push('/menu');
+      router.push(targetPath);
     } catch (err: any) {
       if (err.status === 401 || err.code === 'UNAUTHORIZED') {
         setError('Credenciales inválidas. Verifica tu usuario y contraseña.');

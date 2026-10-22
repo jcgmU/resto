@@ -39,6 +39,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
   const [sessionOrders, setSessionOrders] = useState<OrderDTO[]>([]);
   const [operatingMode, setOperatingMode] = useState<string>('hybrid');
   const [waiterCustomNote, setWaiterCustomNote] = useState<string>('');
+  const [preferredPaymentMethod, setPreferredPaymentMethod] = useState<'CASH' | 'CARD'>('CASH');
   const [billRequested, setBillRequested] = useState<boolean>(() => {
     return PwaApiClient.session?.status === 'billRequested';
   });
@@ -282,6 +283,10 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
       setRequestingBill(true);
       setBillError(null);
       await PwaApiClient.requestBill(PwaApiClient.session?.sessionId);
+      await PwaApiClient.createServiceCall({
+        type: 'BILL_REQUEST',
+        note: preferredPaymentMethod === 'CARD' ? 'Preferencia: Tarjeta datáfono' : 'Preferencia: Efectivo',
+      }).catch(() => {});
       setBillRequested(true);
     } catch (err: any) {
       setBillError(err.message || 'Error al solicitar la cuenta. Por favor, reintenta.');
@@ -766,6 +771,43 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
 
           {/* Acción Pedir la cuenta con estados visibles (R10) */}
           <section aria-label="Cuenta" style={{ width: '100%', boxSizing: 'border-box' }}>
+            {!billRequested && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--bento-text-muted)' }}>Pagar con:</span>
+                <button
+                  type="button"
+                  onClick={() => setPreferredPaymentMethod('CASH')}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 'var(--bento-pill-radius)',
+                    border: preferredPaymentMethod === 'CASH' ? '1px solid var(--bento-primary)' : '1px solid var(--bento-border)',
+                    backgroundColor: preferredPaymentMethod === 'CASH' ? 'var(--bento-primary)' : 'transparent',
+                    color: preferredPaymentMethod === 'CASH' ? 'var(--bento-card-bg-solid)' : 'var(--bento-text)',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  💵 Efectivo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreferredPaymentMethod('CARD')}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 'var(--bento-pill-radius)',
+                    border: preferredPaymentMethod === 'CARD' ? '1px solid var(--bento-primary)' : '1px solid var(--bento-border)',
+                    backgroundColor: preferredPaymentMethod === 'CARD' ? 'var(--bento-primary)' : 'transparent',
+                    color: preferredPaymentMethod === 'CARD' ? 'var(--bento-card-bg-solid)' : 'var(--bento-text)',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  💳 Tarjeta (Datáfono)
+                </button>
+              </div>
+            )}
             {billRequested ? (
               <button
                 type="button"

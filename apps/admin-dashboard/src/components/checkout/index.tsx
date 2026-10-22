@@ -290,6 +290,7 @@ export function PaymentMethodPicker({
 }: PaymentMethodPickerProps) {
   const options: { method: PaymentMethod; label: string }[] = [
     { method: 'CASH', label: PAYMENT_METHOD_LABELS.CASH || 'Efectivo' },
+    { method: 'CARD', label: PAYMENT_METHOD_LABELS.CARD || 'Tarjeta' },
   ];
 
   return (
@@ -419,6 +420,11 @@ export interface PaymentSuccessCardProps {
   amount: number;
   method: PaymentMethod;
   tables?: TableDTO[];
+  sessionId?: string;
+  invoiceStatus?: 'none' | 'pending' | 'issued' | 'error';
+  invoiceRef?: string;
+  invoiceError?: string;
+  onRetryInvoice?: () => void;
 }
 
 export function PaymentSuccessCard({
@@ -426,9 +432,14 @@ export function PaymentSuccessCard({
   amount,
   method,
   tables,
+  invoiceStatus,
+  invoiceRef,
+  invoiceError,
+  onRetryInvoice,
 }: PaymentSuccessCardProps) {
   return (
     <BentoCard
+      data-testid="payment-success-card"
       style={{
         padding: '20px',
         border: '1px solid var(--bento-success)',
@@ -457,6 +468,74 @@ export function PaymentSuccessCard({
       <div style={{ color: 'var(--bento-text-muted)', fontFamily: 'var(--bento-font-body)' }}>
         {getTableDisplayName(tableId, tables)} • Total: {formatCOP(amount)} • Medio: {PAYMENT_METHOD_LABELS[method] || method}
       </div>
+      {invoiceStatus && invoiceStatus !== 'none' && (
+        <div
+          data-testid="invoice-status-section"
+          style={{
+            marginTop: '8px',
+            paddingTop: '8px',
+            borderTop: '1px solid var(--bento-border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--bento-text)' }}>
+              Factura electrónica:
+            </span>
+            <span
+              data-testid="invoice-status-badge"
+              style={{
+                padding: '2px 8px',
+                borderRadius: 'var(--bento-pill-radius)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                backgroundColor:
+                  invoiceStatus === 'issued'
+                    ? 'var(--bento-status-available)'
+                    : invoiceStatus === 'pending'
+                    ? 'var(--bento-note-general-bg)'
+                    : 'var(--bento-note-item-bg)',
+                color:
+                  invoiceStatus === 'issued'
+                    ? 'var(--bento-status-available-text)'
+                    : invoiceStatus === 'pending'
+                    ? 'var(--bento-status-reserved-text)'
+                    : 'var(--bento-status-occupied-text)',
+                border: '1px solid var(--bento-border)',
+              }}
+            >
+              {invoiceStatus === 'issued'
+                ? `Emitida ${invoiceRef ? `(Ref: ${invoiceRef})` : ''}`
+                : invoiceStatus === 'pending'
+                ? 'Pendiente de emisión'
+                : `Error ${invoiceError ? `(${invoiceError})` : ''}`}
+            </span>
+          </div>
+          {(invoiceStatus === 'pending' || invoiceStatus === 'error') && onRetryInvoice && (
+            <button
+              type="button"
+              data-testid="retry-invoice-btn"
+              onClick={onRetryInvoice}
+              style={{
+                padding: '4px 12px',
+                borderRadius: 'var(--bento-pill-radius)',
+                border: '1px solid var(--bento-border)',
+                backgroundColor: 'var(--bento-card-bg-solid)',
+                color: 'var(--bento-text)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Reintentar factura
+            </button>
+          )}
+        </div>
+      )}
     </BentoCard>
   );
 }

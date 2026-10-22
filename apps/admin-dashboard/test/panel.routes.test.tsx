@@ -216,5 +216,80 @@ describe('U10: Admin Dashboard, Pagos y Ajustes', () => {
       expect(screen.getByText(/Configuración del Sistema/i)).toBeInTheDocument();
       expect(container.querySelector('[data-component="bento-card"]')).not.toBeNull();
     });
+
+    test('3. Con flag ON: carga y lista empleados en sección Equipo de Trabajo', async () => {
+      ApiClient.request = jest.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/v1/identity/users')) {
+          return {
+            status: 200,
+            data: [
+              { id: 'u1', displayName: 'Carlos Mesero', email: 'mesero@resto.com', role: 'WAITER', status: 'ACTIVE' },
+              { id: 'u2', displayName: 'Monitor Cocina', email: 'monitor@resto.com', role: 'MONITOR', monitorKind: 'kitchen', status: 'ACTIVE' },
+              { id: 'u3', displayName: 'Laura Caja', email: 'caja@resto.com', role: 'CASHIER', status: 'ACTIVE' },
+            ],
+          };
+        }
+        if (url.includes('/v1/tenant/settings')) {
+          return { status: 200, data: { invoiceMode: 'simple' } };
+        }
+        return { status: 200, data: {} };
+      });
+
+      renderWithFlags(<AjustesPage />, { 'multi-language': true });
+
+      await waitFor(() => {
+        expect(screen.getByText('Equipo de Trabajo')).toBeInTheDocument();
+        expect(screen.getByText('Carlos Mesero')).toBeInTheDocument();
+        expect(screen.getByText('Monitor Cocina')).toBeInTheDocument();
+        expect(screen.getByText('Laura Caja')).toBeInTheDocument();
+      });
+    });
+
+    test('4. Con flag ON: formulario permite crear nuevo empleado llamando a POST /v1/identity/users', async () => {
+      const mockPost = jest.fn().mockResolvedValue({ status: 201, data: { id: 'u4', displayName: 'Nuevo', email: 'nuevo@resto.com' } });
+      ApiClient.request = jest.fn().mockImplementation(async (url: string, opts?: any) => {
+        if (url.includes('/v1/identity/users') && opts?.method === 'POST') {
+          return mockPost(url, opts);
+        }
+        if (url.includes('/v1/identity/users')) {
+          return { status: 200, data: [] };
+        }
+        if (url.includes('/v1/tenant/settings')) {
+          return { status: 200, data: { invoiceMode: 'simple' } };
+        }
+        return { status: 200, data: {} };
+      });
+
+      renderWithFlags(<AjustesPage />, { 'multi-language': true });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('toggle-new-employee-button')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('toggle-new-employee-button'));
+      expect(screen.getByTestId('new-employee-form')).toBeInTheDocument();
+
+      fireEvent.change(screen.getByTestId('employee-name-input'), { target: { value: 'Nuevo Mesero' } });
+      fireEvent.change(screen.getByTestId('employee-email-input'), { target: { value: 'nuevo@resto.com' } });
+      fireEvent.change(screen.getByTestId('employee-password-input'), { target: { value: 'password123' } });
+      fireEvent.change(screen.getByTestId('employee-role-select'), { target: { value: 'WAITER' } });
+
+      fireEvent.submit(screen.getByTestId('new-employee-form'));
+
+      await waitFor(() => {
+        expect(mockPost).toHaveBeenCalledWith(
+          '/v1/identity/users',
+          expect.objectContaining({
+            method: 'POST',
+            body: JSON.stringify({
+              displayName: 'Nuevo Mesero',
+              email: 'nuevo@resto.com',
+              role: 'WAITER',
+              password: 'password123',
+            }),
+          })
+        );
+      });
+    });
   });
 });

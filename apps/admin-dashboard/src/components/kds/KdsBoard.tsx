@@ -15,6 +15,7 @@ export interface KdsBoardProps {
   tenantSlaMinutes?: number;
   onUpdateDelay?: (orderId: string, delayMinutes: number) => void;
   onFetchHistory?: (orderId: string) => Promise<OrderHistoryEventDTO[]>;
+  monitorKind?: 'kitchen' | 'bar' | null;
 }
 
 export function KdsBoard({
@@ -25,11 +26,22 @@ export function KdsBoard({
   tenantSlaMinutes = 18,
   onUpdateDelay,
   onFetchHistory,
+  monitorKind,
 }: KdsBoardProps) {
-  // Solo mostramos órdenes en estados activos (DELIVERED y CANCELLED salen del board)
-  const activeOrders = orders.filter((o) =>
-    ['PLACED', 'IN_KITCHEN', 'READY'].includes(o.status)
-  );
+  // Filtrar primero por destino si monitorKind está presente
+  const destinationOrders = monitorKind
+    ? orders.filter((o) => (o.items || []).some((i) => (i.destination || 'kitchen') === monitorKind))
+    : orders;
+
+  // Solo mostramos órdenes en estados activos para este monitor
+  const activeOrders = destinationOrders.filter((o) => {
+    const effStatus = monitorKind === 'kitchen'
+      ? (o.kitchenStatus || o.status)
+      : monitorKind === 'bar'
+      ? (o.barStatus || o.status)
+      : o.status;
+    return ['PLACED', 'IN_KITCHEN', 'READY'].includes(effStatus);
+  });
 
   return (
     <div
@@ -52,6 +64,7 @@ export function KdsBoard({
         tenantSlaMinutes={tenantSlaMinutes}
         onUpdateDelay={onUpdateDelay}
         onFetchHistory={onFetchHistory}
+        monitorKind={monitorKind}
       />
       <KdsColumn
         status="IN_KITCHEN"
@@ -63,6 +76,7 @@ export function KdsBoard({
         tenantSlaMinutes={tenantSlaMinutes}
         onUpdateDelay={onUpdateDelay}
         onFetchHistory={onFetchHistory}
+        monitorKind={monitorKind}
       />
       <KdsColumn
         status="READY"
@@ -74,6 +88,7 @@ export function KdsBoard({
         tenantSlaMinutes={tenantSlaMinutes}
         onUpdateDelay={onUpdateDelay}
         onFetchHistory={onFetchHistory}
+        monitorKind={monitorKind}
       />
     </div>
   );

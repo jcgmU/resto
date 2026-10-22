@@ -165,6 +165,27 @@ export function OrderConfirmationCard({
         {statusInfo.description}
       </p>
 
+      {currentOrder.delayMinutes && currentOrder.delayMinutes > 0 ? (
+        <div
+          data-testid="order-delay-notice"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 12px',
+            borderRadius: 'var(--bento-inner-radius)',
+            backgroundColor: 'var(--bento-status-reserved-bg)',
+            border: '1px solid var(--bento-border)',
+            color: 'var(--bento-text-strong)',
+            fontSize: '0.8125rem',
+            fontWeight: 500,
+          }}
+        >
+          <span>⏱</span>
+          <span>Demora informada por cocina: +{currentOrder.delayMinutes} min</span>
+        </div>
+      ) : null}
+
       {/* Información de estado inmutable y opción de agregar más pedidos (U04) */}
       <div
         data-testid="order-clarity-actions"

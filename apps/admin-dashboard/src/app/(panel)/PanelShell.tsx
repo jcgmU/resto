@@ -128,6 +128,13 @@ export default function PanelShell({
   const router = useRouter();
   const pathname = usePathname();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [currentUser, setCurrentUser] = useState<{
+    id?: string;
+    email?: string;
+    displayName?: string;
+    role?: string;
+    monitorKind?: string;
+  } | null>(null);
 
   useEffect(() => {
     const token = ApiClient.token;
@@ -138,9 +145,33 @@ export default function PanelShell({
         window.history.pushState({}, '', '/login');
       }
       router.replace('/login');
-    } else {
-      setIsAuthenticated(true);
+      return;
     }
+
+    try {
+      const rawUser = typeof window !== 'undefined' ? localStorage.getItem('resto_user') : null;
+      if (rawUser) {
+        const u = JSON.parse(rawUser);
+        setCurrentUser(u);
+        const role = String(u.role || '').toUpperCase();
+        if (role === 'WAITER') {
+          router.replace('/terminal-mesero');
+          return;
+        }
+        if (role === 'CASHIER') {
+          router.replace('/terminal-caja');
+          return;
+        }
+        if (role === 'MONITOR') {
+          router.replace('/monitor');
+          return;
+        }
+      }
+    } catch {
+      // ignore json parse error
+    }
+
+    setIsAuthenticated(true);
   }, [router]);
 
   if (!isAuthenticated) {
@@ -290,11 +321,15 @@ export default function PanelShell({
                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
               }}
             >
-              AD
+              {(currentUser?.displayName || 'Admin').slice(0, 2).toUpperCase()}
             </div>
             <div>
-              <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--bento-text)' }}>Admin</p>
-              <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--bento-text-muted)' }}>Restaurante • Panel</p>
+              <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--bento-text)' }}>
+                {currentUser?.displayName || 'Admin'}
+              </p>
+              <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--bento-text-muted)' }}>
+                Restaurante • {currentUser?.role ? (currentUser.role === 'ADMIN' ? 'Administrador' : currentUser.role) : 'Panel'}
+              </p>
             </div>
           </div>
 

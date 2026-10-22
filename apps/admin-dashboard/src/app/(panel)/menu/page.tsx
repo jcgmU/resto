@@ -58,6 +58,7 @@ export default function MenuPage() {
   const [catModalError, setCatModalError] = useState<string | null>(null);
   const [newCatName, setNewCatName] = useState('');
   const [newCatSortOrder, setNewCatSortOrder] = useState('0');
+  const [newCatDestination, setNewCatDestination] = useState<'kitchen' | 'bar'>('kitchen');
 
   const prodModalRef = useRef<HTMLDivElement>(null);
   const catModalRef = useRef<HTMLDivElement>(null);
@@ -176,6 +177,7 @@ export default function MenuPage() {
     setCatModalError(null);
     setNewCatName('');
     setNewCatSortOrder(String(categories.length));
+    setNewCatDestination('kitchen');
   };
 
   const handleEditCategory = (cat: CategoryDTO) => {
@@ -184,6 +186,7 @@ export default function MenuPage() {
     setCatModalError(null);
     setNewCatName(cat.name);
     setNewCatSortOrder(String(cat.sortOrder ?? 0));
+    setNewCatDestination((cat.destination as 'kitchen' | 'bar') || 'kitchen');
   };
 
   const handleDeleteCategory = async (cat: CategoryDTO) => {
@@ -240,12 +243,14 @@ export default function MenuPage() {
         await updateCategory(editingCategory.id, {
           name: newCatName,
           sortOrder: sortOrderNum,
+          destination: newCatDestination,
         });
         setToastMessage('Categoría Actualizada');
       } else {
         await createCategory({
           name: newCatName,
           sortOrder: sortOrderNum,
+          destination: newCatDestination,
         });
         setToastMessage('Nueva Categoría Creada');
       }
@@ -891,6 +896,24 @@ export default function MenuPage() {
                   onChange={(e) => setNewCatSortOrder(e.target.value)}
                   style={inputStyle}
                 />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label
+                  htmlFor="cat-destination-select"
+                  style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--bento-text)' }}
+                >
+                  Destino de preparación
+                </label>
+                <select
+                  id="cat-destination-select"
+                  value={newCatDestination}
+                  onChange={(e) => setNewCatDestination(e.target.value as 'kitchen' | 'bar')}
+                  style={inputStyle}
+                >
+                  <option value="kitchen">Cocina</option>
+                  <option value="bar">Bar</option>
+                </select>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>

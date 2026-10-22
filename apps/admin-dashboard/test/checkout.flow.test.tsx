@@ -1,8 +1,9 @@
 import React from 'react';
 import '@testing-library/jest-dom';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import CheckoutPage from '../src/app/(panel)/checkout/page';
 import { ApiClient } from '../src/lib/api';
+import * as realtimeModule from '../src/lib/realtime';
 import { FeatureFlagProviderRoot, StaticFeatureFlagProvider } from '@packages/ui-components';
 
 describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
@@ -897,6 +898,167 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
       });
       expect(screen.getAllByText(/35\.000/).length).toBeGreaterThan(0);
     } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('R2: Checkout muestra estado vacío "Mesa sin consumo" con acción "Liberar mesa" ante 404 BILL_NOT_FOUND', async () => {
+    const originalFetch = global.fetch;
+    const fetchMock = jest.fn(async (url: any) => {
+      const urlStr = url.toString();
+
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-sin-pedidos',
+              tenantId: 't-1',
+              tableId: 'Mesa 5',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+
+      if (urlStr.includes('/v1/tables')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [{ tableId: 'Mesa 5', label: 'Mesa 5' }],
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/sess-sin-pedidos')) {
+        return {
+          ok: false,
+          status: 404,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            error: {
+              code: 'BILL_NOT_FOUND',
+              message: 'No active bill found for session sess-sin-pedidos',
+            },
+          }),
+        };
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <CheckoutPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesa 5')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Mesa 5'));
+
+      // Debe mostrar estado vacío "Mesa sin consumo" con botón "Liberar mesa"
+      await waitFor(() => {
+        expect(screen.getByTestId('bill-empty-state')).toBeInTheDocument();
+      });
+      expect(screen.getByText('Mesa sin consumo')).toBeInTheDocument();
+      expect(screen.getByText(/no tiene pedidos registrados para cobrar/i)).toBeInTheDocument();
+      expect(screen.queryByTestId('bill-error-banner')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Liberar mesa/i })).toBeInTheDocument();
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('H-A2: CheckoutPage se refresca automáticamente cuando recibe eventos socket table:status-changed o session:checkout-completed', async () => {
+    const originalFetch = global.fetch;
+    const socketListeners: Record<string, () => void> = {};
+    const mockSocket = {
+      on: jest.fn((evt: string, cb: () => void) => {
+        socketListeners[evt] = cb;
+      }),
+      off: jest.fn(),
+      disconnect: jest.fn(),
+    };
+    const socketSpy = jest.spyOn(realtimeModule, 'connectOrdersSocket').mockReturnValue(mockSocket as any);
+
+    let fetchCount = 0;
+    const fetchMock = jest.fn(async (url: any) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/v1/sessions')) {
+        fetchCount++;
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-socket-1',
+              tenantId: 't-1',
+              tableId: 'Mesa 1',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+      if (urlStr.includes('/v1/tables')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [{ tableId: 'Mesa 1', label: 'Mesa 1' }],
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <CheckoutPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesa 1')).toBeInTheDocument();
+      });
+
+      const initialFetchCount = fetchCount;
+      expect(initialFetchCount).toBeGreaterThan(0);
+      expect(typeof socketListeners['table:status-changed']).toBe('function');
+      expect(typeof socketListeners['session:checkout-completed']).toBe('function');
+
+      // Disparar evento de socket table:status-changed
+      await act(async () => {
+        socketListeners['table:status-changed']();
+      });
+
+      await waitFor(() => {
+        expect(fetchCount).toBeGreaterThan(initialFetchCount);
+      });
+
+      const afterFirstEvent = fetchCount;
+      // Disparar evento de socket session:checkout-completed
+      await act(async () => {
+        socketListeners['session:checkout-completed']();
+      });
+
+      await waitFor(() => {
+        expect(fetchCount).toBeGreaterThan(afterFirstEvent);
+      });
+    } finally {
+      socketSpy.mockRestore();
       global.fetch = originalFetch;
     }
   });

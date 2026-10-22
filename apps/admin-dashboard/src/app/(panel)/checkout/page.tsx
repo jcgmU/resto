@@ -17,9 +17,12 @@ import {
   fetchSessionBill,
   confirmCheckout,
   closeSession,
+  retryInvoice,
   parseCheckoutError,
   FormattedCheckoutError,
 } from '../../../lib/api/checkout';
+import { ApiClient } from '../../../lib/api';
+import * as realtime from '../../../lib/realtime';
 
 function CheckoutContent() {
   const searchParams = useSearchParams();
@@ -41,6 +44,10 @@ function CheckoutContent() {
     tableId: string;
     amount: number;
     method: PaymentMethod;
+    sessionId?: string;
+    invoiceStatus?: 'none' | 'pending' | 'issued' | 'error';
+    invoiceRef?: string;
+    invoiceError?: string;
   } | null>(null);
 
   const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
@@ -76,6 +83,56 @@ function CheckoutContent() {
   useEffect(() => {
     fetchActiveSessions();
     fetchTables();
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchActiveSessions();
+        fetchTables();
+      }
+    };
+    const handleFocus = () => {
+      fetchActiveSessions();
+      fetchTables();
+    };
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', handleFocus);
+    }
+
+    let socket: any = null;
+    const token = ApiClient.token;
+    if (token) {
+      try {
+        socket = realtime.connectOrdersSocket(token);
+        socket.on('table:status-changed', () => {
+          fetchActiveSessions();
+          fetchTables();
+        });
+        socket.on('session:checkout-completed', () => {
+          fetchActiveSessions();
+          fetchTables();
+        });
+      } catch {
+        // Fallback gracefully
+      }
+    }
+
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', handleFocus);
+      }
+      if (socket) {
+        try {
+          socket.disconnect();
+        } catch {}
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -120,10 +177,15 @@ function CheckoutContent() {
         amount: bill.total,
       });
 
+      const paymentData = result.payment;
       setCompletedPayment({
         tableId: selectedSession.tableId,
         amount: result.amount || bill.total,
         method,
+        sessionId: selectedSession.sessionId,
+        invoiceStatus: paymentData?.invoiceStatus,
+        invoiceRef: paymentData?.invoiceRef,
+        invoiceError: paymentData?.invoiceError,
       });
 
       setSelectedSession(null);
@@ -196,6 +258,25 @@ function CheckoutContent() {
               amount={completedPayment.amount}
               method={completedPayment.method}
               tables={tables}
+              sessionId={completedPayment.sessionId}
+              invoiceStatus={completedPayment.invoiceStatus}
+              invoiceRef={completedPayment.invoiceRef}
+              invoiceError={completedPayment.invoiceError}
+              onRetryInvoice={async () => {
+                if (!completedPayment?.sessionId) return;
+                try {
+                  const retryRes = await retryInvoice(completedPayment.sessionId);
+                  const pay = retryRes?.payment || retryRes;
+                  if (pay) {
+                    setCompletedPayment((prev) => prev ? {
+                      ...prev,
+                      invoiceStatus: pay.invoiceStatus,
+                      invoiceRef: pay.invoiceRef,
+                      invoiceError: pay.invoiceError,
+                    } : null);
+                  }
+                } catch {}
+              }}
             />
           </div>
         )}
@@ -330,82 +411,159 @@ function CheckoutContent() {
         )}
 
         {billError && !bill && (
-          <div
-            role="alert"
-            data-testid="bill-error-banner"
-            tabIndex={-1}
-            style={{
-              padding: '16px',
-              borderRadius: 'var(--bento-inner-radius)',
-              background: 'color-mix(in srgb, var(--bento-destructive) 10%, transparent)',
-              color: 'var(--bento-destructive)',
-              border: '1px solid var(--bento-destructive)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px',
-              marginBottom: '16px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <svg
-                aria-hidden="true"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <div>
-                <span style={{ fontWeight: 700, marginRight: '6px' }}>{billError.code}:</span>
-                <span style={{ fontFamily: 'var(--bento-font-body)' }}>{billError.userMessage}</span>
+          billError.code === 'BILL_NOT_FOUND' ? (
+            <BentoCard
+              data-testid="bill-empty-state"
+              style={{
+                padding: '24px',
+                borderRadius: 'var(--bento-card-radius)',
+                backgroundColor: 'var(--bento-card-bg-solid)',
+                border: '1px solid var(--bento-border)',
+                boxShadow: 'var(--bento-card-shadow)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '16px',
+                flexWrap: 'wrap',
+                marginBottom: '16px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: 'var(--bento-inner-radius)',
+                    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--bento-text-muted)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg
+                    aria-hidden="true"
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                </div>
+                <div>
+                  <h3
+                    style={{
+                      margin: '0 0 4px 0',
+                      fontSize: '1.1rem',
+                      fontWeight: 600,
+                      fontFamily: 'var(--bento-font-heading)',
+                      color: 'var(--bento-text)',
+                    }}
+                  >
+                    Mesa sin consumo
+                  </h3>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: '0.875rem',
+                      color: 'var(--bento-text-muted)',
+                      fontFamily: 'var(--bento-font-body)',
+                    }}
+                  >
+                    Esta sesión no tiene pedidos registrados para cobrar.
+                  </p>
+                </div>
               </div>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <button
-                type="button"
-                onClick={handleRetry}
-                style={{
-                  minHeight: '44px',
-                  minWidth: '44px',
-                  padding: '0 16px',
-                  borderRadius: 'var(--bento-pill-radius)',
-                  background: 'var(--bento-destructive)',
-                  color: 'var(--bento-card-bg-solid)',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--bento-font-body)',
-                  fontWeight: 600,
-                }}
-              >
-                Reintentar
-              </button>
-              {selectedSession && (billError.code === 'BILL_EMPTY' || billError.code === 'BILL_NOT_FOUND') && (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {selectedSession && (
+                  <button
+                    type="button"
+                    onClick={() => setIsReleaseModalOpen(true)}
+                    style={{
+                      minHeight: '44px',
+                      padding: '0 20px',
+                      borderRadius: 'var(--bento-pill-radius)',
+                      background: 'var(--bento-primary)',
+                      color: 'var(--bento-card-bg-solid)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontFamily: 'var(--bento-font-body)',
+                      fontWeight: 600,
+                      boxShadow: 'var(--bento-card-shadow)',
+                    }}
+                  >
+                    Liberar mesa
+                  </button>
+                )}
+              </div>
+            </BentoCard>
+          ) : (
+            <div
+              role="alert"
+              data-testid="bill-error-banner"
+              tabIndex={-1}
+              style={{
+                padding: '16px',
+                borderRadius: 'var(--bento-inner-radius)',
+                background: 'color-mix(in srgb, var(--bento-destructive) 10%, transparent)',
+                color: 'var(--bento-destructive)',
+                border: '1px solid var(--bento-destructive)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                marginBottom: '16px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg
+                  aria-hidden="true"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <div>
+                  <span style={{ fontWeight: 700, marginRight: '6px' }}>{billError.code}:</span>
+                  <span style={{ fontFamily: 'var(--bento-font-body)' }}>{billError.userMessage}</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <button
                   type="button"
-                  onClick={() => setIsReleaseModalOpen(true)}
+                  onClick={handleRetry}
                   style={{
                     minHeight: '44px',
+                    minWidth: '44px',
                     padding: '0 16px',
                     borderRadius: 'var(--bento-pill-radius)',
-                    background: 'var(--bento-card-bg-solid)',
-                    color: 'var(--bento-text)',
-                    border: '1px solid var(--bento-border)',
+                    background: 'var(--bento-destructive)',
+                    color: 'var(--bento-card-bg-solid)',
+                    border: 'none',
                     cursor: 'pointer',
                     fontFamily: 'var(--bento-font-body)',
                     fontWeight: 600,
                   }}
                 >
-                  Liberar mesa
+                  Reintentar
                 </button>
-              )}
+              </div>
             </div>
-          </div>
+          )
         )}
 
         {bill && (
