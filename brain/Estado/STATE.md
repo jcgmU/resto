@@ -3,12 +3,12 @@
 > Bloque que actualizan los agentes en cada checkpoint (ver Protocolo). Notas libres debajo.
 
 <!-- team-state:begin -->
-- **fase**: sesion de desarrollo cerrada: frontend-lineagrafica + README de despliegue y uso (pusheado)
-- **ronda**: 3
+- **fase**: revisión completa PR2 y opciones UI entregadas; sin cambios de código de producto
+- **ronda**: 1
 - **turno**: usuario
-- **siguiente**: opcional: deuda menor del frontend (ver README seccion 11); decision de politica de pagos; despliegue segun README seccion 5
-- **engram_pendiente**: no
-- **actualizado**: 2026-10-11
+- **siguiente**: priorizar integridad/autorización/cobros según reviews/pr-2/REVIEW.md y elegir dirección visual
+- **engram_pendiente**: si
+- **actualizado**: 2026-10-23T21:51:55-05:00
 <!-- team-state:end -->
 
 ## Notas
@@ -24,3 +24,5 @@
   - **Cambios sin commitear**: todo el trabajo de U1-U4 + parciales esta en el working tree (git status: ~25 archivos M/A, incluidos los movimientos de checkout/kds a `(panel)`). Decidir commit parcial o esperar a cerrar oleada 4.
   - **Verificaciones MANUAL pendientes para claude** (M1-M7 de brain/Equipo/Verificacion.md): recorrido visual de las vistas ya reestructuradas (dashboard, pagos, ajustes, kds, checkout con sidebar), estados, breakpoints, flujos reales en Chrome, FeatureGuard, a11y. Ninguna esta hecha: no dar por pasada ninguna.
   - **Preguntas abiertas del plan** (P1 endpoint update carrito, P2 seguimiento guest, P3 baseline corregido a 215/215) siguen sin respuesta del orquestador.
+
+- 2026-10-23 21:51 Bogotá: Codex revisó PR2 HEAD65ffd61 con tres subagentes nativos; Herdr/engram no disponibles. Evidencia en reviews/pr-2/REVIEW.md. Cuenta GitHub andress1014. Sin staging, commit, push, publicación ni cambios producto. No se alteraron IDs de sesiones Herdr al no poder consultarlos.

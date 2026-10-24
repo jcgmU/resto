@@ -77,40 +77,14 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
   }, [params.tenantId]);
 
   useEffect(() => {
-    let isMounted = true;
-
     if (!PwaApiClient.guestToken) {
       setLoadingMenu(false);
       return;
     }
 
-    setLoadingMenu(true);
-    setMenuError(null);
-
-    PwaApiClient.fetchMenu(params.tenantId)
-      .then((res: MenuResult) => {
-        if (isMounted) {
-          setCategories(res.categories || []);
-          setProducts(res.products || []);
-        }
-      })
-      .catch((err: any) => {
-        if (isMounted) {
-          setMenuError(err.message || 'Error al cargar el menú. Por favor, reintenta.');
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setLoadingMenu(false);
-        }
-      });
-
-    refreshCart();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [params.tenantId, refreshCart]);
+    void loadMenu();
+    void refreshCart();
+  }, [loadMenu, refreshCart]);
 
   // Polling silencioso cada ~5s del carrito
   useEffect(() => {
