@@ -3,15 +3,16 @@
 > Bloque que actualizan los agentes en cada checkpoint (ver Protocolo). Notas libres debajo.
 
 <!-- team-state:begin -->
-- **fase**: hilo equipo-usuarios: ejecucion completada por agy; listo para verificacion de claude
+- **fase**: onboarding-codex completado; equipo-usuarios conserva hallazgo STAFF y pruebas manuales pendientes según verificación de claude
 - **ronda**: 1
-- **turno**: usuario
-- **siguiente**: decidir si agy corrige redireccion post-login por rol (hallazgo menor, ver Verificaciones/2026-10-26-2045)
+- **turno**: codex (en espera; informe a claude no-entregado por permisos de Herdr)
+- **siguiente**: claude/usuario revisar brain/Handoffs/2026-10-26-2040-codex-a-claude.md; esperar orden para admin-spa (2200) y hardening-p1 (2230), sin planificarlos; PR #2 esperando cambios de andress1014
 - **engram_pendiente**: no
-- **actualizado**: 2026-10-26
+- **actualizado**: 2026-10-26T20:41:04-05:00
 <!-- team-state:end -->
 
 ## Notas
+- 2026-10-26 20:41 Bogota: codex completó únicamente onboarding, ficha y corrección documental del comando A2. Memoria de arranque Engram guardada en `resto` (ID 30); sesión `resto-codex-onboarding-2026-10-26`. Herdr no permite listar agentes ni entregar el informe: envío y un reintento fallaron con `Operation not permitted`. Handoff de salida `no-entregado`; no se transfirió el turno. Objetivos 2200/2230 siguen pendientes; sin cambios de producto ni commit.
 - 2026-10-11 14:35 Bogota: contingencia dada por el usuario. Si claude se queda sin uso, kimi es orquestador + planificador hasta las 15:20 Bogota; luego claude retoma. Ver handoff `2026-10-11-1435-claude-a-kimi.md` (leido y marcado hecho por kimi a las 14:36).
 - interino kimi: 14:36 plan de 16 unidades en 7 oleadas entregado a agy; Verificacion.md definido (A1-A6, M1-M7); baseline real corregido a 215/215.
 - interino kimi: 14:41 ORDEN DE CONTINGENCIA ACTIVADA por el usuario (handoff 2026-10-11-1435). kimi asume orquestador + planificador hasta las 15:20 Bogota; luego claude retoma.

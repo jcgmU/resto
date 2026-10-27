@@ -1,14 +1,14 @@
 # Chequeos de verificación — resto
 
 > Los mantiene el planificador cuando el stack está decidido. Los ejecuta el orquestador él mismo (ver Protocolo).
-> Última actualización: 2026-10-11 por kimi (hilo frontend-lineagrafica, ronda 1).
+> Base: 2026-10-11 por kimi (hilo frontend-lineagrafica, ronda 1). Corrección documental de A2: 2026-10-26 por codex durante onboarding; no implica reejecución ni aprobación de estos chequeos.
 
 ## Automáticos
 
 | # | Chequeo | Comando (desde la raíz del proyecto) | Resultado esperado |
 |---|---|---|---|
 | A1 | Suite completa de tests (9 paquetes, Jest) | `pnpm -r run test` | exit 0. Base real previa al rediseño: **215/215** (38 suites). Tras el rediseño: todos en verde, incluidos los tests nuevos de UI. Nota: el handoff citaba 182/182; esa cifra está desactualizada (ver `03_Oleadas/Estado_MVP.md`: 213/213 tras ronda 7, +2 sin loguear). |
-| A2 | Build completo (packages + apps + services) | `pnpm -r run build --filter "./packages/*" --filter "./apps/*" --filter "./services/*"` | exit 0. OJO: `pnpm run build` a secas solo compila `packages/*`; no vale como verificación completa. ts-jest no type-chequea todo: este build es obligatorio (precedente bug `OrderStatus`). |
+| A2 | Build completo (packages + apps + services) | `pnpm --filter "./packages/*" --filter "./apps/*" --filter "./services/*" -r run build` | exit 0. Los filtros van ANTES de `run build`; `pnpm run build` a secas solo compila `packages/*`. ts-jest no type-chequea todo: este build es obligatorio (precedente bug `OrderStatus`). Coordinar un `next dev` activo antes de compilar para evitar corromper `.next`; cualquier borrado requiere confirmación del usuario. |
 | A3 | Tests del design system (tokens + bento + feature-guard) | `pnpm run test:ui` | exit 0. Los tests 39/40/44 de `packages/ui-components/test/bento.test.tsx` deben validar los valores **Lima & Tinta** (tinta `#0E100B`, lima `#D7F35C`, hueso `#ECEEE6`, papel `#FAFAF6`) y el contraste WCAG recalculado. |
 | A4 | Sin clases Tailwind muertas ni hex fuera de tokens en el frontend | `grep -rnE "className=\"[^\"]*(p-|m-|grid|flex|bg-|text-)" apps/admin-dashboard/src apps/client-pwa/src --include="*.tsx"` y `grep -rnE "#[0-9a-fA-F]{6}" apps/admin-dashboard/src apps/client-pwa/src --include="*.tsx"` | Solo coincidencias justificadas: los 4 hex de la paleta en el archivo de tokens y ninguna clase de utilidad Tailwind (no hay toolchain Tailwind en el repo: esas clases son código muerto). |
 | A5 | E2E HTTP de flujos reales (requiere stack Docker levantado: `docker compose -f docker-compose.dev.yml up -d` o equivalente) | `node e2e.mjs` | exit 0: register → login → menú → mesa/QR → sesión guest → carrito → confirmar pedido → KDS (IN_KITCHEN→READY→DELIVERED) → checkout CASH → cierre de sesión. Ningún flujo reemplazado por stubs. |
