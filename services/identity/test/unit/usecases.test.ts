@@ -129,30 +129,137 @@ describe('A. Identity — unitarios de casos de uso (Tests 1-10)', () => {
   });
 
   describe('InviteUser (Tests 9-10)', () => {
-    test('9. InviteUser crea usuario MANAGER/STAFF en el tenant del admin autenticado', async () => {
-      const useCase = new InviteUserUseCaseImpl(new InMemoryUserRepository());
+    test('9. InviteUser crea usuario MANAGER/STAFF con status ACTIVE y password hasheado', async () => {
+      const useCase = new InviteUserUseCaseImpl(new InMemoryUserRepository(), new FakePasswordHasher());
       const user = await useCase.execute({
         tenantId: 'tenant-123',
         email: 'staff@resto.com',
         displayName: 'Mesero Juan',
+        password: 'password123',
         role: 'STAFF',
       });
 
       expect(user.tenantId).toBe('tenant-123');
       expect(user.role).toBe('STAFF');
-      expect(user.status).toBe('INVITED');
+      expect(user.status).toBe('ACTIVE');
+      expect((user as any).passwordHash).toBeUndefined();
     });
 
     test('10. InviteUser ignora cualquier tenantId del input: siempre usa el del token', async () => {
-      const useCase = new InviteUserUseCaseImpl(new InMemoryUserRepository());
+      const useCase = new InviteUserUseCaseImpl(new InMemoryUserRepository(), new FakePasswordHasher());
       const user = await useCase.execute({
         tenantId: 'tenant-from-token',
         email: 'manager@resto.com',
         displayName: 'Gerente Ana',
+        password: 'password123',
         role: 'MANAGER',
       });
 
       expect(user.tenantId).toBe('tenant-from-token');
+      expect(user.role).toBe('MANAGER');
+      expect(user.status).toBe('ACTIVE');
+    });
+
+    test('10b. InviteUser rechaza rol inválido (ADMIN o CUSTOMER) -> VALIDATION_ERROR', async () => {
+      const useCase = new InviteUserUseCaseImpl(new InMemoryUserRepository(), new FakePasswordHasher());
+      await expect(
+        useCase.execute({
+          tenantId: 'tenant-123',
+          email: 'admin2@resto.com',
+          displayName: 'Otro Admin',
+          password: 'password123',
+          role: 'ADMIN' as any,
+        })
+      ).rejects.toThrow(
+        expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+          message: 'Role must be MANAGER or STAFF',
+        } as Partial<DomainError>)
+      );
+
+      await expect(
+        useCase.execute({
+          tenantId: 'tenant-123',
+          email: 'customer@resto.com',
+          displayName: 'Cliente',
+          password: 'password123',
+          role: 'CUSTOMER' as any,
+        })
+      ).rejects.toThrow(
+        expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+          message: 'Role must be MANAGER or STAFF',
+        } as Partial<DomainError>)
+      );
+    });
+
+    test('10c. InviteUser rechaza password corto (< 8 caracteres) o faltante -> VALIDATION_ERROR', async () => {
+      const useCase = new InviteUserUseCaseImpl(new InMemoryUserRepository(), new FakePasswordHasher());
+      await expect(
+        useCase.execute({
+          tenantId: 'tenant-123',
+          email: 'shortpass@resto.com',
+          displayName: 'Short Pass',
+          password: 'short',
+          role: 'STAFF',
+        })
+      ).rejects.toThrow(
+        expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+          message: 'Password must be at least 8 characters',
+        } as Partial<DomainError>)
+      );
+
+      await expect(
+        useCase.execute({
+          tenantId: 'tenant-123',
+          email: 'nopass@resto.com',
+          displayName: 'No Pass',
+          role: 'STAFF',
+        })
+      ).rejects.toThrow(
+        expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+          message: 'Password must be at least 8 characters',
+        } as Partial<DomainError>)
+      );
+    });
+
+    test('10d. InviteUser rechaza displayName vacío -> VALIDATION_ERROR', async () => {
+      const useCase = new InviteUserUseCaseImpl(new InMemoryUserRepository(), new FakePasswordHasher());
+      await expect(
+        useCase.execute({
+          tenantId: 'tenant-123',
+          email: 'noname@resto.com',
+          displayName: '   ',
+          password: 'password123',
+          role: 'STAFF',
+        })
+      ).rejects.toThrow(
+        expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+          message: 'Display name is required',
+        } as Partial<DomainError>)
+      );
+    });
+
+    test('10e. InviteUser comprueba unicidad de email global -> EMAIL_TAKEN', async () => {
+      const useCase = new InviteUserUseCaseImpl(new InMemoryUserRepository(), new FakePasswordHasher());
+      // 'user@resto.com' already exists in tenant-default
+      await expect(
+        useCase.execute({
+          tenantId: 'tenant-different',
+          email: 'user@resto.com',
+          displayName: 'Mesero Clon',
+          password: 'password123',
+          role: 'STAFF',
+        })
+      ).rejects.toThrow(
+        expect.objectContaining({
+          code: 'EMAIL_TAKEN',
+          message: 'El email ya está registrado',
+        } as Partial<DomainError>)
+      );
     });
   });
 });

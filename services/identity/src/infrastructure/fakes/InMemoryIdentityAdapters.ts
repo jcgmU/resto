@@ -46,6 +46,10 @@ export class InMemoryTenantRepository implements TenantRepository {
     }
     return tenant;
   }
+
+  async delete(id: string): Promise<void> {
+    this.tenants = this.tenants.filter((t) => t.id !== id);
+  }
 }
 
 export class InMemoryUserRepository implements UserRepository {
@@ -79,6 +83,12 @@ export class InMemoryUserRepository implements UserRepository {
     if (!u) return null;
     const { passwordHash, ...userDto } = u;
     return userDto;
+  }
+
+  async findWithPasswordById(id: string): Promise<(UserDTO & { passwordHash: string }) | null> {
+    const u = this.users.find((user) => user.id === id);
+    if (!u) return null;
+    return u;
   }
 
   async findByEmail(tenantId: string, email: string): Promise<UserDTO | null> {
@@ -153,6 +163,14 @@ export class InMemoryRefreshTokenRepository implements RefreshTokenRepository {
     const token = this.tokens.find((t) => t.id === id);
     if (token) {
       token.revokedAt = new Date();
+    }
+  }
+
+  async revokeAllForUser(userId: string): Promise<void> {
+    for (const token of this.tokens) {
+      if (token.userId === userId && !token.revokedAt) {
+        token.revokedAt = new Date();
+      }
     }
   }
 }

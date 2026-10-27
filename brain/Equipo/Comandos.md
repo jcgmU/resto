@@ -2,7 +2,7 @@
 
 ## Qué puede pedirle cada rol a quién (tipos de handoff)
 
-| De \ Para | Planificador (kimi) | Ejecutor (agy) | Orquestador (claude) | Usuario |
+| De \ Para | Planificador (codex) | Ejecutor (agy) | Orquestador (claude) | Usuario |
 |---|---|---|---|---|
 | Planificador | — | `plan` | `listo-para-verificar` | `bloqueo` |
 | Ejecutor | `ejecucion` | — | — | — |
@@ -15,7 +15,7 @@ El formato de los handoffs y cómo se envían está en [[Protocolo]].
 Antes de enviar un handoff, revisa la ficha del destinatario en `Fichas/`:
 
 - `Fichas/claude.md`
-- `Fichas/kimi.md`
+- `Fichas/codex.md`
 - `Fichas/agy.md`
 
 Si quieres que use un subagente, un modo multi-agente, un comando `/`, un skill o un plugin, nómbralo en el handoff **exactamente** como aparece en su ficha, junto con el **nivel de modelo** (potente / estándar / ligero). Por ejemplo: "U3: usa tu modo X con nivel ligero para los renombres".

@@ -54,7 +54,8 @@ export type Role = (typeof Role)[keyof typeof Role]
 export const UserStatus: {
   ACTIVE: 'ACTIVE',
   INVITED: 'INVITED',
-  SUSPENDED: 'SUSPENDED'
+  SUSPENDED: 'SUSPENDED',
+  DISABLED: 'DISABLED'
 };
 
 export type UserStatus = (typeof UserStatus)[keyof typeof UserStatus]

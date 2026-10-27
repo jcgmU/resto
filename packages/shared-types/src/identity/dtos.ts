@@ -1,6 +1,6 @@
 export type TenantStatus = 'ACTIVE' | 'SUSPENDED';
 export type UserRole = 'ADMIN' | 'MANAGER' | 'STAFF' | 'CUSTOMER';
-export type UserStatus = 'ACTIVE' | 'INVITED' | 'SUSPENDED';
+export type UserStatus = 'ACTIVE' | 'INVITED' | 'SUSPENDED' | 'DISABLED';
 
 export interface TenantDTO {
   id: string;
@@ -42,7 +42,7 @@ export interface RegisterTenantRequest {
   slug?: string;
   adminEmail: string;
   adminPassword: string;
-  adminDisplayName: string;
+  adminDisplayName?: string;
 }
 
 export interface RegisterTenantResult {

@@ -181,7 +181,8 @@ exports.Role = exports.$Enums.Role = {
 exports.UserStatus = exports.$Enums.UserStatus = {
   ACTIVE: 'ACTIVE',
   INVITED: 'INVITED',
-  SUSPENDED: 'SUSPENDED'
+  SUSPENDED: 'SUSPENDED',
+  DISABLED: 'DISABLED'
 };
 
 exports.Prisma.ModelName = {

@@ -45,6 +45,10 @@ export class LoginUseCaseImpl implements LoginUseCase {
       throw new DomainError('INVALID_CREDENTIALS', 'Credenciales invalidas');
     }
 
+    if (userWithHash.status !== 'ACTIVE') {
+      throw new DomainError('INVALID_CREDENTIALS', 'Credenciales invalidas');
+    }
+
     const hashToVerify = userWithHash.passwordHash;
     const isValid = await this.passwordHasher.verify(input.password, hashToVerify);
     if (!isValid) {

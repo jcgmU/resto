@@ -157,6 +157,85 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
       expect(res.status).not.toBe(401);
       expect(res.status).toBe(200);
     });
+
+    test('24b. U5: GET /v1/identity/users sin token -> 401; con token MANAGER -> 403; con token ADMIN -> 200 proxy a identity', async () => {
+      // Sin token -> 401
+      const unauthRes = await request(app).get('/v1/identity/users');
+      expect(unauthRes.status).toBe(401);
+
+      // Con token MANAGER -> 403
+      const managerToken = jwt.sign({ userId: 'u-mgr', tenantId: 't-1', role: 'manager' }, TEST_SECRET);
+      const forbiddenRes = await request(app)
+        .get('/v1/identity/users')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(forbiddenRes.status).toBe(403);
+      expect(forbiddenRes.body.error.code).toBe('FORBIDDEN');
+
+      // Con token ADMIN -> 200 proxy
+      const adminToken = jwt.sign({ userId: 'u-adm', tenantId: 't-1', role: 'admin' }, TEST_SECRET);
+      const upstream = nock('http://localhost:4001', {
+        reqheaders: {
+          'x-user-id': 'u-adm',
+          'x-tenant-id': 't-1',
+          'x-user-role': 'admin',
+        },
+      })
+        .get('/identity/users')
+        .reply(200, [{ id: 'u1', email: 'staff@resto.com' }]);
+
+      const okRes = await request(app)
+        .get('/v1/identity/users')
+        .set('Authorization', `Bearer ${adminToken}`);
+      expect(upstream.isDone()).toBe(true);
+      expect(okRes.status).toBe(200);
+      expect(okRes.body).toEqual([{ id: 'u1', email: 'staff@resto.com' }]);
+    });
+
+    test('24c. U5: cabeceras x-user-role o x-tenant-id inyectadas por el cliente son sobreescritas o eliminadas por el gateway', async () => {
+      const staffToken = jwt.sign({ userId: 'u-staff', tenantId: 'real-tenant', role: 'staff' }, TEST_SECRET);
+      const upstream = nock('http://localhost:4003', {
+        reqheaders: {
+          'x-user-id': 'u-staff',
+          'x-tenant-id': 'real-tenant',
+          'x-user-role': 'staff',
+        },
+      })
+        .get('/sessions/123')
+        .reply(200, { ok: true });
+
+      const res = await request(app)
+        .get('/v1/sessions/123')
+        .set('Authorization', `Bearer ${staffToken}`)
+        .set('x-user-role', 'admin') // Spoofed header
+        .set('x-tenant-id', 'spoofed-tenant'); // Spoofed header
+
+      expect(upstream.isDone()).toBe(true);
+      expect(res.status).toBe(200);
+    });
+
+    test('24d. U5: POST /v1/auth/change-password exige token y forwardea x-user-id a identity', async () => {
+      // Sin token -> 401
+      const unauthRes = await request(app).post('/v1/auth/change-password').send({});
+      expect(unauthRes.status).toBe(401);
+
+      // Con token -> forwardea a identity
+      const token = jwt.sign({ userId: 'u-pass', tenantId: 't-1', role: 'staff' }, TEST_SECRET);
+      const upstream = nock('http://localhost:4001', {
+        reqheaders: {
+          'x-user-id': 'u-pass',
+        },
+      })
+        .post('/auth/change-password', { currentPassword: 'old', newPassword: 'newpassword123' })
+        .reply(200, { message: 'ok' });
+
+      const res = await request(app)
+        .post('/v1/auth/change-password')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ currentPassword: 'old', newPassword: 'newpassword123' });
+
+      expect(upstream.isDone()).toBe(true);
+      expect(res.status).toBe(200);
+    });
   });
 
   describe('Errores (Tests 25-26)', () => {

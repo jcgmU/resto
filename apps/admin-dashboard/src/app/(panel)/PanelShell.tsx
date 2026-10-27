@@ -1,9 +1,10 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { SidebarRail, PageHeader } from '@packages/ui-components';
+import { SidebarRail, PageHeader, ErrorState, BentoCard } from '@packages/ui-components';
 import type { SidebarRailItem } from '@packages/ui-components';
 import { ApiClient } from '../../lib/api';
+import { getUserRole, isRouteAllowedForRole } from '../../lib/auth';
 
 const Svg = ({ children }: { children: React.ReactNode }) => (
   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -132,14 +133,24 @@ export default function PanelShell({
     return null;
   }
 
+  const role = getUserRole(ApiClient.token);
+  const visibleNav = NAV.filter((n) => {
+    if (role === 'STAFF') {
+      return n.id === 'kds' || n.id === 'mesas' || n.id === 'checkout';
+    }
+    return true;
+  });
+
   const activeId = activeIdFor(pathname);
-  const items: SidebarRailItem[] = NAV.map((n) => ({
+  const items: SidebarRailItem[] = visibleNav.map((n) => ({
     id: n.id,
     label: n.label,
     href: n.href,
     icon: n.icon,
   }));
   const title = NAV.find((n) => n.id === activeId)?.label ?? 'Panel';
+
+  const isAllowed = isRouteAllowedForRole(pathname || '', role);
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bento-hueso)' }}>
@@ -157,7 +168,22 @@ export default function PanelShell({
             boxSizing: 'border-box',
           }}
         >
-          {children}
+          {isAllowed ? (
+            children
+          ) : (
+            <BentoCard
+              style={{
+                backgroundColor: 'var(--bento-papel)',
+                padding: '32px',
+                textAlign: 'center',
+              }}
+            >
+              <ErrorState
+                title="Sin permiso"
+                message="No tienes los permisos requeridos para acceder a esta sección."
+              />
+            </BentoCard>
+          )}
         </main>
       </div>
     </div>

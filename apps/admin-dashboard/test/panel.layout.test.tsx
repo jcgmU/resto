@@ -121,4 +121,73 @@ describe('U4: layout (panel) con SidebarRail + PageHeader', () => {
     mainEl = container.querySelector('main');
     expect(mainEl).toHaveStyle({ maxWidth: '1200px', margin: '0 auto', padding: '24px' });
   });
+
+  describe('U8: Control de acceso por rol en PanelShell', () => {
+    const makeJwt = (role: string) => {
+      const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64');
+      const payload = Buffer.from(JSON.stringify({ userId: 'u1', tenantId: 't1', role })).toString('base64');
+      return `${header}.${payload}.signature`;
+    };
+
+    test('con token STAFF solo muestra KDS, Mesas y Checkout en la barra lateral', async () => {
+      ApiClient.token = makeJwt('STAFF');
+      mockPathname = '/kds';
+
+      render(
+        <PanelLayout>
+          <div>Vista KDS</div>
+        </PanelLayout>,
+      );
+
+      await screen.findByText('Vista KDS');
+      const nav = screen.getByRole('navigation');
+
+      // Destinos que sí debe tener STAFF
+      expect(nav.querySelector('a[href="/kds"]')).not.toBeNull();
+      expect(nav.querySelector('a[href="/mesas"]')).not.toBeNull();
+      expect(nav.querySelector('a[href="/checkout"]')).not.toBeNull();
+
+      // Destinos restringidos ocultos para STAFF
+      expect(nav.querySelector('a[href="/dashboard"]')).toBeNull();
+      expect(nav.querySelector('a[href="/menu"]')).toBeNull();
+      expect(nav.querySelector('a[href="/pagos"]')).toBeNull();
+      expect(nav.querySelector('a[href="/ajustes"]')).toBeNull();
+    });
+
+    test('con token STAFF al intentar navegar a /dashboard muestra "Sin permiso"', async () => {
+      ApiClient.token = makeJwt('STAFF');
+      mockPathname = '/dashboard';
+
+      render(
+        <PanelLayout>
+          <div>Dashboard Secreto</div>
+        </PanelLayout>,
+      );
+
+      await screen.findByText('Sin permiso');
+      expect(screen.queryByText('Dashboard Secreto')).not.toBeInTheDocument();
+      expect(screen.getByText(/No tienes los permisos requeridos/i)).toBeInTheDocument();
+    });
+
+    test('con token MANAGER muestra todos los destinos', async () => {
+      ApiClient.token = makeJwt('MANAGER');
+      mockPathname = '/dashboard';
+
+      render(
+        <PanelLayout>
+          <div>Dashboard Manager</div>
+        </PanelLayout>,
+      );
+
+      await screen.findByText('Dashboard Manager');
+      const nav = screen.getByRole('navigation');
+      expect(nav.querySelector('a[href="/dashboard"]')).not.toBeNull();
+      expect(nav.querySelector('a[href="/menu"]')).not.toBeNull();
+      expect(nav.querySelector('a[href="/mesas"]')).not.toBeNull();
+      expect(nav.querySelector('a[href="/kds"]')).not.toBeNull();
+      expect(nav.querySelector('a[href="/checkout"]')).not.toBeNull();
+      expect(nav.querySelector('a[href="/pagos"]')).not.toBeNull();
+      expect(nav.querySelector('a[href="/ajustes"]')).not.toBeNull();
+    });
+  });
 });

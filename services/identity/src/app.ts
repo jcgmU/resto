@@ -4,6 +4,8 @@ import { RegisterTenantUseCaseImpl } from './application/RegisterTenant';
 import { LoginUseCaseImpl } from './application/Login';
 import { RefreshSessionUseCaseImpl } from './application/RefreshSession';
 import { InviteUserUseCaseImpl } from './application/InviteUser';
+import { ManageTeamUseCaseImpl } from './application/ManageTeam';
+import { ChangePasswordUseCaseImpl } from './application/ChangePassword';
 import { BcryptPasswordHasher } from './infrastructure/security/BcryptPasswordHasher';
 import { JwtTokenIssuer } from './infrastructure/security/JwtTokenIssuer';
 import { PrismaClient } from './generated/client';
@@ -60,7 +62,9 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
     sharedTokenIssuer
   );
 
-  const inviteUser = new InviteUserUseCaseImpl(userRepo);
+  const inviteUser = new InviteUserUseCaseImpl(userRepo, sharedPasswordHasher);
+  const manageTeam = new ManageTeamUseCaseImpl(userRepo, refreshTokenRepo, sharedPasswordHasher);
+  const changePassword = new ChangePasswordUseCaseImpl(userRepo, refreshTokenRepo, sharedPasswordHasher);
 
   // Health
   app.get('/health', (_req: Request, res: Response) => {
@@ -90,6 +94,30 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
     try {
       const result = await refreshSession.execute(req.body);
       res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.post('/auth/change-password', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = (req.headers['x-user-id'] as string) || req.body.userId;
+      if (!userId) {
+        return res.status(401).json({
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Cabeceras de identidad requeridas',
+          },
+        });
+      }
+
+      await changePassword.execute({
+        userId,
+        currentPassword: req.body.currentPassword,
+        newPassword: req.body.newPassword,
+      });
+
+      res.status(200).json({ message: 'Contraseña actualizada exitosamente' });
     } catch (err) {
       next(err);
     }
@@ -126,6 +154,36 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
     }
   });
 
+  app.get('/identity/users', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = req.headers['x-tenant-id'] as string;
+      const role = req.headers['x-user-role'] as string;
+
+      if (!tenantId) {
+        return res.status(401).json({
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Cabeceras de identidad requeridas',
+          },
+        });
+      }
+
+      if (role !== 'ADMIN') {
+        return res.status(403).json({
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Permiso denegado. Se requiere rol ADMIN',
+          },
+        });
+      }
+
+      const users = await manageTeam.listUsers(tenantId);
+      res.status(200).json(users);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   app.post('/identity/users', async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
@@ -153,10 +211,158 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
         tenantId,
         email: req.body.email,
         displayName: req.body.displayName,
+        password: req.body.password,
         role: req.body.role || 'STAFF',
       });
 
       res.status(201).json(invited);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.patch('/identity/users/:id', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = req.headers['x-tenant-id'] as string;
+      const role = req.headers['x-user-role'] as string;
+      const userId = req.headers['x-user-id'] as string;
+
+      if (!tenantId) {
+        return res.status(401).json({
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Cabeceras de identidad requeridas',
+          },
+        });
+      }
+
+      if (role !== 'ADMIN') {
+        return res.status(403).json({
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Permiso denegado. Se requiere rol ADMIN',
+          },
+        });
+      }
+
+      const updated = await manageTeam.updateUser({
+        tenantId,
+        currentUserId: userId,
+        targetUserId: req.params.id,
+        displayName: req.body.displayName,
+        role: req.body.role,
+      });
+
+      res.status(200).json(updated);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.post('/identity/users/:id/disable', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = req.headers['x-tenant-id'] as string;
+      const role = req.headers['x-user-role'] as string;
+      const userId = req.headers['x-user-id'] as string;
+
+      if (!tenantId) {
+        return res.status(401).json({
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Cabeceras de identidad requeridas',
+          },
+        });
+      }
+
+      if (role !== 'ADMIN') {
+        return res.status(403).json({
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Permiso denegado. Se requiere rol ADMIN',
+          },
+        });
+      }
+
+      const disabled = await manageTeam.setStatus({
+        tenantId,
+        currentUserId: userId,
+        targetUserId: req.params.id,
+        status: 'DISABLED',
+      });
+
+      res.status(200).json(disabled);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.post('/identity/users/:id/enable', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = req.headers['x-tenant-id'] as string;
+      const role = req.headers['x-user-role'] as string;
+      const userId = req.headers['x-user-id'] as string;
+
+      if (!tenantId) {
+        return res.status(401).json({
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Cabeceras de identidad requeridas',
+          },
+        });
+      }
+
+      if (role !== 'ADMIN') {
+        return res.status(403).json({
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Permiso denegado. Se requiere rol ADMIN',
+          },
+        });
+      }
+
+      const enabled = await manageTeam.setStatus({
+        tenantId,
+        currentUserId: userId,
+        targetUserId: req.params.id,
+        status: 'ACTIVE',
+      });
+
+      res.status(200).json(enabled);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.post('/identity/users/:id/reset-password', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = req.headers['x-tenant-id'] as string;
+      const role = req.headers['x-user-role'] as string;
+
+      if (!tenantId) {
+        return res.status(401).json({
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Cabeceras de identidad requeridas',
+          },
+        });
+      }
+
+      if (role !== 'ADMIN') {
+        return res.status(403).json({
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Permiso denegado. Se requiere rol ADMIN',
+          },
+        });
+      }
+
+      const result = await manageTeam.resetPassword({
+        tenantId,
+        targetUserId: req.params.id,
+        newPassword: req.body.password,
+      });
+
+      res.status(200).json(result);
     } catch (err) {
       next(err);
     }

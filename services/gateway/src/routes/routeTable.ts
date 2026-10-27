@@ -14,8 +14,14 @@ export const routeTable: RouteDefinition[] = [
 
   // Auth & Identity (protegidas)
   { method: 'POST', path: '/v1/auth/logout', auth: true, targetService: 'identity' },
+  { method: 'POST', path: '/v1/auth/change-password', auth: true, targetService: 'identity' },
   { method: 'GET', path: '/v1/identity/me', auth: true, targetService: 'identity' },
+  { method: 'GET', path: '/v1/identity/users', auth: true, requiredRoles: ['admin'], targetService: 'identity' },
   { method: 'POST', path: '/v1/identity/users', auth: true, requiredRoles: ['admin'], targetService: 'identity' },
+  { method: 'POST', path: '/v1/identity/users/:id/disable', auth: true, requiredRoles: ['admin'], targetService: 'identity' },
+  { method: 'POST', path: '/v1/identity/users/:id/enable', auth: true, requiredRoles: ['admin'], targetService: 'identity' },
+  { method: 'POST', path: '/v1/identity/users/:id/reset-password', auth: true, requiredRoles: ['admin'], targetService: 'identity' },
+  { method: 'PATCH', path: '/v1/identity/users/:id', auth: true, requiredRoles: ['admin'], targetService: 'identity' },
   { path: '/v1/identity/users/:id', auth: true, requiredRoles: ['admin'], targetService: 'identity' },
 
   // Catalog

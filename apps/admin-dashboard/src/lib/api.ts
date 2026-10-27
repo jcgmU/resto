@@ -163,6 +163,58 @@ export class ApiClient {
     return response;
   }
 
+  static async listTeam(): Promise<any> {
+    return this.request('/v1/identity/users', {
+      method: 'GET',
+    });
+  }
+
+  static async createTeamMember(data: {
+    email: string;
+    displayName: string;
+    role: 'MANAGER' | 'STAFF';
+    password: string;
+  }): Promise<any> {
+    return this.request('/v1/identity/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  static async updateTeamMember(
+    id: string,
+    data: { displayName?: string; role?: 'MANAGER' | 'STAFF' }
+  ): Promise<any> {
+    return this.request(`/v1/identity/users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  static async setTeamMemberActive(id: string, active: boolean): Promise<any> {
+    const action = active ? 'enable' : 'disable';
+    return this.request(`/v1/identity/users/${id}/${action}`, {
+      method: 'POST',
+    });
+  }
+
+  static async resetTeamMemberPassword(id: string, password?: string): Promise<any> {
+    return this.request(`/v1/identity/users/${id}/reset-password`, {
+      method: 'POST',
+      body: JSON.stringify(password ? { password } : {}),
+    });
+  }
+
+  static async changePassword(data: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<any> {
+    return this.request('/v1/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   static clearAuth(): void {
     this.token = null;
     this.refreshToken = null;

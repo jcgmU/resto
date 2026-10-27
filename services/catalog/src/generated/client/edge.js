@@ -170,7 +170,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\services\\catalog\\src\\generated\\client",
+      "value": "/Users/jcgm/Developer/Resto/services/catalog/src/generated/client",
       "fromEnvVar": null
     },
     "config": {
@@ -179,7 +179,7 @@ const config = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "windows",
+        "value": "darwin-arm64",
         "native": true
       },
       {
@@ -188,7 +188,7 @@ const config = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\services\\catalog\\prisma\\schema.prisma",
+    "sourceFilePath": "/Users/jcgm/Developer/Resto/services/catalog/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {

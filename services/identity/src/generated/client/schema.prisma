@@ -25,6 +25,7 @@ enum UserStatus {
   ACTIVE
   INVITED
   SUSPENDED
+  DISABLED
 }
 
 model Tenant {

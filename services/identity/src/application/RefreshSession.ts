@@ -34,8 +34,8 @@ export class RefreshSessionUseCaseImpl implements RefreshSessionUseCase {
     await this.refreshTokenRepo.revoke(valid.id);
 
     const user = await this.userRepo.findById(valid.userId);
-    if (!user) {
-      throw new DomainError('INVALID_CREDENTIALS', 'Usuario no encontrado');
+    if (!user || user.status !== 'ACTIVE') {
+      throw new DomainError('INVALID_CREDENTIALS', 'Sesión inválida o usuario inactivo');
     }
 
     const accessToken = this.tokenIssuer.issueAccessToken({

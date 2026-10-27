@@ -3,12 +3,12 @@
 > Bloque que actualizan los agentes en cada checkpoint (ver Protocolo). Notas libres debajo.
 
 <!-- team-state:begin -->
-- **fase**: sesion de desarrollo cerrada: frontend-lineagrafica + README de despliegue y uso (pusheado)
-- **ronda**: 3
+- **fase**: hilo equipo-usuarios: ejecucion completada por agy; listo para verificacion de claude
+- **ronda**: 1
 - **turno**: usuario
-- **siguiente**: opcional: deuda menor del frontend (ver README seccion 11); decision de politica de pagos; despliegue segun README seccion 5
+- **siguiente**: decidir si agy corrige redireccion post-login por rol (hallazgo menor, ver Verificaciones/2026-10-26-2045)
 - **engram_pendiente**: no
-- **actualizado**: 2026-10-11
+- **actualizado**: 2026-10-26
 <!-- team-state:end -->
 
 ## Notas

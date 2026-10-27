@@ -8,6 +8,12 @@ export function createServiceProxy(target: string) {
     pathRewrite: (path: string) => path.replace(/^\/v1/, ''),
     on: {
       proxyReq: (proxyReq: any, req: any) => {
+        // Eliminar cabeceras de identidad que pudieran venir inyectadas por el cliente
+        proxyReq.removeHeader('x-user-id');
+        proxyReq.removeHeader('x-tenant-id');
+        proxyReq.removeHeader('x-user-role');
+        proxyReq.removeHeader('x-session-id');
+
         const user = req.user;
         if (user) {
           if (user.userId) proxyReq.setHeader('x-user-id', String(user.userId));

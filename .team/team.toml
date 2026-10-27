@@ -9,10 +9,10 @@ kind = "claude"
 version = "2.1.296"
 
 [roles.planner]
-agent_name = "kimi"
-kind = "kimi"
-version = "2.1.1"
-last_session_id = "session_2dc4b948-79bc-4660-979b-579b8e154809"
+agent_name = "codex"
+kind = "codex"
+version = "0.164.0"
+last_session_id = ""
 
 [roles.executor]
 agent_name = "agy"
