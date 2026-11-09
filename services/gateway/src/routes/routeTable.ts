@@ -29,6 +29,9 @@ export const routeTable: RouteDefinition[] = [
 
   // Sessions (Oleada 2)
   { method: 'POST', path: '/v1/sessions/open', auth: false, targetService: 'session' },
+  { method: 'POST', path: '/v1/tables/batch/delete', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },
+  { method: 'POST', path: '/v1/tables/batch', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },
+  { method: 'PATCH', path: '/v1/tables/batch', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },
   { method: 'POST', path: '/v1/tables/:tableId/qr/rotate', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },
   { method: 'GET', path: '/v1/tables/:tableId/qr', auth: true, requiredRoles: ['staff', 'manager', 'admin'], targetService: 'session' },
   { method: 'PATCH', path: '/v1/tables/:tableId', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },

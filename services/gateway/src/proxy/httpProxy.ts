@@ -12,21 +12,34 @@ export function createServiceProxy(target: string) {
         proxyReq.removeHeader('x-user-id');
         proxyReq.removeHeader('x-tenant-id');
         proxyReq.removeHeader('x-user-role');
+        proxyReq.removeHeader('x-role');
         proxyReq.removeHeader('x-session-id');
+        proxyReq.removeHeader('x-table-id');
 
         const user = req.user;
         if (user) {
           if (user.userId) proxyReq.setHeader('x-user-id', String(user.userId));
           if (user.tenantId) proxyReq.setHeader('x-tenant-id', String(user.tenantId));
-          if (user.role) proxyReq.setHeader('x-user-role', String(user.role));
+          const role = user.role || (user.sessionId ? 'GUEST' : undefined);
+          if (role) proxyReq.setHeader('x-user-role', String(role));
           if (user.sessionId) proxyReq.setHeader('x-session-id', String(user.sessionId));
+          if (user.tableId) proxyReq.setHeader('x-table-id', String(user.tableId));
         }
 
-        if (req.body && Object.keys(req.body).length > 0) {
-          const bodyData = JSON.stringify(req.body);
-          proxyReq.setHeader('Content-Type', 'application/json');
-          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-          proxyReq.write(bodyData);
+        if (req.body !== undefined && req.body !== null) {
+          const contentLength = req.headers?.['content-length'];
+          const hasTransferEncoding = Boolean(req.headers?.['transfer-encoding']);
+          const hasExplicitBody =
+            (contentLength !== undefined && Number(contentLength) > 0) ||
+            hasTransferEncoding ||
+            Object.keys(req.body).length > 0;
+
+          if (hasExplicitBody) {
+            const bodyData = JSON.stringify(req.body);
+            proxyReq.setHeader('Content-Type', 'application/json');
+            proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+            proxyReq.write(bodyData);
+          }
         }
       },
       error: (err: any, req: any, res: any) => {

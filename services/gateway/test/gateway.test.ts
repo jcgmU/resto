@@ -2,9 +2,12 @@ import request from 'supertest';
 import nock from 'nock';
 import jwt from 'jsonwebtoken';
 import http from 'http';
+import express from 'express';
 import { Server as SocketIOServer } from 'socket.io';
 import { io as ioc, Socket as ClientSocket } from 'socket.io-client';
 import { createApp } from '../src/app';
+import { config } from '../src/config';
+import { routeTable } from '../src/routes/routeTable';
 
 const TEST_SECRET = 'super-secret-jwt-key-oleada-0';
 process.env.JWT_SECRET = TEST_SECRET;
@@ -213,6 +216,36 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
       expect(res.status).toBe(200);
     });
 
+    test('24e. U2: guest JWT sin rol con spoof x-role: ADMIN y x-user-role: ADMIN tiene todas las cabeceras de rol eliminadas/fijadas a GUEST y upstream no recibe x-role', async () => {
+      // Guest token: issued with sessionId, tableId, tenantId, but without staff role
+      const guestToken = jwt.sign({ sessionId: 'session-guest-99', tableId: 'table-5', tenantId: 'tenant-real' }, TEST_SECRET);
+      let capturedHeaders: any = null;
+      const upstream = nock('http://localhost:4002')
+        .post('/graphql')
+        .reply(function (this: any, _uri, _requestBody) {
+          capturedHeaders = this.req.headers;
+          return [200, { data: { categories: [] } }];
+        });
+
+      const res = await request(app)
+        .post('/v1/graphql')
+        .set('Authorization', `Bearer ${guestToken}`)
+        .set('x-role', 'ADMIN') // Spoofed header
+        .set('x-user-role', 'ADMIN') // Spoofed header
+        .set('x-user-id', 'spoofed-user-id') // Spoofed header
+        .set('x-tenant-id', 'spoofed-tenant-id') // Spoofed header
+        .send({ query: '{ categories { id } }' });
+
+      expect(upstream.isDone()).toBe(true);
+      expect(res.status).toBe(200);
+      expect(capturedHeaders).toBeDefined();
+      expect(capturedHeaders['x-role']).toBeUndefined();
+      expect(capturedHeaders['x-user-role']).toBe('GUEST');
+      expect(capturedHeaders['x-session-id']).toBe('session-guest-99');
+      expect(capturedHeaders['x-tenant-id']).toBe('tenant-real');
+      expect(capturedHeaders['x-user-id']).toBeUndefined();
+    });
+
     test('24d. U5: POST /v1/auth/change-password exige token y forwardea x-user-id a identity', async () => {
       // Sin token -> 401
       const unauthRes = await request(app).post('/v1/auth/change-password').send({});
@@ -359,5 +392,268 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
         });
       });
     }, 4000);
+  });
+
+  describe('X1: Reenvío de cuerpos HTTP contra upstream Express real (Tests 29-32)', () => {
+    let upstreamServer: http.Server;
+    let originalOrderingUrl: string;
+    let lastReceivedHeaders: http.IncomingHttpHeaders | undefined;
+    let lastReceivedBody: any;
+    let lastRawBytesLength: number;
+
+    beforeEach((done) => {
+      originalOrderingUrl = config.services.ordering;
+      lastReceivedHeaders = undefined;
+      lastReceivedBody = undefined;
+      lastRawBytesLength = 0;
+
+      const upstreamApp = express();
+      upstreamApp.use((req, _res, next) => {
+        req.on('data', (chunk: Buffer) => {
+          lastRawBytesLength += chunk.length;
+        });
+        next();
+      });
+      upstreamApp.use(express.json());
+      upstreamApp.all('*', (req, res) => {
+        lastReceivedHeaders = req.headers;
+        lastReceivedBody = req.body;
+        res.status(200).json({
+          ok: true,
+          method: req.method,
+          path: req.path,
+          receivedBody: req.body,
+          contentLength: req.headers['content-length'] ?? null,
+        });
+      });
+
+      upstreamServer = http.createServer(upstreamApp);
+      upstreamServer.listen(0, () => {
+        const port = (upstreamServer.address() as any).port;
+        config.services.ordering = `http://localhost:${port}`;
+        app = createApp();
+        done();
+      });
+    });
+
+    afterEach((done) => {
+      config.services.ordering = originalOrderingUrl;
+      if (upstreamServer) {
+        (upstreamServer as any).closeAllConnections?.();
+        upstreamServer.close(() => done());
+      } else {
+        done();
+      }
+    });
+
+    test('29. POST /v1/cart/confirm con cuerpo "{}" explícito no se cuelga y reenvía "{}" con Content-Length: 2', async () => {
+      const token = jwt.sign({ userId: 'u1', tenantId: 't1', role: 'customer', sessionId: 's1' }, TEST_SECRET);
+      const start = Date.now();
+
+      const res = await request(app)
+        .post('/v1/cart/confirm')
+        .set('Authorization', `Bearer ${token}`)
+        .set('Content-Type', 'application/json')
+        .send('{}')
+        .timeout(500);
+
+      const elapsed = Date.now() - start;
+      expect(res.status).toBe(200);
+      expect(elapsed).toBeLessThan(500);
+      expect(res.body.receivedBody).toEqual({});
+      expect(lastReceivedHeaders?.['content-length']).toBe('2');
+      expect(lastRawBytesLength).toBe(2);
+    });
+
+    test('30. POST y PATCH con cuerpo con datos reenvían el JSON intacto y Content-Length consistente', async () => {
+      const token = jwt.sign({ userId: 'u1', tenantId: 't1', role: 'admin', sessionId: 's1' }, TEST_SECRET);
+      const payload = { tableId: 'T-1', quantity: 2 };
+      const expectedLength = String(Buffer.byteLength(JSON.stringify(payload)));
+
+      const postRes = await request(app)
+        .post('/v1/cart/items')
+        .set('Authorization', `Bearer ${token}`)
+        .send(payload)
+        .timeout(500);
+
+      expect(postRes.status).toBe(200);
+      expect(postRes.body.receivedBody).toEqual(payload);
+      expect(lastReceivedHeaders?.['content-length']).toBe(expectedLength);
+
+      const patchPayload = { status: 'PREPARING' };
+      const expectedPatchLength = String(Buffer.byteLength(JSON.stringify(patchPayload)));
+
+      const patchRes = await request(app)
+        .patch('/v1/orders/ord-1/status')
+        .set('Authorization', `Bearer ${token}`)
+        .send(patchPayload)
+        .timeout(500);
+
+      expect(patchRes.status).toBe(200);
+      expect(patchRes.body.receivedBody).toEqual(patchPayload);
+      expect(lastReceivedHeaders?.['content-length']).toBe(expectedPatchLength);
+    });
+
+    test('31. POST y PATCH sin cuerpo (sin Content-Length ni Content-Type) no se cuelgan y responden rápido', async () => {
+      const token = jwt.sign({ userId: 'u1', tenantId: 't1', role: 'staff', sessionId: 's1' }, TEST_SECRET);
+
+      const postRes = await request(app)
+        .post('/v1/cart/confirm')
+        .set('Authorization', `Bearer ${token}`)
+        .timeout(500);
+
+      expect(postRes.status).toBe(200);
+      expect(lastRawBytesLength).toBe(0);
+
+      const patchRes = await request(app)
+        .patch('/v1/service-calls/sc-1/resolve')
+        .set('Authorization', `Bearer ${token}`)
+        .timeout(500);
+
+      expect(patchRes.status).toBe(200);
+      expect(lastRawBytesLength).toBe(0);
+    });
+
+    test('32. GET y DELETE sin cuerpo no envían body artificial ni se cuelgan', async () => {
+      const token = jwt.sign({ userId: 'u1', tenantId: 't1', role: 'customer', sessionId: 's1' }, TEST_SECRET);
+
+      const getRes = await request(app)
+        .get('/v1/cart')
+        .set('Authorization', `Bearer ${token}`)
+        .timeout(500);
+
+      expect(getRes.status).toBe(200);
+      expect(lastRawBytesLength).toBe(0);
+      expect(lastReceivedHeaders?.['content-length']).toBeUndefined();
+
+      const delRes = await request(app)
+        .delete('/v1/cart/items/item-1')
+        .set('Authorization', `Bearer ${token}`)
+        .timeout(500);
+
+      expect(delRes.status).toBe(200);
+      expect(lastRawBytesLength).toBe(0);
+    });
+  });
+
+  describe('U4: Operaciones en lote de mesas (/v1/tables/batch*)', () => {
+    const batchRoutes = [
+      { method: 'post' as const, path: '/v1/tables/batch', upstreamPath: '/tables/batch', body: { prefix: 'M-', startNumber: 1, count: 5 } },
+      { method: 'patch' as const, path: '/v1/tables/batch', upstreamPath: '/tables/batch', body: { ids: ['t-1', 't-2'], zone: 'Terraza' } },
+      { method: 'post' as const, path: '/v1/tables/batch/delete', upstreamPath: '/tables/batch/delete', body: { ids: ['t-1', 't-2'] } },
+    ];
+
+    test('33. Las rutas /v1/tables/batch* están declaradas en routeTable ANTES de /v1/tables/:tableId*', () => {
+      const firstTableParamIdx = routeTable.findIndex((r) => r.path.startsWith('/v1/tables/:tableId'));
+      const batchDeleteIdx = routeTable.findIndex((r) => r.method === 'POST' && r.path === '/v1/tables/batch/delete');
+      const batchPostIdx = routeTable.findIndex((r) => r.method === 'POST' && r.path === '/v1/tables/batch');
+      const batchPatchIdx = routeTable.findIndex((r) => r.method === 'PATCH' && r.path === '/v1/tables/batch');
+
+      expect(firstTableParamIdx).toBeGreaterThan(-1);
+      expect(batchDeleteIdx).toBeGreaterThan(-1);
+      expect(batchPostIdx).toBeGreaterThan(-1);
+      expect(batchPatchIdx).toBeGreaterThan(-1);
+
+      expect(batchDeleteIdx).toBeLessThan(firstTableParamIdx);
+      expect(batchPostIdx).toBeLessThan(firstTableParamIdx);
+      expect(batchPatchIdx).toBeLessThan(firstTableParamIdx);
+    });
+
+    test.each(batchRoutes)(
+      '34. $method $path sin token JWT -> 401 UNAUTHORIZED',
+      async ({ method, path, body }) => {
+        const res = await request(app)[method](path).send(body);
+        expect(res.status).toBe(401);
+        expect(res.body.error?.code).toBe('UNAUTHORIZED');
+      }
+    );
+
+    test.each(batchRoutes)(
+      '35. $method $path con token de rol staff -> 403 FORBIDDEN',
+      async ({ method, path, body }) => {
+        const staffToken = jwt.sign({ userId: 'u-staff', tenantId: 't-1', role: 'staff' }, TEST_SECRET);
+        const res = await request(app)[method](path)
+          .set('Authorization', `Bearer ${staffToken}`)
+          .send(body);
+
+        expect(res.status).toBe(403);
+        expect(res.body.error?.code).toBe('FORBIDDEN');
+      }
+    );
+
+    test.each(batchRoutes)(
+      '36. $method $path con rol admin y manager hace proxy exitoso al upstream session',
+      async ({ method, path, upstreamPath, body }) => {
+        for (const role of ['admin', 'manager']) {
+          const token = jwt.sign({ userId: `u-${role}`, tenantId: 't-1', role }, TEST_SECRET);
+          const upstream = nock('http://localhost:4003', {
+            reqheaders: {
+              'x-user-id': `u-${role}`,
+              'x-tenant-id': 't-1',
+              'x-user-role': role,
+            },
+          })[method](upstreamPath, body).reply(200, { ok: true, role });
+
+          const res = await request(app)[method](path)
+            .set('Authorization', `Bearer ${token}`)
+            .send(body);
+
+          expect(upstream.isDone()).toBe(true);
+          expect(res.status).toBe(200);
+          expect(res.body).toEqual({ ok: true, role });
+        }
+      }
+    );
+
+    test('37. PATCH /v1/tables/batch llega al upstream session como PATCH /tables/batch con body JSON íntegro (no capturado por :tableId)', async () => {
+      const adminToken = jwt.sign({ userId: 'u-admin', tenantId: 'tenant-abc', role: 'admin' }, TEST_SECRET);
+      const payload = { ids: ['tbl-1', 'tbl-2', 'tbl-3'], status: 'AVAILABLE', capacity: 6 };
+
+      let capturedPath = '';
+      let capturedBody: any = null;
+      const upstream = nock('http://localhost:4003')
+        .patch('/tables/batch')
+        .reply(function (this: any, uri, requestBody) {
+          capturedPath = uri;
+          capturedBody = requestBody;
+          return [200, { updatedCount: 3 }];
+        });
+
+      const res = await request(app)
+        .patch('/v1/tables/batch')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(payload);
+
+      expect(upstream.isDone()).toBe(true);
+      expect(res.status).toBe(200);
+      expect(capturedPath).toBe('/tables/batch');
+      expect(capturedBody).toEqual(payload);
+      expect(res.body).toEqual({ updatedCount: 3 });
+    });
+
+    test.each(batchRoutes)(
+      '38. $method $path reemplaza headers spoofeados (x-tenant-id, x-user-role) con los del JWT verificado',
+      async ({ method, path, upstreamPath, body }) => {
+        const managerToken = jwt.sign({ userId: 'u-mgr-real', tenantId: 'tenant-real', role: 'manager' }, TEST_SECRET);
+        let capturedHeaders: Record<string, any> = {};
+
+        const upstream = nock('http://localhost:4003')[method](upstreamPath, body).reply(function (this: any) {
+          capturedHeaders = this.req.headers;
+          return [200, { ok: true }];
+        });
+
+        const res = await request(app)[method](path)
+          .set('Authorization', `Bearer ${managerToken}`)
+          .set('x-tenant-id', 'spoofed-tenant')
+          .set('x-user-role', 'admin')
+          .send(body);
+
+        expect(upstream.isDone()).toBe(true);
+        expect(res.status).toBe(200);
+        expect(capturedHeaders['x-tenant-id']).toBe('tenant-real');
+        expect(capturedHeaders['x-user-role']).toBe('manager');
+        expect(capturedHeaders['x-user-id']).toBe('u-mgr-real');
+      }
+    );
   });
 });
