@@ -132,10 +132,17 @@ describe('U10: Admin Dashboard, Pagos y Ajustes', () => {
         expect(screen.getByText('3')).toBeInTheDocument();
       });
 
-      // H2: Los KPIs están envueltos en BentoCard con fondo var(--bento-papel)
+      // Los KPIs viven dentro de un panel de vidrio mate de la grilla bento
       const kpis = container.querySelectorAll('[data-component="kpi-delta"]');
       expect(kpis.length).toBeGreaterThanOrEqual(2);
-      expect(kpis[0].closest('[data-component="bento-card"]')).not.toBeNull();
+      expect(kpis[0].closest('.glass')).not.toBeNull();
+
+      // Mapa de mesas: estado real por mesa (ocupada, pidió cuenta, libre)
+      expect(screen.getByText('Mapa de mesas')).toBeInTheDocument();
+      expect(container.querySelectorAll('.tbl').length).toBe(4);
+      expect(container.querySelector('.tbl[data-state="cuenta"]')).toHaveTextContent('Mesa 1');
+      expect(container.querySelector('.tbl[data-state="ocupada"]')).toHaveTextContent('Mesa 2');
+      expect(container.querySelectorAll('.tbl[data-state="libre"]').length).toBe(2);
 
       // KPI sin endpoint real (analytics) está protegido tras FeatureGuard mostrando Próximamente
       expect(screen.getAllByTestId('proximamente').length).toBeGreaterThanOrEqual(1);
@@ -166,14 +173,8 @@ describe('U10: Admin Dashboard, Pagos y Ajustes', () => {
       expect(screen.getByText('Sin alertas activas')).toBeInTheDocument();
     });
 
-    test('5. Flag "analytics" ON: Ventas del Día y Ticket Promedio muestran Próximamente (no $0.00 falso sin endpoint)', async () => {
-      ApiClient.request = jest.fn().mockImplementation(async (url: string) => {
-        if (url.includes('/v1/sessions')) return { status: 200, data: [] };
-        if (url.includes('/v1/tables')) return { status: 200, data: [] };
-        if (url.includes('/v1/orders')) return { status: 200, data: [] };
-        if (url.includes('/v1/service-calls')) return { status: 200, data: [] };
-        return { status: 200, data: [] };
-      });
+    test('5. Flag "analytics" ON: ingresos en COP con datos de ejemplo claramente marcados', async () => {
+      ApiClient.request = jest.fn().mockImplementation(async () => ({ status: 200, data: [] }));
 
       renderWithFlags(<DashboardPage />, { analytics: true });
 
@@ -181,10 +182,35 @@ describe('U10: Admin Dashboard, Pagos y Ajustes', () => {
         expect(screen.getByText('Mesas Activas')).toBeInTheDocument();
       });
 
-      expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
-      expect(screen.getAllByTestId('proximamente').length).toBeGreaterThanOrEqual(2);
-      expect(screen.getByText(/Ventas del Día/i)).toBeInTheDocument();
-      expect(screen.getByText(/Ticket Promedio/i)).toBeInTheDocument();
+      expect(screen.getByText('Datos de ejemplo')).toBeInTheDocument();
+      expect(screen.getByText(/2\.847\.500/)).toBeInTheDocument();
+      expect(screen.queryByTestId('proximamente')).not.toBeInTheDocument();
+    });
+
+    test('6. Flag "analytics" OFF: los ingresos muestran Próximamente y ninguna cifra inventada', async () => {
+      ApiClient.request = jest.fn().mockImplementation(async () => ({ status: 200, data: [] }));
+
+      renderWithFlags(<DashboardPage />, { analytics: false });
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesas Activas')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('proximamente')).toBeInTheDocument();
+      expect(screen.getByText(/Ingresos del día/i)).toBeInTheDocument();
+      expect(screen.queryByText(/2\.847\.500/)).not.toBeInTheDocument();
+    });
+
+    test('7. Accesos de inventario: solo la disponibilidad del menú navega; el resto está deshabilitado y rotulado', async () => {
+      ApiClient.request = jest.fn().mockImplementation(async () => ({ status: 200, data: [] }));
+
+      renderWithFlags(<DashboardPage />);
+
+      const link = await screen.findByRole('link', { name: /Disponibilidad de productos/i });
+      expect(link).toHaveAttribute('href', '/menu');
+      const pending = screen.getAllByText('Pronto');
+      expect(pending.length).toBe(3);
+      pending.forEach((el) => expect(el.closest('button')).toHaveAttribute('aria-disabled', 'true'));
     });
   });
 
