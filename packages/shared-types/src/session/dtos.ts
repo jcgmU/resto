@@ -2,8 +2,9 @@ export interface TableDTO {
   tableId: string;
   tenantId: string;
   label: string;
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'deleted';
   createdAt: string;
+  deletedAt?: string;
 }
 
 export interface TableSessionDTO {

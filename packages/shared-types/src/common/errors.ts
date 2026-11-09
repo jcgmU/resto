@@ -13,11 +13,19 @@ export type DomainErrorCode =
   | 'QR_KEY_INVALID'
   | 'TABLE_NOT_FOUND'
   | 'TABLE_INACTIVE'
+  | 'TABLE_LABEL_TAKEN'
+  | 'TABLE_LIMIT_EXCEEDED'
+  | 'TABLES_NOT_DELETABLE'
+  | 'TABLE_HAS_ACTIVE_SESSION'
   | 'SESSION_NOT_FOUND'
   | 'SESSION_EXPIRED';
 
 export class DomainError extends Error {
-  constructor(public readonly code: DomainErrorCode, message: string) {
+  constructor(
+    public readonly code: DomainErrorCode,
+    message: string,
+    public readonly details?: unknown
+  ) {
     super(message);
     this.name = 'DomainError';
   }

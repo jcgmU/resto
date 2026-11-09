@@ -12,6 +12,18 @@ export interface TableRepository {
   save(tenantId: string, table: TableDTO & { qrKey: string }): Promise<TableDTO>;
   findById(tenantId: string, tableId: string): Promise<(TableDTO & { qrKey: string }) | null>;
   listByTenant(tenantId: string): Promise<TableDTO[]>;
+  createMany(tenantId: string, tables: Array<TableDTO & { qrKey: string; labelKey?: string }>): Promise<TableDTO[]>;
+  updateMany(
+    tenantId: string,
+    updates: Array<{ tableId: string; label?: string; labelKey?: string; status?: 'active' | 'inactive' }>
+  ): Promise<TableDTO[]>;
+  softDeleteMany(
+    tenantId: string,
+    items: Array<{ tableId: string; deletedAt: string; newQrKey: string }>
+  ): Promise<{
+    deleted: string[];
+    failed: Array<{ tableId: string; code: 'TABLE_HAS_ACTIVE_SESSION' | 'TABLE_NOT_FOUND' }>;
+  }>;
 }
 
 export interface TableSessionRepository {
