@@ -19,9 +19,10 @@ export class PrismaPaymentRepository implements PaymentRepository {
     };
   }
 
-  async save(tenantId: string, payment: PaymentDTO): Promise<PaymentDTO> {
+  async save(tenantId: string, payment: PaymentDTO, tx?: any): Promise<PaymentDTO> {
+    const client = tx || this.prisma;
     try {
-      const created = await this.prisma.payment.create({
+      const created = await client.payment.create({
         data: {
           id: payment.id,
           tenantId,
@@ -37,7 +38,7 @@ export class PrismaPaymentRepository implements PaymentRepository {
       return this.mapToDTO(created);
     } catch (err: any) {
       if (err?.code === 'P2002' || err?.message?.includes('Unique constraint')) {
-        const existing = await this.findBySession(tenantId, payment.sessionId);
+        const existing = await this.findBySession(tenantId, payment.sessionId, tx);
         if (existing) {
           return existing;
         }
@@ -46,8 +47,9 @@ export class PrismaPaymentRepository implements PaymentRepository {
     }
   }
 
-  async findBySession(tenantId: string, sessionId: string): Promise<PaymentDTO | null> {
-    const found = await this.prisma.payment.findUnique({
+  async findBySession(tenantId: string, sessionId: string, tx?: any): Promise<PaymentDTO | null> {
+    const client = tx || this.prisma;
+    const found = await client.payment.findUnique({
       where: {
         tenantId_sessionId: {
           tenantId,

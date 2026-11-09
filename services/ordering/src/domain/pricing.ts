@@ -9,7 +9,13 @@ import {
   ModifierRequiredError,
   ProductNotFoundError,
   ProductUnavailableError,
+  ValidationError,
 } from './errors';
+import {
+  MAX_DECIMAL_10_2,
+  MAX_DECIMAL_10_2_CENTS,
+  validateQuantity,
+} from './validation';
 
 export interface RecalculatedOrder {
   total: number;
@@ -29,6 +35,9 @@ export function validateAndPriceCart(
   const orderItems: OrderItemDTO[] = [];
 
   for (const item of cartItems) {
+    // 1. Validar cantidad en [1, 99]
+    validateQuantity(item.quantity);
+
     const product = productMap.get(item.productId);
     if (!product) {
       throw new ProductNotFoundError(`Producto con id ${item.productId} no existe en catálogo`);
@@ -36,6 +45,10 @@ export function validateAndPriceCart(
 
     if (!product.isAvailable) {
       throw new ProductUnavailableError(`El producto ${product.name} no está disponible`);
+    }
+
+    if (typeof product.price !== 'number' || !Number.isFinite(product.price) || product.price < 0) {
+      throw new ValidationError(`Precio del producto ${product.name} es inválido`);
     }
 
     // Validar modificadores por cada grupo del producto
@@ -83,6 +96,10 @@ export function validateAndPriceCart(
         );
       }
 
+      if (typeof option.priceDelta !== 'number' || !Number.isFinite(option.priceDelta)) {
+        throw new ValidationError(`Delta de precio de la opción ${option.name} es inválido`);
+      }
+
       const priceDeltaCents = Math.round(option.priceDelta * 100);
       lineModifiersDeltaCents += priceDeltaCents;
 
@@ -96,8 +113,22 @@ export function validateAndPriceCart(
     }
 
     const unitPriceCents = Math.round(product.price * 100);
-    const lineTotalCents = (unitPriceCents + lineModifiersDeltaCents) * item.quantity;
+    const lineUnitCents = unitPriceCents + lineModifiersDeltaCents;
+    if (!Number.isSafeInteger(lineUnitCents) || lineUnitCents < 0) {
+      throw new ValidationError(`Monto unitario inválido para el producto ${product.name}`);
+    }
+
+    const lineTotalCents = lineUnitCents * item.quantity;
+    if (!Number.isSafeInteger(lineTotalCents) || lineTotalCents < 0) {
+      throw new ValidationError(`Monto de línea desbordado para el producto ${product.name}`);
+    }
+
     totalCents += lineTotalCents;
+    if (!Number.isSafeInteger(totalCents) || totalCents > MAX_DECIMAL_10_2_CENTS) {
+      throw new ValidationError(
+        `El monto total de la orden supera el límite máximo permitido de ${MAX_DECIMAL_10_2}`
+      );
+    }
 
     orderItems.push({
       id: item.cartItemId,

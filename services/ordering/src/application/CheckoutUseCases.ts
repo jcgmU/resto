@@ -10,6 +10,7 @@ import {
 } from '@packages/shared-types';
 import { GetBill } from './GetBill';
 import { ConfirmCheckout } from './ConfirmCheckout';
+import { TransactionCoordinator } from './ports/TransactionCoordinator';
 
 export class CheckoutUseCases {
   public readonly getBill: GetBillUseCase;
@@ -21,7 +22,8 @@ export class CheckoutUseCases {
     private readonly sessionService: SessionServicePort,
     private readonly cartRepo: CartRepository,
     private readonly serviceCallRepo: ServiceCallRepository,
-    private readonly eventPublisher?: EventPublisher
+    private readonly eventPublisher?: EventPublisher,
+    private readonly txCoordinator?: TransactionCoordinator
   ) {
     this.getBill = new GetBill(this.orderRepo, this.paymentRepo);
     this.confirmCheckout = new ConfirmCheckout(
@@ -30,7 +32,8 @@ export class CheckoutUseCases {
       this.sessionService,
       this.cartRepo,
       this.serviceCallRepo,
-      this.eventPublisher
+      this.eventPublisher,
+      this.txCoordinator
     );
   }
 }

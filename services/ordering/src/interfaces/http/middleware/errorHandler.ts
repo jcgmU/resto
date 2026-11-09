@@ -20,8 +20,13 @@ export function errorHandler(
       code === 'BILL_NOT_FOUND'
     )
       statusCode = 404;
-    else if (code === 'INVALID_STATUS_TRANSITION') statusCode = 409;
-    else if (code === 'CATALOG_UNREACHABLE' || code === 'SESSION_CLOSE_FAILED') statusCode = 502;
+    else if (code === 'INVALID_STATUS_TRANSITION' || code === 'SESSION_NOT_ACTIVE' || code === 'CART_BUSY') statusCode = 409;
+    else if (
+      code === 'CATALOG_UNREACHABLE' ||
+      code === 'SESSION_CLOSE_FAILED' ||
+      code === 'SESSION_UNREACHABLE'
+    )
+      statusCode = 502;
     else if (
       code === 'CART_EMPTY' ||
       code === 'BILL_EMPTY' ||

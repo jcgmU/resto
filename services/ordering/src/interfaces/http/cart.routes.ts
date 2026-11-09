@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { CartUseCases } from '../../application/CartUseCases';
 import { OrderUseCases } from '../../application/OrderUseCases';
+import { parseCartItemQuantity, validateQuantity } from '../../domain/validation';
 
 export function createCartRouter(
   cartUseCases: CartUseCases,
@@ -21,14 +22,16 @@ export function createCartRouter(
   router.post('/items', async (req, res, next) => {
     try {
       const { tenantId, sessionId } = req.auth!;
-      const { productId, modifiers, quantity, notes, addedBy, display } = req.body;
+      const { productId, modifiers, quantity, notes, addedBy, display } = req.body || {};
+
+      const parsedQuantity = parseCartItemQuantity(quantity);
 
       const cart = await cartUseCases.addCartItem.execute({
         tenantId,
         sessionId: sessionId!,
         productId,
         modifiers: modifiers || [],
-        quantity: quantity || 1,
+        quantity: parsedQuantity,
         notes,
         addedBy,
         display: display || { productName: 'Producto', unitPrice: 0, modifierNames: [] },
@@ -44,13 +47,15 @@ export function createCartRouter(
     try {
       const { tenantId, sessionId } = req.auth!;
       const { cartItemId } = req.params;
-      const { quantity } = req.body;
+      const { quantity } = req.body || {};
+
+      const parsedQuantity = validateQuantity(quantity);
 
       const cart = await cartUseCases.updateCartItemQuantity.execute({
         tenantId,
         sessionId: sessionId!,
         cartItemId,
-        quantity,
+        quantity: parsedQuantity,
       });
 
       res.json(cart);

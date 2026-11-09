@@ -9,6 +9,10 @@ import { CartUseCases } from './application/CartUseCases';
 import { OrderUseCases } from './application/OrderUseCases';
 import { ServiceCallUseCases } from './application/ServiceCallUseCases';
 import { CheckoutUseCases } from './application/CheckoutUseCases';
+import { TransactionCoordinator } from './application/ports/TransactionCoordinator';
+import { PrismaTransactionCoordinator } from './infrastructure/persistence/PrismaTransactionCoordinator';
+import { InMemoryTransactionCoordinator } from './infrastructure/fakes/InMemoryTransactionCoordinator';
+import { OrderingSessionPort } from './domain/sessionValidation';
 
 import { HttpSessionServiceAdapter } from './infrastructure/session/HttpSessionServiceAdapter';
 import { PrismaOrderRepository } from './infrastructure/persistence/PrismaOrderRepository';
@@ -40,6 +44,7 @@ export interface AppDependencies {
   eventPublisher?: EventPublisher;
   paymentRepo?: PaymentRepository;
   sessionService?: SessionServicePort;
+  txCoordinator?: TransactionCoordinator;
 }
 
 let prismaClient: PrismaClient | null = null;
@@ -81,6 +86,10 @@ export function createOrderingApp(deps?: AppDependencies): Express {
   const paymentRepo = deps?.paymentRepo || new PrismaPaymentRepository(prisma!);
   const sessionService = deps?.sessionService || new HttpSessionServiceAdapter(config.sessionInternalUrl);
 
+  const txCoordinator =
+    deps?.txCoordinator ||
+    (prisma ? new PrismaTransactionCoordinator(prisma) : new InMemoryTransactionCoordinator());
+
   // Wrapped catalog validation intercepting simulated network failures
   const wrappedCatalogValidation: CatalogValidationPort = {
     getOrderableProducts: async (tenantId, productIds) => {
@@ -88,7 +97,13 @@ export function createOrderingApp(deps?: AppDependencies): Express {
     },
   };
 
-  const cartUseCases = new CartUseCases(cartRepo);
+  const cartUseCases = new CartUseCases(
+    cartRepo,
+    paymentRepo,
+    sessionService as OrderingSessionPort,
+    orderRepo,
+    txCoordinator
+  );
   const orderUseCases = new OrderUseCases(
     orderRepo,
     cartRepo,
@@ -97,7 +112,10 @@ export function createOrderingApp(deps?: AppDependencies): Express {
         return wrappedCatalogValidation.getOrderableProducts(tenantId, productIds);
       },
     },
-    eventPublisher
+    eventPublisher,
+    paymentRepo,
+    sessionService as OrderingSessionPort,
+    txCoordinator
   );
   const serviceCallUseCases = new ServiceCallUseCases(serviceCallRepo, eventPublisher);
   const checkoutUseCases = new CheckoutUseCases(
@@ -106,7 +124,8 @@ export function createOrderingApp(deps?: AppDependencies): Express {
     sessionService,
     cartRepo,
     serviceCallRepo,
-    eventPublisher
+    eventPublisher,
+    txCoordinator
   );
 
   // Protected routes require Gateway headers
@@ -115,7 +134,7 @@ export function createOrderingApp(deps?: AppDependencies): Express {
   // Simulation hook for test 17 (session-catalog-down)
   app.use('/cart/confirm', (req, _res, next) => {
     if (req.auth?.sessionId === 'session-catalog-down') {
-      return next(new CatalogUnreachableError('Fallo al conectar con el microservicio de Catǭlogo'));
+      return next(new CatalogUnreachableError('Fallo al conectar con el microservicio de Catálogo'));
     }
     next();
   });

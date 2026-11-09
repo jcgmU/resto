@@ -18,12 +18,26 @@ import {
   SessionServicePort,
   ValidatedProduct,
 } from '@packages/shared-types';
+import {
+  CartReservation,
+  CartReservationPort,
+  OrderReservationFencePort,
+  ReservationFenceStatus,
+} from '../../application/ports/CartReservationPort';
+import { canMergeCartLines } from '../../domain/merge';
+import { CartBusyError, ValidationError } from '../../domain/errors';
 
-export class InMemoryCartRepository implements CartRepository {
+export class InMemoryCartRepository implements CartRepository, CartReservationPort {
   public carts = new Map<string, CartItemDTO[]>();
+  public reservations = new Map<string, CartReservation>();
+  public leases = new Map<string, number>();
 
   private getCartKey(tenantId: string, sessionId: string): string {
     return `${tenantId}:${sessionId}`;
+  }
+
+  private getLeaseKey(tenantId: string, sessionId: string, operationId: string): string {
+    return `${tenantId}:${sessionId}:${operationId}`;
   }
 
   private calculateTotal(items: CartItemDTO[]): number {
@@ -44,7 +58,7 @@ export class InMemoryCartRepository implements CartRepository {
     return {
       tenantId,
       sessionId,
-      items: [...items],
+      items: JSON.parse(JSON.stringify(items)),
       total: this.calculateTotal(items),
     };
   }
@@ -67,6 +81,221 @@ export class InMemoryCartRepository implements CartRepository {
     return this.get(tenantId, sessionId, _ttlSeconds);
   }
 
+  async addItemAtomic(
+    tenantId: string,
+    sessionId: string,
+    _canonicalKey: string,
+    item: CartItemDTO,
+    inputQuantity: number,
+    maxQuantity: number,
+    ttlSeconds: number
+  ): Promise<{ cart: CartDTO; mergedQuantity: number }> {
+    const key = this.getCartKey(tenantId, sessionId);
+    const items = this.carts.get(key) || [];
+
+    const existing = items.find((line) =>
+      canMergeCartLines(
+        line.productId,
+        line.modifiers.map((m) => ({ groupId: m.groupId, optionId: m.optionId })),
+        item.productId,
+        item.modifiers.map((m) => ({ groupId: m.groupId, optionId: m.optionId }))
+      )
+    );
+
+    if (existing) {
+      const newQty = existing.quantity + inputQuantity;
+      if (newQty > maxQuantity) {
+        throw new ValidationError(
+          `La cantidad acumulada (${newQty}) supera el límite máximo permitido de ${maxQuantity} unidades`
+        );
+      }
+      existing.quantity = newQty;
+      const deltas = (existing.modifiers || []).reduce((sum, m) => sum + (m.priceDelta || 0), 0);
+      existing.lineTotal = (existing.unitPrice + deltas) * newQty;
+      this.carts.set(key, items);
+      const cart = await this.get(tenantId, sessionId, ttlSeconds);
+      return { cart, mergedQuantity: newQty };
+    }
+
+    if (inputQuantity > maxQuantity) {
+      throw new ValidationError(
+        `La cantidad acumulada (${inputQuantity}) supera el límite máximo permitido de ${maxQuantity} unidades`
+      );
+    }
+
+    items.push(item);
+    this.carts.set(key, items);
+    const cart = await this.get(tenantId, sessionId, ttlSeconds);
+    return { cart, mergedQuantity: inputQuantity };
+  }
+
+  async reserveCart(
+    tenantId: string,
+    sessionId: string,
+    operationId: string,
+    orderId: string,
+    _ttlSeconds: number
+  ): Promise<{
+    status: 'RESERVED' | 'EXISTING_RESERVATION' | 'EMPTY';
+    reservation?: CartReservation;
+  }> {
+    const key = this.getCartKey(tenantId, sessionId);
+    if (this.reservations.has(key)) {
+      return { status: 'EXISTING_RESERVATION' };
+    }
+
+    const items = this.carts.get(key) || [];
+    if (items.length === 0) {
+      return { status: 'EMPTY' };
+    }
+
+    const reservation: CartReservation = {
+      operationId,
+      orderId,
+      tenantId,
+      sessionId,
+      items: JSON.parse(JSON.stringify(items)),
+      createdAt: new Date().toISOString(),
+    };
+
+    this.reservations.set(key, reservation);
+    this.carts.delete(key);
+    this.leases.set(this.getLeaseKey(tenantId, sessionId, operationId), Date.now() + 30000);
+
+    return { status: 'RESERVED', reservation };
+  }
+
+  async isReservationLeaseActive(
+    tenantId: string,
+    sessionId: string,
+    operationId: string
+  ): Promise<boolean> {
+    const expiresAt = this.leases.get(this.getLeaseKey(tenantId, sessionId, operationId));
+    if (!expiresAt) return false;
+    if (Date.now() > expiresAt) {
+      this.leases.delete(this.getLeaseKey(tenantId, sessionId, operationId));
+      return false;
+    }
+    return true;
+  }
+
+  async refreshReservationLease(
+    tenantId: string,
+    sessionId: string,
+    operationId: string
+  ): Promise<boolean> {
+    const key = this.getLeaseKey(tenantId, sessionId, operationId);
+    const expiresAt = this.leases.get(key);
+    if (!expiresAt || Date.now() > expiresAt) {
+      this.leases.delete(key);
+      return false;
+    }
+    this.leases.set(key, Date.now() + 30000);
+    return true;
+  }
+
+  async releaseReservationLease(
+    tenantId: string,
+    sessionId: string,
+    operationId: string
+  ): Promise<void> {
+    this.leases.delete(this.getLeaseKey(tenantId, sessionId, operationId));
+  }
+
+  async findReservation(tenantId: string, sessionId: string): Promise<CartReservation | null> {
+    const key = this.getCartKey(tenantId, sessionId);
+    const res = this.reservations.get(key);
+    return res ? JSON.parse(JSON.stringify(res)) : null;
+  }
+
+  async ackReservation(tenantId: string, sessionId: string, operationId?: string): Promise<void> {
+    const key = this.getCartKey(tenantId, sessionId);
+    const current = this.reservations.get(key);
+    if (!current) return;
+    if (!operationId || current.operationId === operationId) {
+      this.reservations.delete(key);
+      if (current.operationId) {
+        this.leases.delete(this.getLeaseKey(tenantId, sessionId, current.operationId));
+      }
+      if (operationId) {
+        this.leases.delete(this.getLeaseKey(tenantId, sessionId, operationId));
+      }
+    }
+  }
+
+  async restoreReservation(
+    tenantId: string,
+    sessionId: string,
+    operationId: string,
+    _ttlSeconds: number,
+    options?: { requireExpiredLease?: boolean }
+  ): Promise<{
+    status: 'RESTORED' | 'NOT_FOUND' | 'CONFLICT' | 'ACTIVE';
+    maxExceededQty?: number;
+  }> {
+    if (options?.requireExpiredLease) {
+      const active = await this.isReservationLeaseActive(tenantId, sessionId, operationId);
+      if (active) {
+        return { status: 'ACTIVE' };
+      }
+    }
+
+    const key = this.getCartKey(tenantId, sessionId);
+    const res = this.reservations.get(key);
+    if (!res || (operationId && res.operationId !== operationId)) {
+      return { status: 'NOT_FOUND' };
+    }
+
+    const liveItems = this.carts.get(key) || [];
+
+    // Pass 1: conflict check
+    for (const rItem of res.items) {
+      const match = liveItems.find(
+        (l) =>
+          l.cartItemId === rItem.cartItemId ||
+          canMergeCartLines(
+            l.productId,
+            l.modifiers.map((m) => ({ groupId: m.groupId, optionId: m.optionId })),
+            rItem.productId,
+            rItem.modifiers.map((m) => ({ groupId: m.groupId, optionId: m.optionId }))
+          )
+      );
+      if (match) {
+        const sum = match.quantity + rItem.quantity;
+        if (sum > 99) {
+          return { status: 'CONFLICT', maxExceededQty: sum };
+        }
+      }
+    }
+
+    // Pass 2: merge or insert
+    for (const rItem of res.items) {
+      const match = liveItems.find(
+        (l) =>
+          l.cartItemId === rItem.cartItemId ||
+          canMergeCartLines(
+            l.productId,
+            l.modifiers.map((m) => ({ groupId: m.groupId, optionId: m.optionId })),
+            rItem.productId,
+            rItem.modifiers.map((m) => ({ groupId: m.groupId, optionId: m.optionId }))
+          )
+      );
+      if (match) {
+        match.quantity += rItem.quantity;
+        const deltas = (match.modifiers || []).reduce((sum, m) => sum + (m.priceDelta || 0), 0);
+        match.lineTotal = (match.unitPrice + deltas) * match.quantity;
+      } else {
+        liveItems.push(JSON.parse(JSON.stringify(rItem)));
+      }
+    }
+
+    this.carts.set(key, liveItems);
+    this.reservations.delete(key);
+    this.leases.delete(this.getLeaseKey(tenantId, sessionId, operationId));
+
+    return { status: 'RESTORED' };
+  }
+
   async setQuantity(
     tenantId: string,
     sessionId: string,
@@ -75,6 +304,11 @@ export class InMemoryCartRepository implements CartRepository {
     _ttlSeconds: number
   ): Promise<CartDTO> {
     const key = this.getCartKey(tenantId, sessionId);
+    const res = this.reservations.get(key);
+    if (res && res.items.some((i) => i.cartItemId === cartItemId)) {
+      throw new CartBusyError();
+    }
+
     const items = this.carts.get(key) || [];
     const item = items.find((i) => i.cartItemId === cartItemId);
     if (item) {
@@ -95,6 +329,11 @@ export class InMemoryCartRepository implements CartRepository {
     _ttlSeconds: number
   ): Promise<CartDTO> {
     const key = this.getCartKey(tenantId, sessionId);
+    const res = this.reservations.get(key);
+    if (res && res.items.some((i) => i.cartItemId === cartItemId)) {
+      throw new CartBusyError();
+    }
+
     const items = this.carts.get(key) || [];
     const filtered = items.filter((i) => i.cartItemId !== cartItemId);
     this.carts.set(key, filtered);
@@ -105,10 +344,129 @@ export class InMemoryCartRepository implements CartRepository {
     const key = this.getCartKey(tenantId, sessionId);
     this.carts.delete(key);
   }
+
+  async clearAll(tenantId: string, sessionId: string): Promise<void> {
+    const key = this.getCartKey(tenantId, sessionId);
+    this.carts.delete(key);
+    this.reservations.delete(key);
+    const prefix = `${tenantId}:${sessionId}:`;
+    for (const leaseKey of this.leases.keys()) {
+      if (leaseKey.startsWith(prefix)) {
+        this.leases.delete(leaseKey);
+      }
+    }
+  }
+
+  public outbox = new Map<string, { status: 'PENDING' | 'PUBLISHED'; payload: any; createdAt: string; updatedAt: string }>();
+  public completedCheckouts = new Set<string>();
+  public consumedEvents = new Set<string>();
+
+  async ensureCheckoutOutboxPending(
+    tenantId: string,
+    sessionId: string,
+    payload: any
+  ): Promise<{ status: 'PENDING' | 'PUBLISHED'; payload: any }> {
+    const key = `${tenantId}:${sessionId}`;
+    const existing = this.outbox.get(key);
+    if (existing) {
+      return { status: existing.status, payload: existing.payload };
+    }
+    const now = new Date().toISOString();
+    const doc = {
+      status: 'PENDING' as const,
+      payload,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.outbox.set(key, doc);
+    return { status: 'PENDING', payload };
+  }
+
+  async isCheckoutEventPublished(tenantId: string, sessionId: string): Promise<boolean> {
+    const key = `${tenantId}:${sessionId}`;
+    const existing = this.outbox.get(key);
+    if (existing) {
+      return existing.status === 'PUBLISHED';
+    }
+    return this.completedCheckouts.has(key);
+  }
+
+  async markCheckoutCompleted(tenantId: string, sessionId: string): Promise<boolean> {
+    const key = `${tenantId}:${sessionId}`;
+    const now = new Date().toISOString();
+    const existing = this.outbox.get(key);
+    this.outbox.set(key, {
+      status: 'PUBLISHED',
+      payload: existing?.payload || {},
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+    });
+    if (this.completedCheckouts.has(key)) {
+      return false;
+    }
+    this.completedCheckouts.add(key);
+    return true;
+  }
+
+  async consumeCheckoutEventOnce(eventId: string): Promise<boolean> {
+    if (this.consumedEvents.has(eventId)) {
+      return false;
+    }
+    this.consumedEvents.add(eventId);
+    return true;
+  }
 }
 
-export class InMemoryOrderRepository implements OrderRepository {
+export class InMemoryOrderRepository implements OrderRepository, OrderReservationFencePort {
   public orders: OrderDTO[] = [];
+  public reservationFences = new Map<
+    string,
+    { status: ReservationFenceStatus; tenantId: string; sessionId: string; orderId: string }
+  >();
+
+  async claimReservationFence(
+    tenantId: string,
+    sessionId: string,
+    operationId: string,
+    orderId: string,
+    _tx?: any
+  ): Promise<ReservationFenceStatus> {
+    const existing = this.reservationFences.get(operationId);
+    if (!existing) {
+      this.reservationFences.set(operationId, {
+        status: 'COMMITTED',
+        tenantId,
+        sessionId,
+        orderId,
+      });
+      return 'COMMITTED';
+    }
+    return existing.status;
+  }
+
+  async abortReservationFence(
+    tenantId: string,
+    sessionId: string,
+    operationId: string,
+    orderId: string,
+    _tx?: any
+  ): Promise<ReservationFenceStatus> {
+    const existingOrder = await this.findById(tenantId, orderId);
+    if (existingOrder) {
+      return 'COMMITTED';
+    }
+    const existingFence = this.reservationFences.get(operationId);
+    if (!existingFence) {
+      this.reservationFences.set(operationId, {
+        status: 'ABORTED',
+        tenantId,
+        sessionId,
+        orderId,
+      });
+      return 'ABORTED';
+    }
+    return existingFence.status;
+  }
 
   async save(tenantId: string, order: OrderDTO): Promise<OrderDTO> {
     const copy: OrderDTO = JSON.parse(JSON.stringify(order));
@@ -269,7 +627,24 @@ export class InMemoryPaymentRepository implements PaymentRepository {
 
 export class InMemorySessionServiceAdapter implements SessionServicePort {
   public closedSessions: { tenantId: string; sessionId: string; requester: { userId: string; role: string } }[] = [];
+  public sessions = new Map<string, { sessionId: string; tenantId: string; tableId?: string; status: 'active' | 'closed' }>();
   public shouldFail = false;
+
+  async getSession(tenantId: string, sessionId: string) {
+    const isClosed = this.closedSessions.some((c) => c.sessionId === sessionId);
+    const existing = this.sessions.get(`${tenantId}:${sessionId}`);
+    if (existing) {
+      return {
+        ...existing,
+        status: isClosed ? 'closed' : existing.status,
+      };
+    }
+    return {
+      sessionId,
+      tenantId,
+      status: isClosed ? ('closed' as const) : ('active' as const),
+    };
+  }
 
   async closeSession(
     tenantId: string,
@@ -280,6 +655,10 @@ export class InMemorySessionServiceAdapter implements SessionServicePort {
       throw new Error('Session service unavailable');
     }
     this.closedSessions.push({ tenantId, sessionId, requester });
+    const existing = this.sessions.get(`${tenantId}:${sessionId}`);
+    if (existing) {
+      existing.status = 'closed';
+    }
   }
 }
 
