@@ -36,3 +36,4 @@ services/ordering/fix_ordering_tests.js
 services/identity/src/application/Login.tmp
 .team/guard/blocked.log
 __pycache__/
+.team/notify.local

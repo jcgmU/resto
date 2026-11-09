@@ -8,6 +8,8 @@ estado: completa por codex — pendiente de verificación del orquestador
 
 # Ficha de capacidades — codex
 
+> **RETIRADO el 2026-10-27.** El usuario sustituyó a Codex por `planner` (sesión de Claude Code). Esta ficha se conserva solo como historial; ver `Fichas/planner.md`.
+
 > Completada el 2026-10-26 mediante herramientas de esta sesión. La configuración local no demuestra por sí sola qué modelo atiende una petición; no tengo introspección independiente del modelo servidor. Se conserva debajo la evidencia previa de claude y se distinguen las comprobaciones actuales.
 
 ## Datos verificados por claude

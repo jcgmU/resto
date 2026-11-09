@@ -11,6 +11,17 @@
           }
         ]
       }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.team/notify.sh\" \"Resto: Claude necesita tu atención\"",
+            "timeout": 20
+          }
+        ]
+      }
     ]
   }
 }

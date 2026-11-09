@@ -7,7 +7,7 @@
 | Rol | Agente (nombre en Herdr) | Tipo |
 |---|---|---|
 | Orquestador | claude | claude |
-| Planificador | codex | codex |
+| Planificador | planner | claude |
 | Ejecutor | agy | agy |
 
 - **Orquestador:** recibe los objetivos del usuario, coordina, verifica de verdad y reporta al usuario. **No corrige código:** devuelve hallazgos al planificador.

@@ -9,9 +9,9 @@ kind = "claude"
 version = "2.1.296"
 
 [roles.planner]
-agent_name = "codex"
-kind = "codex"
-version = "0.164.0"
+agent_name = "planner"
+kind = "claude"
+version = "2.1.296"
 last_session_id = ""
 
 [roles.executor]

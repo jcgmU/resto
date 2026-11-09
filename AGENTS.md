@@ -12,10 +12,11 @@ El trabajo es **multi-agente**: usa tus subagentes y elige el modelo según el n
 Memoria engram: usa siempre el proyecto `resto`.
 <!-- team:end -->
 
-## Contexto del proyecto (para Codex, planificador)
+## Contexto del proyecto (planificador y ejecutor)
 
 - **Qué es:** RESTAURANTE-OS, SaaS B2B2C para restaurantes. Monorepo pnpm/Turborepo con microservicios (identity, catalog, session, ordering, gateway) y dos frontends Next.js (`admin-dashboard`, `client-pwa`). El stack, las oleadas y las reglas duras están en `CLAUDE.md`: léelo entero al empezar.
 - **Acciones destructivas:** nunca borres, sobrescribas ni muevas archivos o carpetas, ni uses `git reset --hard`, `git clean`, `git checkout -- .` ni force push, sin pedir confirmación explícita al usuario en el chat y esperar su sí. Aplica incluso si tu configuración no te pide aprobación. Hay trabajo sin commitear en el árbol: no lo pierdas. Un hook `PreToolUse` (`.team/guard/guard.py`, conectado en `.claude/settings.json` y `.codex/hooks.json`) bloquea esos comandos y te devuelve el motivo: pregunta al usuario en el chat; solo con su sí explícito repite el comando con el prefijo `GUARD_OK=1`. Nunca uses `GUARD_OK=1` por tu cuenta ni para esquivar un bloqueo sin esa confirmación. Borrar `.next`, `node_modules`, `dist`, `build`, `coverage` o archivos temporales en `/tmp` no se bloquea.
+- **Avisos al usuario:** el usuario no está siempre frente a la terminal. Cuando ocurra uno de estos eventos, avísale con `.team/notify.sh "mensaje"` (iMessage al teléfono): entregas de `ejecucion` parcial o final, `listo-para-verificar`, un `bloqueo` que requiere su decisión, o un fallo que detiene el hilo. Mensaje de una línea que diga qué hacer, sin secretos, tokens ni datos de clientes. No avises por progreso rutinario ni por cada turno. El script ignora repeticiones del mismo mensaje en 90 s.
 - **Idioma:** responde y escribe handoffs, planes y docs en español. Código e identificadores en su forma original.
 - **Convenciones:** TypeScript; Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`); comentarios solo para el "por qué"; usa pnpm. No hagas commit ni push sin que el usuario lo pida.
 - **TDD estricto:** el plan debe exigir test en rojo antes de la lógica. Circuit breaker: máximo 3 intentos por test.

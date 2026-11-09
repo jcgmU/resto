@@ -1,6 +1,6 @@
 ---
 name: team-resume
-description: Retoma el trabajo del equipo de agentes de Resto (orquestador claude, planificador codex, ejecutor agy) al empezar una sesión o tras una compactación. Úsalo cuando el usuario escriba /team-resume o pida retomar, ponerse al día o ver en qué quedó el equipo.
+description: Retoma el trabajo del equipo de agentes de Resto (orquestador claude, planificador planner (Claude Code), ejecutor agy) al empezar una sesión o tras una compactación. Úsalo cuando el usuario escriba /team-resume o pida retomar, ponerse al día o ver en qué quedó el equipo.
 ---
 
 # team-resume
