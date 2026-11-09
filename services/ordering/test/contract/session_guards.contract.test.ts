@@ -535,6 +535,8 @@ describe('V08 - R03b + R06 Session Guards and Table Derivation in Ordering (Cont
       expect(order1Res.status).toBe(201);
       const order1Id = order1Res.body.id;
 
+      await getTestPrisma().order.update({ where: { id: order1Id }, data: { status: 'DELIVERED' } });
+
       // 2. Guest añade un segundo plato al carrito (pero aún no lo confirma)
       await request(app)
         .post('/cart/items')
@@ -633,6 +635,8 @@ describe('V08 - R03b + R06 Session Guards and Table Derivation in Ordering (Cont
         .set(guestHeaders)
         .send({ tableId });
 
+      await getTestPrisma().order.updateMany({ where: { sessionId }, data: { status: 'DELIVERED' } });
+
       setupSession(sessionId, 'billRequested', tableId);
 
       const checkoutRes = await request(app)
@@ -677,6 +681,8 @@ describe('V08 - R03b + R06 Session Guards and Table Derivation in Ordering (Cont
         .post('/cart/confirm')
         .set(guestHeaders)
         .send({ tableId });
+
+      await getTestPrisma().order.updateMany({ where: { sessionId }, data: { status: 'DELIVERED' } });
 
       // 1. Cobro inicial exitoso (201)
       const firstCheckout = await request(app)
@@ -759,6 +765,8 @@ describe('V08 - R03b + R06 Session Guards and Table Derivation in Ordering (Cont
         .post('/cart/confirm')
         .set(guestHeaders)
         .send({ tableId: 'mesa-terraza-8' });
+
+      await getTestPrisma().order.updateMany({ where: { sessionId }, data: { status: 'DELIVERED' } });
 
       const checkoutRes = await request(app)
         .post('/checkout/confirm')

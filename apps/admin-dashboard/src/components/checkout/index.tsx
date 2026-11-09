@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { BillDTO, PaymentMethod, TableSessionDTO, TableDTO, formatCOP } from '@packages/shared-types';
+import { BillDTO, PaymentMethod, TableSessionDTO, TableDTO, PendingOrderSummaryDTO, formatCOP } from '@packages/shared-types';
 import {
   BentoCard,
   KpiValue,
   ModalConfirm,
   Skeleton,
+  ORDER_STATUS_LABELS,
   formatOrderNumber,
   getTableDisplayName,
   PAYMENT_METHOD_LABELS,
@@ -136,10 +137,36 @@ export interface BillSummaryCardProps {
   tables?: TableDTO[];
   error?: string;
   onRetry?: () => void;
+  pendingOrders?: PendingOrderSummaryDTO[];
+  canOverridePendingOrders?: boolean;
+  onOverridePendingOrders?: () => void;
 }
 
-export function BillSummaryCard({ bill, tables, error, onRetry }: BillSummaryCardProps) {
+const PENDING_STATUS_LABELS: Record<string, string> = {
+  PLACED: 'Por preparar',
+  IN_KITCHEN: 'En preparación',
+  READY: 'Listo para entregar',
+  DELIVERED: 'Entregado',
+  CANCELLED: 'Cancelado',
+};
+
+function formatPendingOrderStatus(status?: string | null): string {
+  if (!status) return '';
+  return PENDING_STATUS_LABELS[status] || ORDER_STATUS_LABELS[status] || status;
+}
+
+export function BillSummaryCard({
+  bill,
+  tables,
+  error,
+  onRetry,
+  pendingOrders = [],
+  canOverridePendingOrders = false,
+  onOverridePendingOrders,
+}: BillSummaryCardProps) {
+  const [isOverrideConfirmOpen, setIsOverrideConfirmOpen] = useState(false);
   const activeOrders = (bill.orders || []).filter((o) => o.status !== 'CANCELLED');
+  const isOrdersNotDelivered = error === 'ORDERS_NOT_DELIVERED' || pendingOrders.length > 0;
 
   return (
     <BentoCard
@@ -181,66 +208,182 @@ export function BillSummaryCard({ bill, tables, error, onRetry }: BillSummaryCar
       {error && (
         <div
           role="alert"
+          data-testid={isOrdersNotDelivered ? 'pending-orders-alert' : 'payment-error-alert'}
           tabIndex={-1}
-          style={{
-            padding: '12px',
-            borderRadius: 'var(--bento-inner-radius)',
-            background: 'color-mix(in srgb, var(--bento-destructive) 10%, transparent)',
-            color: 'var(--bento-destructive)',
-            border: '1px solid var(--bento-destructive)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '8px',
-          }}
+          style={
+            isOrdersNotDelivered
+              ? {
+                  padding: '12px',
+                  borderRadius: 'var(--bento-inner-radius)',
+                  backgroundColor: 'var(--bento-card-bg-solid)',
+                  color: 'var(--bento-status-occupied-text)',
+                  border: '1px solid var(--bento-status-occupied-text)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }
+              : {
+                  padding: '12px',
+                  borderRadius: 'var(--bento-inner-radius)',
+                  background: 'color-mix(in srgb, var(--bento-destructive) 10%, transparent)',
+                  color: 'var(--bento-destructive)',
+                  border: '1px solid var(--bento-destructive)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }
+          }
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <svg
-              aria-hidden="true"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <span style={{ fontFamily: 'var(--bento-font-body)' }}>
-              {error === 'SESSION_CLOSE_FAILED'
-                ? 'Error al cerrar la sesión en el servidor'
-                : error === 'BILL_EMPTY'
-                ? 'La mesa no tiene pedidos registrados para cobrar'
-                : error === 'SESSION_NOT_FOUND'
-                ? 'La sesión no existe o ya fue cerrada'
-                : error === 'BILL_NOT_FOUND'
-                ? 'No se encontró cuenta para esta sesión'
-                : error}
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <svg
+                aria-hidden="true"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span
+                style={{
+                  fontFamily: 'var(--bento-font-body)',
+                  fontWeight: 600,
+                  color: isOrdersNotDelivered ? 'var(--bento-status-occupied-text)' : undefined,
+                }}
+              >
+                {error === 'SESSION_CLOSE_FAILED'
+                  ? 'Error al cerrar la sesión en el servidor'
+                  : error === 'BILL_EMPTY'
+                  ? 'La mesa no tiene pedidos registrados para cobrar'
+                  : error === 'SESSION_NOT_FOUND'
+                  ? 'La sesión no existe o ya fue cerrada'
+                  : error === 'BILL_NOT_FOUND'
+                  ? 'No se encontró cuenta para esta sesión'
+                  : error === 'ORDERS_NOT_DELIVERED'
+                  ? 'Hay pedidos pendientes de entregar en cocina o bar.'
+                  : error}
+              </span>
+            </div>
+            {onRetry && !isOrdersNotDelivered && (
+              <button
+                type="button"
+                onClick={onRetry}
+                style={{
+                  minHeight: '44px',
+                  minWidth: '44px',
+                  padding: '0 16px',
+                  borderRadius: 'var(--bento-pill-radius)',
+                  background: 'var(--bento-destructive)',
+                  color: 'var(--bento-card-bg-solid)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--bento-font-body)',
+                  fontWeight: 600,
+                }}
+              >
+                {error === 'SESSION_CLOSE_FAILED' ? 'Reintentar cierre' : 'Reintentar'}
+              </button>
+            )}
           </div>
-          {onRetry && (
-            <button
-              type="button"
-              onClick={onRetry}
+
+          {isOrdersNotDelivered && pendingOrders.length > 0 && (
+            <ul
               style={{
-                minHeight: '44px',
-                minWidth: '44px',
-                padding: '0 16px',
-                borderRadius: 'var(--bento-pill-radius)',
-                background: 'var(--bento-destructive)',
-                color: 'var(--bento-card-bg-solid)',
-                border: 'none',
-                cursor: 'pointer',
+                margin: 0,
+                paddingLeft: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
                 fontFamily: 'var(--bento-font-body)',
-                fontWeight: 600,
+                fontSize: '0.875rem',
+                color: 'var(--bento-status-occupied-text)',
               }}
             >
-              {error === 'SESSION_CLOSE_FAILED' ? 'Reintentar cierre' : 'Reintentar'}
-            </button>
+              {pendingOrders.map((po) => {
+                const subStatuses: string[] = [];
+                if (po.kitchenStatus) {
+                  subStatuses.push(`Cocina: ${formatPendingOrderStatus(po.kitchenStatus)}`);
+                }
+                if (po.barStatus) {
+                  subStatuses.push(`Bar: ${formatPendingOrderStatus(po.barStatus)}`);
+                }
+                return (
+                  <li key={po.orderId}>
+                    <strong>{formatOrderNumber(po.orderId)}</strong> — {formatPendingOrderStatus(po.status)}
+                    {subStatuses.length > 0 ? ` (${subStatuses.join(' • ')})` : ''}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {isOrdersNotDelivered && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginTop: '4px' }}>
+              {canOverridePendingOrders && onOverridePendingOrders ? (
+                <button
+                  type="button"
+                  data-testid="override-pending-orders-btn"
+                  onClick={() => setIsOverrideConfirmOpen(true)}
+                  style={{
+                    minHeight: '44px',
+                    padding: '0 16px',
+                    borderRadius: 'var(--bento-pill-radius)',
+                    backgroundColor: 'var(--bento-card-bg-solid)',
+                    color: 'var(--bento-status-occupied-text)',
+                    border: '1px solid var(--bento-status-occupied-text)',
+                    cursor: 'pointer',
+                    fontFamily: 'var(--bento-font-body)',
+                    fontWeight: 600,
+                  }}
+                >
+                  Cobrar igual y cerrar pedidos
+                </button>
+              ) : (
+                <span
+                  style={{
+                    fontFamily: 'var(--bento-font-body)',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    color: 'var(--bento-status-occupied-text)',
+                  }}
+                >
+                  Avisa a un administrador o encargado para cerrar estos pedidos
+                </span>
+              )}
+            </div>
           )}
         </div>
+      )}
+
+      {isOrdersNotDelivered && canOverridePendingOrders && onOverridePendingOrders && (
+        <ModalConfirm
+          open={isOverrideConfirmOpen}
+          title="Cobrar igual y cerrar pedidos"
+          current={{ label: 'Pedidos pendientes', value: String(pendingOrders.length) }}
+          proposed={{ label: 'Total a cobrar', value: formatCOP(bill.total) }}
+          impacts={[
+            {
+              label: 'Impacto',
+              value:
+                pendingOrders.length === 1
+                  ? 'La orden pendiente se cancelará y se cobrará igual'
+                  : `Las ${pendingOrders.length} órdenes pendientes se cancelarán y se cobrarán igual`,
+            },
+          ]}
+          approveLabel="Confirmar cobro"
+          rejectLabel="Cancelar"
+          onApprove={() => {
+            setIsOverrideConfirmOpen(false);
+            onOverridePendingOrders();
+          }}
+          onReject={() => setIsOverrideConfirmOpen(false)}
+          onClose={() => setIsOverrideConfirmOpen(false)}
+        />
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

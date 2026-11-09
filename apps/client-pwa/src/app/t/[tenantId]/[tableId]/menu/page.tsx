@@ -527,6 +527,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
               </span>
             )}
             <p
+              role={cartError && !isCartOpen ? 'alert' : undefined}
               data-testid="bill-blocked-notice"
               style={{
                 margin: 0,
@@ -535,8 +536,29 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
                 fontWeight: 600,
               }}
             >
-              La cuenta ya fue solicitada y no se pueden agregar más pedidos.
+              {cartError || 'La cuenta ya fue solicitada y no se pueden agregar más pedidos.'}
             </p>
+          </div>
+        )}
+
+        {cartError && !billRequested && !isCartOpen && (
+          <div
+            role="alert"
+            data-testid="cart-error-banner"
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              padding: 'var(--bento-spacing-sm, 8px) var(--bento-spacing-md, 16px)',
+              borderRadius: 'var(--bento-card-radius)',
+              backgroundColor: 'var(--bento-card-bg-solid)',
+              border: '1px solid var(--bento-destructive)',
+              color: 'var(--bento-destructive)',
+              fontWeight: 600,
+              textAlign: 'center',
+              fontFamily: 'var(--bento-font-body)',
+            }}
+          >
+            {cartError}
           </div>
         )}
 

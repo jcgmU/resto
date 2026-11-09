@@ -234,6 +234,45 @@ export class InMemoryOrderRepository implements OrderRepository {
     return this.mapOrder(order);
   }
 
+  async cancelForCheckout(
+    tenantId: string,
+    orderIds: string[],
+    at: Date
+  ): Promise<OrderDTO[]> {
+    const updated: OrderDTO[] = [];
+    for (const id of orderIds) {
+      const order = this.orders.find((o) => o.tenantId === tenantId && o.id === id);
+      if (!order) continue;
+
+      const fromStatus = order.status;
+      order.status = 'CANCELLED';
+      if (order.kitchenStatus) {
+        order.kitchenStatus = 'CANCELLED';
+      }
+      if (order.barStatus) {
+        order.barStatus = 'CANCELLED';
+      }
+      if (order.destinationStatus) {
+        if (order.destinationStatus.kitchen) order.destinationStatus.kitchen = 'CANCELLED';
+        if (order.destinationStatus.bar) order.destinationStatus.bar = 'CANCELLED';
+      }
+      order.cancelReason = 'checkout';
+      order.cancelledAt = at.toISOString();
+
+      this.statusEvents.push({
+        id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        orderId: id,
+        fromStatus,
+        toStatus: 'CANCELLED',
+        reason: 'checkout',
+        occurredAt: at.toISOString(),
+      });
+
+      updated.push(this.mapOrder(order));
+    }
+    return updated;
+  }
+
   async updateStatus(
     tenantId: string,
     id: string,

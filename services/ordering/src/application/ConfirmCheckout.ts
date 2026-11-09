@@ -4,17 +4,19 @@ import {
   CartRepository,
   ConfirmCheckoutUseCase,
   EventPublisher,
+  OrderDTO,
   OrderRepository,
   PaymentDTO,
   PaymentMethod,
   PaymentRepository,
+  PendingOrderSummaryDTO,
   ServiceCallRepository,
   SessionServicePort,
   InvoiceProvider,
 } from '@packages/shared-types';
 import { calculateBill } from '../domain/bill';
 import { validatePaymentMethod } from '../domain/payment';
-import { BillEmptyError, SessionCloseFailedError } from '../domain/errors';
+import { BillEmptyError, ForbiddenError, OrdersNotDeliveredError, SessionCloseFailedError } from '../domain/errors';
 import { guardCheckoutSession } from './sessionGuard';
 
 export interface ConfirmCheckoutResult {
@@ -40,6 +42,8 @@ export class ConfirmCheckout implements ConfirmCheckoutUseCase {
     tableId?: string;
     method: PaymentMethod;
     recordedBy: string;
+    role?: string;
+    closePendingOrders?: boolean;
     invoiceMode?: 'simple' | 'dian';
     invoiceCustomer?: {
       type?: 'final_consumer' | 'business';
@@ -50,6 +54,7 @@ export class ConfirmCheckout implements ConfirmCheckoutUseCase {
   }): Promise<ConfirmCheckoutResult> {
     const { tenantId, sessionId, tableId, recordedBy } = input;
     const method = validatePaymentMethod(input.method);
+    const normalizedRole = (input.role || '').toLowerCase();
 
     // Idempotencia: Verificar si ya existe Payment para (tenantId, sessionId)
     const existingPayment = await this.paymentRepo.findBySession(tenantId, sessionId);
@@ -69,6 +74,30 @@ export class ConfirmCheckout implements ConfirmCheckoutUseCase {
 
     if (!existingPayment && calculated.orders.length === 0) {
       throw new BillEmptyError('BILL_EMPTY: No hay órdenes activas para cobrar en esta sesión');
+    }
+
+    // Validación de órdenes sin entregar (solo en cobros nuevos, no en reintentos con pago existente)
+    const pending = !existingPayment
+      ? orders.filter((o) => ['PLACED', 'IN_KITCHEN', 'READY'].includes(o.status))
+      : [];
+
+    if (!existingPayment && pending.length > 0) {
+      if (!input.closePendingOrders) {
+        const pendingSummaries: PendingOrderSummaryDTO[] = pending.map((o) => ({
+          orderId: o.id,
+          tableId: o.tableId,
+          status: o.status,
+          kitchenStatus: (o.kitchenStatus as any) ?? null,
+          barStatus: (o.barStatus as any) ?? null,
+          createdAt: o.createdAt,
+          itemsCount: (o.items || []).reduce((sum, item) => sum + (item.quantity || 1), 0),
+        }));
+        throw new OrdersNotDeliveredError(pendingSummaries);
+      }
+
+      if (normalizedRole !== 'admin' && normalizedRole !== 'manager') {
+        throw new ForbiddenError('Solo personal con rol admin o manager puede cerrar pedidos pendientes al cobrar');
+      }
     }
 
     // 2. Persistir Payment con amount = total calculado en servidor (el body NUNCA trae monto)
@@ -146,7 +175,40 @@ export class ConfirmCheckout implements ConfirmCheckoutUseCase {
       }
     }
 
-    // 3. Orquestación: closeSession DESPUÉS de persistir el pago, propagando identidad
+    // 3. Si pending.length > 0: cancelForCheckout(tenantId, pendingIds, now)
+    const now = new Date();
+    let cancelledOrders: OrderDTO[] = [];
+    if (!isExisting && pending.length > 0) {
+      const pendingIds = pending.map((o) => o.id);
+      cancelledOrders = await this.orderRepo.cancelForCheckout(tenantId, pendingIds, now);
+    }
+
+    // 4. Por cada orden en pending: publicar evento order.status-changed
+    if (this.eventPublisher && !isExisting && pending.length > 0) {
+      for (const p of pending) {
+        const cancelled = cancelledOrders.find((c) => c.id === p.id) || {
+          ...p,
+          status: 'CANCELLED' as const,
+          cancelReason: 'checkout',
+          kitchenStatus: p.kitchenStatus ? ('CANCELLED' as const) : undefined,
+          barStatus: p.barStatus ? ('CANCELLED' as const) : undefined,
+          destinationStatus: {
+            ...(p.kitchenStatus ? { kitchen: 'CANCELLED' as const } : {}),
+            ...(p.barStatus ? { bar: 'CANCELLED' as const } : {}),
+          },
+          cancelledAt: now.toISOString(),
+        };
+
+        await this.eventPublisher.publishOrderEvent(tenantId, {
+          type: 'order.status-changed',
+          order: cancelled,
+          previousStatus: p.status,
+          occurredAt: now.toISOString(),
+        });
+      }
+    }
+
+    // 5. Orquestación: closeSession DESPUÉS de persistir el pago, propagando identidad
     try {
       await this.sessionService.closeSession(tenantId, sessionId, {
         userId: recordedBy,
@@ -158,21 +220,21 @@ export class ConfirmCheckout implements ConfirmCheckoutUseCase {
       );
     }
 
-    // 4. Limpieza de residuos propios (solo claves de ordering, redis db1)
+    // 6. Limpieza de residuos propios (solo claves de ordering, redis db1)
     await this.cartRepo.clear(tenantId, sessionId);
 
     try {
       const pendingCalls = await this.serviceCallRepo.listByTenant(tenantId, { status: 'pending' });
       const sessionCalls = pendingCalls.filter((c) => c.sessionId === sessionId);
-      const now = new Date();
+      const resolveNow = new Date();
       for (const call of sessionCalls) {
-        await this.serviceCallRepo.resolve(tenantId, call.callId, now);
+        await this.serviceCallRepo.resolve(tenantId, call.callId, resolveNow);
       }
     } catch {
       // Ignorar fallo secundario de limpieza de service calls
     }
 
-    // 5. Publicar evento session.checkout-completed tras la orquestación y limpieza (solo si es pago nuevo)
+    // 7. Publicar evento session.checkout-completed tras la orquestación y limpieza (solo si es pago nuevo)
     if (this.eventPublisher && !isExisting) {
       await this.eventPublisher.publishCheckoutCompleted(tenantId, {
         type: 'session.checkout-completed',
@@ -183,10 +245,15 @@ export class ConfirmCheckout implements ConfirmCheckoutUseCase {
       });
     }
 
+    const finalOrders = calculated.orders.map((o) => {
+      const cancelled = cancelledOrders.find((c) => c.id === o.id);
+      return cancelled || o;
+    });
+
     const bill: BillDTO = {
       sessionId,
       tableId: effectiveTableId,
-      orders: calculated.orders,
+      orders: finalOrders,
       ordersCount: calculated.ordersCount,
       total: payment.amount,
       payment,

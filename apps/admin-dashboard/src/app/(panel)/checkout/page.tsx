@@ -2,7 +2,7 @@
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { FeatureGuard, BentoCard, Skeleton, getTableDisplayName } from '@packages/ui-components';
-import { BillDTO, PaymentMethod, TableSessionDTO, TableDTO } from '@packages/shared-types';
+import { BillDTO, PaymentMethod, TableSessionDTO, TableDTO, PendingOrderSummaryDTO } from '@packages/shared-types';
 import {
   ActiveTablesGrid,
   BillSummaryCard,
@@ -24,7 +24,7 @@ import {
 import { ApiClient } from '../../../lib/api';
 import * as realtime from '../../../lib/realtime';
 
-function CheckoutContent() {
+function CheckoutContent({ allowPendingOrdersOverride = true }: { allowPendingOrdersOverride?: boolean }) {
   const searchParams = useSearchParams();
   const tableIdParam = searchParams.get('tableId');
   const autoSelectedRef = useRef(false);
@@ -40,6 +40,8 @@ function CheckoutContent() {
 
   const [method, setMethod] = useState<PaymentMethod | null>(null);
   const [paymentError, setPaymentError] = useState<string | undefined>(undefined);
+  const [pendingOrders, setPendingOrders] = useState<PendingOrderSummaryDTO[]>([]);
+  const [userRole, setUserRole] = useState<string>('');
   const [completedPayment, setCompletedPayment] = useState<{
     tableId: string;
     amount: number;
@@ -81,6 +83,15 @@ function CheckoutContent() {
   };
 
   useEffect(() => {
+    try {
+      const rawUser = typeof window !== 'undefined' ? window.localStorage?.getItem('resto_user') : null;
+      if (rawUser) {
+        const parsed = JSON.parse(rawUser);
+        setUserRole(String(parsed?.role || '').toUpperCase());
+      }
+    } catch {
+      // ignore
+    }
     fetchActiveSessions();
     fetchTables();
 
@@ -150,6 +161,7 @@ function CheckoutContent() {
     setBill(null);
     setBillError(null);
     setPaymentError(undefined);
+    setPendingOrders([]);
     setReleaseError(null);
     setCompletedPayment(null);
     setReleaseSuccess(null);
@@ -165,9 +177,12 @@ function CheckoutContent() {
     }
   };
 
-  const handleConfirmPayment = async () => {
+  const handleConfirmPayment = async (closePendingOrders?: boolean) => {
     if (!selectedSession || !bill || !method) return;
     setPaymentError(undefined);
+    if (!closePendingOrders) {
+      setPendingOrders([]);
+    }
 
     try {
       const result = await confirmCheckout({
@@ -175,6 +190,7 @@ function CheckoutContent() {
         tableId: selectedSession.tableId,
         method,
         amount: bill.total,
+        ...(closePendingOrders === true ? { closePendingOrders: true } : {}),
       });
 
       const paymentData = result.payment;
@@ -191,9 +207,14 @@ function CheckoutContent() {
       setSelectedSession(null);
       setBill(null);
       setMethod(null);
+      setPendingOrders([]);
       await fetchActiveSessions();
     } catch (err: any) {
-      setPaymentError(err.code || err.message || 'Error al procesar cobro');
+      const parsed = parseCheckoutError(err);
+      setPaymentError(parsed.code || err.code || err.message || 'Error al procesar cobro');
+      if (parsed.pendingOrders && Array.isArray(parsed.pendingOrders)) {
+        setPendingOrders(parsed.pendingOrders);
+      }
     }
   };
 
@@ -247,6 +268,9 @@ function CheckoutContent() {
 
   const pendingAmount =
     bill && !bill.payment && bill.total > 0 ? bill.total : 0;
+
+  const canOverridePendingOrders =
+    allowPendingOrdersOverride && (userRole === 'ADMIN' || userRole === 'MANAGER');
 
   return (
     <FeatureGuard flag="payments">
@@ -573,6 +597,9 @@ function CheckoutContent() {
               tables={tables}
               error={paymentError}
               onRetry={handleRetry}
+              pendingOrders={pendingOrders}
+              canOverridePendingOrders={canOverridePendingOrders}
+              onOverridePendingOrders={() => handleConfirmPayment(true)}
             />
             <PaymentMethodPicker selectedMethod={method} onSelect={setMethod} />
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -580,7 +607,7 @@ function CheckoutContent() {
                 disabled={!method}
                 total={bill.total}
                 method={method}
-                onConfirm={handleConfirmPayment}
+                onConfirm={() => handleConfirmPayment(false)}
               />
               <button
                 type="button"
@@ -620,10 +647,14 @@ function CheckoutContent() {
   );
 }
 
-export default function CheckoutPage() {
+export default function CheckoutPage({
+  allowPendingOrdersOverride = true,
+}: {
+  allowPendingOrdersOverride?: boolean;
+} = {}) {
   return (
     <Suspense fallback={null}>
-      <CheckoutContent />
+      <CheckoutContent allowPendingOrdersOverride={allowPendingOrdersOverride} />
     </Suspense>
   );
 }

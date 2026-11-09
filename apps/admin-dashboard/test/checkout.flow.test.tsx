@@ -2,9 +2,34 @@ import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import CheckoutPage from '../src/app/(panel)/checkout/page';
+import TerminalCajaPage from '../src/app/(terminal)/terminal-caja/page';
+import { BillSummaryCard } from '../src/components/checkout';
 import { ApiClient } from '../src/lib/api';
 import * as realtimeModule from '../src/lib/realtime';
 import { FeatureFlagProviderRoot, StaticFeatureFlagProvider } from '@packages/ui-components';
+
+// Polyfill jsdom cssstyle 2.3.0 para preservar CSS variables en propiedades de color/fondo
+if (typeof window !== 'undefined' && (window as any).CSSStyleDeclaration) {
+  const proto = (window as any).CSSStyleDeclaration.prototype;
+  for (const prop of ['color', 'backgroundColor', 'border', 'borderColor']) {
+    const origDesc = Object.getOwnPropertyDescriptor(proto, prop);
+    if (origDesc && origDesc.set) {
+      Object.defineProperty(proto, prop, {
+        get: origDesc.get,
+        set: function (v: any) {
+          if (typeof v === 'string' && v.includes('var(')) {
+            const kebab = prop === 'backgroundColor' ? 'background-color' : prop === 'borderColor' ? 'border-color' : prop;
+            (this as any)._setProperty(kebab, v);
+          } else {
+            origDesc.set.call(this, v);
+          }
+        },
+        configurable: true,
+        enumerable: true,
+      });
+    }
+  }
+}
 
 describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
   const provider = new StaticFeatureFlagProvider({ payments: true });
@@ -1061,6 +1086,518 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
       socketSpy.mockRestore();
       global.fetch = originalFetch;
     }
+  });
+
+  test('U2 (D2.1): Ante 409 ORDERS_NOT_DELIVERED, ADMIN/MANAGER ve el Alert con órdenes pendientes y el botón "Cobrar igual y cerrar pedidos", que abre ModalConfirm y reintenta con closePendingOrders: true', async () => {
+    const originalFetch = global.fetch;
+    localStorage.setItem(
+      'resto_user',
+      JSON.stringify({ id: 'u-admin', email: 'admin@resto.com', displayName: 'Admin', role: 'ADMIN' })
+    );
+
+    const confirmPayloads: any[] = [];
+    const fetchMock = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-pending-orders',
+              tenantId: 't-1',
+              tableId: 'Mesa 2',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/sess-pending-orders')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            sessionId: 'sess-pending-orders',
+            tableId: 'Mesa 2',
+            ordersCount: 2,
+            total: 42000,
+            payment: null,
+            orders: [
+              {
+                id: 'ord-aa11bb',
+                tenantId: 't-1',
+                sessionId: 'sess-pending-orders',
+                tableId: 'Mesa 2',
+                status: 'PLACED',
+                total: 22000,
+                items: [{ id: 'i1', productId: 'p1', productName: 'Bandeja', unitPrice: 22000, quantity: 1, modifiers: [] }],
+                createdAt: new Date().toISOString(),
+              },
+              {
+                id: 'ord-cc22dd',
+                tenantId: 't-1',
+                sessionId: 'sess-pending-orders',
+                tableId: 'Mesa 2',
+                status: 'IN_KITCHEN',
+                total: 20000,
+                items: [{ id: 'i2', productId: 'p2', productName: 'Sopa', unitPrice: 20000, quantity: 1, modifiers: [] }],
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          }),
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/confirm') && opts?.method === 'POST') {
+        const body = JSON.parse(opts.body);
+        confirmPayloads.push(body);
+        if (!body.closePendingOrders) {
+          return {
+            ok: false,
+            status: 409,
+            headers: { get: () => 'application/json' },
+            json: async () => ({
+              error: {
+                code: 'ORDERS_NOT_DELIVERED',
+                message: 'Existen órdenes sin entregar en esta sesión',
+                details: {
+                  pendingOrders: [
+                    {
+                      orderId: 'ord-aa11bb',
+                      tableId: 'Mesa 2',
+                      status: 'PLACED',
+                      kitchenStatus: 'PLACED',
+                      barStatus: null,
+                      createdAt: new Date().toISOString(),
+                      itemsCount: 1,
+                    },
+                    {
+                      orderId: 'ord-cc22dd',
+                      tableId: 'Mesa 2',
+                      status: 'IN_KITCHEN',
+                      kitchenStatus: 'IN_KITCHEN',
+                      barStatus: 'READY',
+                      createdAt: new Date().toISOString(),
+                      itemsCount: 1,
+                    },
+                  ],
+                },
+              },
+            }),
+          };
+        }
+
+        return {
+          ok: true,
+          status: 201,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            payment: {
+              id: 'pay-override-1',
+              sessionId: 'sess-pending-orders',
+              tableId: 'Mesa 2',
+              amount: 42000,
+              method: 'CASH',
+              status: 'COMPLETED',
+            },
+          }),
+        };
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <CheckoutPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesa 2')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Mesa 2'));
+
+      await waitFor(() => {
+        expect(screen.getByText(/\$\s*42\.000/i)).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('radio', { name: /efectivo/i }));
+      fireEvent.click(screen.getByRole('button', { name: /registrar cobro/i }));
+
+      const initialDialog = screen.getByRole('dialog');
+      fireEvent.click(within(initialDialog).getByRole('button', { name: 'Confirmar cobro' }));
+
+      // Debe aparecer el Alert con la lista de órdenes pendientes y sus estados en español
+      await waitFor(() => {
+        const alertBox = screen.getByTestId('pending-orders-alert');
+        expect(within(alertBox).getByText(/Orden #aa11bb/i)).toBeInTheDocument();
+        expect(within(alertBox).getByText(/Orden #cc22dd/i)).toBeInTheDocument();
+      });
+
+      // Como es ADMIN, ve el botón "Cobrar igual y cerrar pedidos"
+      const overrideBtn = screen.getByRole('button', { name: /cobrar igual y cerrar pedidos/i });
+      expect(overrideBtn).toBeInTheDocument();
+      expect(overrideBtn.style.color).toBe('var(--bento-status-occupied-text)');
+      expect(overrideBtn.style.backgroundColor).toBe('var(--bento-card-bg-solid)');
+      expect(overrideBtn.style.border).toBe('1px solid var(--bento-status-occupied-text)');
+      const overrideBtnStyle = overrideBtn.getAttribute('style') || '';
+      expect(overrideBtnStyle).toContain('color: var(--bento-status-occupied-text)');
+      expect(overrideBtnStyle).toContain('background-color: var(--bento-card-bg-solid)');
+      expect(overrideBtnStyle).toContain('border: 1px solid var(--bento-status-occupied-text)');
+
+      const alertBox = screen.getByTestId('pending-orders-alert');
+      expect(alertBox.style.backgroundColor).toBe('var(--bento-card-bg-solid)');
+      expect(alertBox.style.color).toBe('var(--bento-status-occupied-text)');
+      expect(alertBox.style.border).toBe('1px solid var(--bento-status-occupied-text)');
+      const alertBoxStyle = alertBox.getAttribute('style') || '';
+      expect(alertBoxStyle).toContain('background-color: var(--bento-card-bg-solid)');
+      expect(alertBoxStyle).toContain('color: var(--bento-status-occupied-text)');
+      expect(alertBoxStyle).toContain('border: 1px solid var(--bento-status-occupied-text)');
+      expect(screen.queryByText(/avisa a un administrador o encargado para cerrar estos pedidos/i)).not.toBeInTheDocument();
+
+      // Al pulsarlo, abre ModalConfirm con el texto de cancelación de las 2 órdenes pendientes
+      fireEvent.click(overrideBtn);
+
+      const overrideDialog = screen.getByRole('dialog');
+      expect(overrideDialog).toBeInTheDocument();
+      expect(
+        within(overrideDialog).getByText('Las 2 órdenes pendientes se cancelarán y se cobrarán igual')
+      ).toBeInTheDocument();
+      expect(within(overrideDialog).queryByText(/en cocina/i)).not.toBeInTheDocument();
+
+      // Confirmar en el modal reintenta con closePendingOrders: true
+      const approveOverrideBtn = within(overrideDialog).getByRole('button', { name: /confirmar|cobrar igual/i });
+      fireEvent.click(approveOverrideBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText(/cobro registrado\. mesa liberada\./i)).toBeInTheDocument();
+      });
+
+      expect(confirmPayloads).toHaveLength(2);
+      expect(confirmPayloads[0].closePendingOrders).toBeUndefined();
+      expect(confirmPayloads[1].closePendingOrders).toBe(true);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('U2 (D2.2): Ante 409 ORDERS_NOT_DELIVERED, otros roles (STAFF/WAITER) y TerminalCajaPage (CASHIER) ven la lista de órdenes y el aviso "Avisa a un administrador o encargado para cerrar estos pedidos", NUNCA el botón de override', async () => {
+    const originalFetch = global.fetch;
+    localStorage.setItem(
+      'resto_user',
+      JSON.stringify({ id: 'u-cashier', email: 'caja@resto.com', displayName: 'Laura Caja', role: 'CASHIER' })
+    );
+
+    const fetchMock = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-caja-409',
+              tenantId: 't-1',
+              tableId: 'Mesa 3',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/sess-caja-409')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            sessionId: 'sess-caja-409',
+            tableId: 'Mesa 3',
+            ordersCount: 1,
+            total: 18000,
+            payment: null,
+            orders: [
+              {
+                id: 'ord-ff99ee',
+                tenantId: 't-1',
+                sessionId: 'sess-caja-409',
+                tableId: 'Mesa 3',
+                status: 'READY',
+                total: 18000,
+                items: [{ id: 'i1', productId: 'p1', productName: 'Postre', unitPrice: 18000, quantity: 1, modifiers: [] }],
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          }),
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/confirm') && opts?.method === 'POST') {
+        return {
+          ok: false,
+          status: 409,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            error: {
+              code: 'ORDERS_NOT_DELIVERED',
+              message: 'Existen órdenes sin entregar en esta sesión',
+              details: {
+                pendingOrders: [
+                  {
+                    orderId: 'ord-ff99ee',
+                    tableId: 'Mesa 3',
+                    status: 'READY',
+                    kitchenStatus: 'READY',
+                    barStatus: null,
+                    createdAt: new Date().toISOString(),
+                    itemsCount: 1,
+                  },
+                ],
+              },
+            },
+          }),
+        };
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      // Incluso si por error hubiera rol ADMIN en localStorage cuando se renderiza TerminalCajaPage,
+      // TerminalCajaPage nunca debe mostrar el override. Probemos primero con CASHIER en TerminalCajaPage
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <TerminalCajaPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesa 3')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Mesa 3'));
+
+      await waitFor(() => {
+        expect(screen.getAllByText(/\$\s*18\.000/i).length).toBeGreaterThan(0);
+      });
+
+      fireEvent.click(screen.getByRole('radio', { name: /efectivo/i }));
+      fireEvent.click(screen.getByRole('button', { name: /registrar cobro/i }));
+
+      const dialog = screen.getByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar cobro' }));
+
+      await waitFor(() => {
+        const alertBox = screen.getByTestId('pending-orders-alert');
+        expect(within(alertBox).getByText(/Orden #ff99ee/i)).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Avisa a un administrador o encargado para cerrar estos pedidos/i)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /cobrar igual y cerrar pedidos/i })).not.toBeInTheDocument();
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('U2 (D2.3): TerminalCajaPage NUNCA muestra el botón de override aunque resto_user tenga rol ADMIN, y STAFF en CheckoutPage tampoco lo ve', async () => {
+    const originalFetch = global.fetch;
+
+    const fetchMock = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-role-check',
+              tenantId: 't-1',
+              tableId: 'Mesa 4',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/sess-role-check')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            sessionId: 'sess-role-check',
+            tableId: 'Mesa 4',
+            ordersCount: 1,
+            total: 12000,
+            payment: null,
+            orders: [],
+          }),
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/confirm') && opts?.method === 'POST') {
+        return {
+          ok: false,
+          status: 409,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            error: {
+              code: 'ORDERS_NOT_DELIVERED',
+              message: 'Existen órdenes sin entregar en esta sesión',
+              details: {
+                pendingOrders: [
+                  {
+                    orderId: 'ord-778899',
+                    tableId: 'Mesa 4',
+                    status: 'PLACED',
+                    kitchenStatus: 'PLACED',
+                    barStatus: null,
+                    createdAt: new Date().toISOString(),
+                    itemsCount: 1,
+                  },
+                ],
+              },
+            },
+          }),
+        };
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      // 1. STAFF en CheckoutPage
+      localStorage.setItem(
+        'resto_user',
+        JSON.stringify({ id: 'u-staff', email: 'staff@resto.com', displayName: 'Staff', role: 'STAFF' })
+      );
+
+      const { unmount } = render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <CheckoutPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => expect(screen.getByText('Mesa 4')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('Mesa 4'));
+      await waitFor(() => expect(screen.getByText(/\$\s*12\.000/i)).toBeInTheDocument());
+      fireEvent.click(screen.getByRole('radio', { name: /efectivo/i }));
+      fireEvent.click(screen.getByRole('button', { name: /registrar cobro/i }));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirmar cobro' }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Orden #778899/i)).toBeInTheDocument();
+      });
+      expect(screen.getByText(/Avisa a un administrador o encargado para cerrar estos pedidos/i)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /cobrar igual y cerrar pedidos/i })).not.toBeInTheDocument();
+      unmount();
+
+      // 2. ADMIN en TerminalCajaPage (forzando ruta terminal-caja) -> NUNCA ve override
+      localStorage.setItem(
+        'resto_user',
+        JSON.stringify({ id: 'u-admin', email: 'admin@resto.com', displayName: 'Admin', role: 'ADMIN' })
+      );
+
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <TerminalCajaPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => expect(screen.getByText('Mesa 4')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('Mesa 4'));
+      await waitFor(() => expect(screen.getByText(/\$\s*12\.000/i)).toBeInTheDocument());
+      fireEvent.click(screen.getByRole('radio', { name: /efectivo/i }));
+      fireEvent.click(screen.getByRole('button', { name: /registrar cobro/i }));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirmar cobro' }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Orden #778899/i)).toBeInTheDocument();
+      });
+      expect(screen.getByText(/Avisa a un administrador o encargado para cerrar estos pedidos/i)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /cobrar igual y cerrar pedidos/i })).not.toBeInTheDocument();
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('U8: ModalConfirm muestra texto en singular para 1 orden sin "en cocina", y estilo de botón/aviso cumple tokens accesibles', () => {
+    const mockBill: any = {
+      sessionId: 'sess-single-pending',
+      tableId: 'tbl-1',
+      ordersCount: 1,
+      total: 15000,
+      payment: null,
+      orders: [],
+    };
+    const mockPendingOrder: any = {
+      orderId: 'ord-bar-99',
+      tableId: 'tbl-1',
+      status: 'PLACED',
+      kitchenStatus: null,
+      barStatus: 'PLACED',
+      createdAt: new Date().toISOString(),
+      itemsCount: 1,
+    };
+
+    const onOverride = jest.fn();
+
+    render(
+      <BillSummaryCard
+        bill={mockBill}
+        error="ORDERS_NOT_DELIVERED"
+        pendingOrders={[mockPendingOrder]}
+        canOverridePendingOrders={true}
+        onOverridePendingOrders={onOverride}
+      />
+    );
+
+    const alertBox = screen.getByTestId('pending-orders-alert');
+    expect(alertBox.style.backgroundColor).toBe('var(--bento-card-bg-solid)');
+    expect(alertBox.style.color).toBe('var(--bento-status-occupied-text)');
+    expect(alertBox.style.border).toBe('1px solid var(--bento-status-occupied-text)');
+    const alertStyle = alertBox.getAttribute('style') || '';
+    expect(alertStyle).toContain('background-color: var(--bento-card-bg-solid)');
+    expect(alertStyle).toContain('color: var(--bento-status-occupied-text)');
+    expect(alertStyle).toContain('border: 1px solid var(--bento-status-occupied-text)');
+
+    const overrideBtn = screen.getByTestId('override-pending-orders-btn');
+    expect(overrideBtn.style.color).toBe('var(--bento-status-occupied-text)');
+    expect(overrideBtn.style.backgroundColor).toBe('var(--bento-card-bg-solid)');
+    expect(overrideBtn.style.border).toBe('1px solid var(--bento-status-occupied-text)');
+    const btnStyle = overrideBtn.getAttribute('style') || '';
+    expect(btnStyle).toContain('color: var(--bento-status-occupied-text)');
+    expect(btnStyle).toContain('background-color: var(--bento-card-bg-solid)');
+    expect(btnStyle).toContain('border: 1px solid var(--bento-status-occupied-text)');
+
+    fireEvent.click(overrideBtn);
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(
+      within(dialog).getByText('La orden pendiente se cancelará y se cobrará igual')
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByText(/en cocina/i)).not.toBeInTheDocument();
   });
 });
 

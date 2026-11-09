@@ -127,6 +127,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
       setNewName('');
       setNewEmail('');
       setNewPassword('');
+      setNewRole('WAITER');
       setShowNewForm(false);
       await loadData();
     } catch (err: any) {
@@ -211,6 +212,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
               setShowNewForm(!showNewForm);
               setUserFormError(null);
               setUserFormSuccess(null);
+              setNewRole('WAITER');
             }}
             style={{
               padding: '8px 16px',
@@ -411,7 +413,11 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
               <button
                 type="button"
-                onClick={() => setShowNewForm(false)}
+                data-testid="cancel-employee-button"
+                onClick={() => {
+                  setShowNewForm(false);
+                  setNewRole('WAITER');
+                }}
                 style={{
                   padding: '8px 16px',
                   borderRadius: 'var(--bento-radius-sm, 6px)',

@@ -1,3 +1,5 @@
+import { PendingOrderSummaryDTO } from '@packages/shared-types';
+
 export class DomainError extends Error {
   constructor(public readonly code: string, message: string) {
     super(`${code}: ${message}`);
@@ -113,6 +115,19 @@ export class OrderAlreadyTerminalError extends DomainError {
     super('ORDER_ALREADY_TERMINAL', message);
   }
 }
+
+export class OrdersNotDeliveredError extends DomainError {
+  public readonly details: { pendingOrders: PendingOrderSummaryDTO[] };
+
+  constructor(
+    pendingOrders: PendingOrderSummaryDTO[],
+    message = 'Hay órdenes sin entregar en la sesión'
+  ) {
+    super('ORDERS_NOT_DELIVERED', message);
+    this.details = { pendingOrders };
+  }
+}
+
 
 
 

@@ -2,6 +2,7 @@ import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import KdsPage from '../src/app/(panel)/kds/page';
+import { KdsBoard } from '../src/components/kds';
 import { ApiClient } from '../src/lib/api';
 import * as realtimeModule from '../src/lib/realtime';
 import { FeatureFlagProviderRoot, StaticFeatureFlagProvider } from '@packages/ui-components';
@@ -212,6 +213,114 @@ describe('R09 KDS: Resiliencia de WebSocket y Reconexión', () => {
       const slaCounters = screen.getAllByTestId('sla-counter');
       expect(slaCounters).toHaveLength(2);
       expect(slaCounters[1]).toHaveTextContent('0m / 25m');
+    } finally {
+      socketSpy.mockRestore();
+      requestSpy.mockRestore();
+    }
+  });
+
+  test('U2 (D2.4): order:status-changed con orden que pasa a CANCELLED (y kitchenStatus/barStatus CANCELLED o parcialmente nulo) retira la orden del tablero general y de las vistas monitor cocina/bar', async () => {
+    ApiClient.token = 'resto_jwt_valido';
+    const socketListeners: Record<string, Function> = {};
+    const mockSocket = {
+      on: jest.fn((event, handler) => {
+        socketListeners[event] = handler;
+      }),
+      disconnect: jest.fn(),
+      auth: { token: 'resto_jwt_valido' },
+    };
+    const socketSpy = jest.spyOn(realtimeModule, 'connectOrdersSocket').mockReturnValue(mockSocket as any);
+
+    const mixedOrder = {
+      id: 'ord-cancel-checkout-1',
+      tenantId: 't-1',
+      sessionId: 's-1',
+      tableId: 'Mesa 9',
+      status: 'IN_KITCHEN' as const,
+      kitchenStatus: 'IN_KITCHEN' as const,
+      barStatus: 'READY' as const,
+      total: 40000,
+      items: [
+        {
+          id: 'it-k',
+          productId: 'prod-k',
+          productName: 'Lomo Saltado',
+          destination: 'kitchen' as const,
+          unitPrice: 30000,
+          quantity: 1,
+          modifiers: [],
+        },
+        {
+          id: 'it-b',
+          productId: 'prod-b',
+          productName: 'Limonada',
+          destination: 'bar' as const,
+          unitPrice: 10000,
+          quantity: 1,
+          modifiers: [],
+        },
+      ],
+      createdAt: new Date().toISOString(),
+    };
+
+    const requestSpy = jest.spyOn(ApiClient, 'request').mockImplementation(async (url: string) => {
+      if (url === '/v1/orders') return { data: [mixedOrder] };
+      if (url === '/v1/service-calls') return { data: [] };
+      if (url === '/v1/tables') return { data: [] };
+      if (url === '/v1/tenant/settings') return { data: { estimatedPrepMinutes: 18 } };
+      return { data: [] };
+    });
+
+    try {
+      // 1. KdsPage en modo monitor de cocina
+      localStorage.setItem('resto_user', JSON.stringify({ id: 'm-1', role: 'MONITOR', monitorKind: 'kitchen' }));
+      const { unmount } = render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <KdsPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesa 9')).toBeInTheDocument();
+        expect(screen.getByText(/Lomo Saltado/i)).toBeInTheDocument();
+      });
+
+      const cancelledOrder = {
+        ...mixedOrder,
+        status: 'CANCELLED' as const,
+        kitchenStatus: 'CANCELLED' as const,
+        barStatus: 'CANCELLED' as const,
+        cancelReason: 'checkout',
+        cancelledAt: new Date().toISOString(),
+      };
+
+      await act(async () => {
+        socketListeners['order:status-changed']?.({
+          order: cancelledOrder,
+          status: 'CANCELLED',
+        });
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByText('Mesa 9')).not.toBeInTheDocument();
+        expect(screen.queryByText(/Lomo Saltado/i)).not.toBeInTheDocument();
+      });
+
+      unmount();
+
+      // 2. KdsBoard en vista general y vista bar: incluso si un payload parcial trae status='CANCELLED' sin kitchenStatus/barStatus o con ambos CANCELLED
+      const { rerender } = render(<KdsBoard orders={[mixedOrder]} monitorKind="bar" />);
+      expect(screen.getByText('Mesa 9')).toBeInTheDocument();
+      expect(screen.getByText(/Limonada/i)).toBeInTheDocument();
+
+      // Si pasa a CANCELLED (incluso si barStatus seguía en READY por un payload parcial), nunca debe mostrarse una orden con status === 'CANCELLED'
+      rerender(
+        <KdsBoard
+          orders={[{ ...mixedOrder, status: 'CANCELLED', barStatus: 'READY' }]}
+          monitorKind="bar"
+        />
+      );
+      expect(screen.queryByText('Mesa 9')).not.toBeInTheDocument();
     } finally {
       socketSpy.mockRestore();
       requestSpy.mockRestore();

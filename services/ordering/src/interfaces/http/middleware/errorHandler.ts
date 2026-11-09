@@ -25,7 +25,8 @@ export function errorHandler(
       code === 'SESSION_NOT_ORDERABLE' ||
       code === 'TABLE_MISMATCH' ||
       code === 'PRODUCT_UNAVAILABLE' ||
-      code === 'ORDER_ALREADY_TERMINAL'
+      code === 'ORDER_ALREADY_TERMINAL' ||
+      code === 'ORDERS_NOT_DELIVERED'
     )
       statusCode = 409;
     else if (code === 'CATALOG_UNREACHABLE' || code === 'SESSION_CLOSE_FAILED') statusCode = 502;
@@ -39,11 +40,16 @@ export function errorHandler(
       statusCode = 400;
     }
 
+    const errorBody: any = {
+      code,
+      message: err.message ? err.message.replace(/^[^:]+:\s*/, '') : err.message,
+    };
+    if (err.details !== undefined) {
+      errorBody.details = err.details;
+    }
+
     return res.status(statusCode).json({
-      error: {
-        code,
-        message: err.message ? err.message.replace(/^[^:]+:\s*/, '') : err.message,
-      },
+      error: errorBody,
     });
   }
 

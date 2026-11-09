@@ -29,6 +29,7 @@ export default function LoginPage() {
       if (role === 'waiter') targetPath = '/terminal-mesero';
       else if (role === 'cashier') targetPath = '/terminal-caja';
       else if (role === 'monitor') targetPath = '/monitor';
+      else if (role === 'staff') targetPath = '/kds';
 
       // Fallback for tests or non-Next environments
       if (typeof window !== 'undefined' && window.location) {

@@ -22,7 +22,8 @@ export type DomainErrorCode =
   | 'TABLE_HAS_ACTIVE_SESSION'
   | 'TABLE_HAS_ACTIVE_RESERVATION'
   | 'RESERVATION_NOT_FOUND'
-  | 'QR_DISABLED';
+  | 'QR_DISABLED'
+  | 'ORDERS_NOT_DELIVERED';
 
 export class DomainError extends Error {
   constructor(public readonly code: DomainErrorCode, message: string) {

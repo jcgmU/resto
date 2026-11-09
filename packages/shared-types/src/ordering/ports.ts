@@ -35,6 +35,7 @@ export interface OrderRepository {
   listByTenant(tenantId: string, filter?: { status?: OrderStatus; tableId?: string }): Promise<OrderDTO[]>;
   listBySession(tenantId: string, sessionId: string): Promise<OrderDTO[]>;
   cancel(tenantId: string, id: string, cancelledAt: Date): Promise<OrderDTO>;
+  cancelForCheckout(tenantId: string, orderIds: string[], at: Date): Promise<OrderDTO[]>;
   updateStatus(tenantId: string, id: string, status: OrderStatus, updatedAt: Date, destMeta?: { kitchenStatus?: OrderStatus; barStatus?: OrderStatus }): Promise<OrderDTO>;
   updateDelay?(tenantId: string, id: string, delayMinutes: number): Promise<OrderDTO>;
   getOrderHistory?(tenantId: string, orderId: string): Promise<OrderHistoryEventDTO[]>;
@@ -298,7 +299,17 @@ export interface SessionServicePort {
 export type GetBillUseCase = UseCase<{ tenantId: string; sessionId: string }, BillDTO>;
 
 export type ConfirmCheckoutUseCase = UseCase<
-  { tenantId: string; sessionId: string; tableId?: string; method: PaymentMethod; recordedBy: string; invoiceMode?: 'simple' | 'dian'; invoiceCustomer?: { type?: 'final_consumer' | 'business'; taxId?: string; legalName?: string; email?: string } },
+  {
+    tenantId: string;
+    sessionId: string;
+    tableId?: string;
+    method: PaymentMethod;
+    recordedBy: string;
+    role?: string;
+    closePendingOrders?: boolean;
+    invoiceMode?: 'simple' | 'dian';
+    invoiceCustomer?: { type?: 'final_consumer' | 'business'; taxId?: string; legalName?: string; email?: string };
+  },
   { bill: BillDTO; payment: PaymentDTO }
 >;
 

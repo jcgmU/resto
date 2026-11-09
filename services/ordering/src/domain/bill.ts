@@ -7,7 +7,9 @@ export interface CalculatedBill {
 }
 
 export function calculateBill(orders: OrderDTO[]): CalculatedBill {
-  const activeOrders = orders.filter((o) => o.status !== 'CANCELLED');
+  const activeOrders = orders.filter(
+    (o) => o.status !== 'CANCELLED' || o.cancelReason === 'checkout'
+  );
   const totalCents = activeOrders.reduce((sum, o) => {
     return sum + Math.round(Number(o.total) * 100);
   }, 0);

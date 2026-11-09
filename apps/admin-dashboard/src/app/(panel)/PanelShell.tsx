@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { SidebarRail, PageHeader } from '@packages/ui-components';
 import type { SidebarRailItem } from '@packages/ui-components';
 import { ApiClient } from '../../lib/api';
+import { logout } from '../../lib/auth/logout';
 
 const Svg = ({ children }: { children: React.ReactNode }) => (
   <svg
@@ -101,6 +102,14 @@ const NAV: NavDef[] = [
   },
 ];
 
+const STAFF_FORBIDDEN_PATHS = ['/menu', '/ajustes'];
+const STAFF_FORBIDDEN_NAV_IDS = new Set(['menu', 'ajustes']);
+
+function isStaffForbiddenPath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  return STAFF_FORBIDDEN_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
 function activeIdFor(pathname: string | null | undefined): string | undefined {
   if (!pathname) return undefined;
   if (pathname === '/mesas' || pathname.startsWith('/mesas/')) return 'dashboard';
@@ -166,20 +175,32 @@ export default function PanelShell({
           router.replace('/monitor');
           return;
         }
+        if (role === 'STAFF' && isStaffForbiddenPath(pathname)) {
+          setIsAuthenticated(false);
+          router.replace('/kds');
+          return;
+        }
       }
     } catch {
       // ignore json parse error
     }
 
     setIsAuthenticated(true);
-  }, [router]);
+  }, [router, pathname]);
+
+  const handleLogout = () => {
+    logout();
+    router.replace('/login');
+  };
 
   if (!isAuthenticated) {
     return null;
   }
 
+  const isStaff = String(currentUser?.role || '').toUpperCase() === 'STAFF';
+  const visibleNav = isStaff ? NAV.filter((n) => !STAFF_FORBIDDEN_NAV_IDS.has(n.id)) : NAV;
   const activeId = activeIdFor(pathname);
-  const items: SidebarRailItem[] = NAV.map((n) => ({
+  const items: SidebarRailItem[] = visibleNav.map((n) => ({
     id: n.id,
     label: n.label,
     href: n.href,
@@ -304,33 +325,59 @@ export default function PanelShell({
           </div>
 
           {/* Perfil de usuario */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
-            <div
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div
+                style={{
+                  width: '2.5rem',
+                  height: '2.5rem',
+                  borderRadius: 'var(--bento-pill-radius)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.6)',
+                  border: '1px solid rgba(255, 255, 255, 0.6)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  color: 'var(--bento-text)',
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                }}
+              >
+                {(currentUser?.displayName || 'Admin').slice(0, 2).toUpperCase()}
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--bento-text)' }}>
+                  {currentUser?.displayName || 'Admin'}
+                </p>
+                <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--bento-text-muted)' }}>
+                  Restaurante • {currentUser?.role ? (currentUser.role === 'ADMIN' ? 'Administrador' : currentUser.role) : 'Panel'}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              aria-label="Cerrar sesión"
+              onClick={handleLogout}
               style={{
-                width: '2.5rem',
-                height: '2.5rem',
-                borderRadius: 'var(--bento-pill-radius)',
-                backgroundColor: 'rgba(255, 255, 255, 0.6)',
-                border: '1px solid rgba(255, 255, 255, 0.6)',
-                display: 'flex',
+                minHeight: '44px',
+                width: '100%',
+                padding: '0.5rem 0.75rem',
+                borderRadius: 'var(--bento-inner-radius)',
+                border: '1px solid var(--bento-border)',
+                backgroundColor: 'var(--bento-card-bg-solid)',
+                color: 'var(--bento-status-occupied-text)',
+                fontFamily: 'var(--bento-font-body)',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontWeight: 600,
-                fontSize: '0.875rem',
-                color: 'var(--bento-text)',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                boxSizing: 'border-box',
               }}
             >
-              {(currentUser?.displayName || 'Admin').slice(0, 2).toUpperCase()}
-            </div>
-            <div>
-              <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--bento-text)' }}>
-                {currentUser?.displayName || 'Admin'}
-              </p>
-              <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--bento-text-muted)' }}>
-                Restaurante • {currentUser?.role ? (currentUser.role === 'ADMIN' ? 'Administrador' : currentUser.role) : 'Panel'}
-              </p>
-            </div>
+              Cerrar sesión
+            </button>
           </div>
 
           {/* Título de navegación Módulos */}
@@ -353,7 +400,7 @@ export default function PanelShell({
             aria-label="Módulos del panel"
             style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', flex: 1 }}
           >
-            {NAV.map((item) => {
+            {visibleNav.map((item) => {
               const active = item.id === activeId;
               return (
                 <a

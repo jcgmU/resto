@@ -199,7 +199,20 @@ export default function KdsPage({ title: customTitle }: { title?: string } = {})
     socket.on('order:status-changed', (data: { order: OrderDTO; status: OrderStatus }) => {
       if (!isMounted) return;
       setOrders((prev) =>
-        prev.map((o) => (o.id === data.order.id ? data.order : o))
+        prev.map((o) => {
+          if (o.id !== data.order.id) return o;
+          const nextStatus = data.order.status || data.status || o.status;
+          const updated: OrderDTO = {
+            ...o,
+            ...data.order,
+            status: nextStatus,
+          };
+          if (nextStatus === 'CANCELLED') {
+            if (updated.kitchenStatus) updated.kitchenStatus = 'CANCELLED';
+            if (updated.barStatus) updated.barStatus = 'CANCELLED';
+          }
+          return updated;
+        })
       );
       if (data.status === 'READY') {
         setAnnouncement(`Orden de la mesa ${getTableDisplayName(data.order.tableId, tablesRef.current)} lista`);

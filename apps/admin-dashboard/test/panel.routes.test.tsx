@@ -199,6 +199,7 @@ describe('U10: Admin Dashboard, Pagos y Ajustes', () => {
       const { container } = renderWithFlags(<PagosPage />, { payments: true });
       expect(screen.queryByRole('heading', { name: /^Pagos$/i, level: 1 })).not.toBeInTheDocument();
       expect(screen.getByText(/Sin historial/i)).toBeInTheDocument();
+      expect(screen.getByText(/Los cobros se registran en efectivo o tarjeta desde Checkout o la Terminal de Caja/i)).toBeInTheDocument();
       expect(container.querySelector('[data-component="bento-card"]')).not.toBeNull();
     });
   });
@@ -290,6 +291,65 @@ describe('U10: Admin Dashboard, Pagos y Ajustes', () => {
           })
         );
       });
+    });
+
+    test('5. Con flag ON: al crear un empleado MANAGER o cancelar, newRole se resetea a WAITER al reabrir el formulario', async () => {
+      const mockPost = jest.fn().mockResolvedValue({ status: 201, data: { id: 'u5', displayName: 'Encargado 1', email: 'encargado@resto.com', role: 'MANAGER' } });
+      ApiClient.request = jest.fn().mockImplementation(async (url: string, opts?: any) => {
+        if (url.includes('/v1/identity/users') && opts?.method === 'POST') {
+          return mockPost(url, opts);
+        }
+        if (url.includes('/v1/identity/users')) {
+          return { status: 200, data: [] };
+        }
+        if (url.includes('/v1/tenant/settings')) {
+          return { status: 200, data: { invoiceMode: 'simple' } };
+        }
+        return { status: 200, data: {} };
+      });
+
+      renderWithFlags(<AjustesPage />, { 'multi-language': true });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('toggle-new-employee-button')).toBeInTheDocument();
+      });
+
+      // 1) Abrir el formulario de agregar miembro
+      fireEvent.click(screen.getByTestId('toggle-new-employee-button'));
+      expect(screen.getByTestId('new-employee-form')).toBeInTheDocument();
+      expect(screen.getByTestId('employee-role-select')).toHaveValue('WAITER');
+
+      // 2) Cambiar el rol a MANAGER y llenar los datos
+      fireEvent.change(screen.getByTestId('employee-name-input'), { target: { value: 'Encargado 1' } });
+      fireEvent.change(screen.getByTestId('employee-email-input'), { target: { value: 'encargado@resto.com' } });
+      fireEvent.change(screen.getByTestId('employee-password-input'), { target: { value: 'password123' } });
+      fireEvent.change(screen.getByTestId('employee-role-select'), { target: { value: 'MANAGER' } });
+      expect(screen.getByTestId('employee-role-select')).toHaveValue('MANAGER');
+
+      // 3) Crear el empleado con éxito
+      fireEvent.submit(screen.getByTestId('new-employee-form'));
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('new-employee-form')).not.toBeInTheDocument();
+      });
+
+      // 4) Reabrir el formulario y comprobar que el select de rol vuelve a estar en 'WAITER'
+      fireEvent.click(screen.getByTestId('toggle-new-employee-button'));
+      expect(screen.getByTestId('new-employee-form')).toBeInTheDocument();
+      expect(screen.getByTestId('employee-role-select')).toHaveValue('WAITER');
+
+      // 5) Cambiar el rol a CASHIER, cancelar y reabrir
+      fireEvent.change(screen.getByTestId('employee-role-select'), { target: { value: 'CASHIER' } });
+      expect(screen.getByTestId('employee-role-select')).toHaveValue('CASHIER');
+
+      const cancelBtn = screen.getByTestId('cancel-employee-button');
+      fireEvent.click(cancelBtn);
+      expect(screen.queryByTestId('new-employee-form')).not.toBeInTheDocument();
+
+      // Reabrir y verificar que vuelve a estar en 'WAITER'
+      fireEvent.click(screen.getByTestId('toggle-new-employee-button'));
+      expect(screen.getByTestId('new-employee-form')).toBeInTheDocument();
+      expect(screen.getByTestId('employee-role-select')).toHaveValue('WAITER');
     });
   });
 });

@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { ApiClient } from '../../lib/api';
+import { logout } from '../../lib/auth/logout';
 
 interface TerminalUser {
   id?: string;
@@ -72,13 +73,7 @@ export default function TerminalShell({ children }: { children: React.ReactNode 
   const canGoToPanel = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
 
   const handleLogout = () => {
-    ApiClient.token = null;
-    ApiClient.refreshToken = null;
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('resto_user');
-      localStorage.removeItem('resto_access_token');
-      localStorage.removeItem('resto_refresh_token');
-    }
+    logout();
     router.replace('/login');
   };
 

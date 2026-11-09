@@ -276,8 +276,9 @@ export class PwaApiClient {
     PwaApiClient.checkAuthExpired(res);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      const err = new Error(data.message || 'Error al agregar al carrito');
+      const err = new Error(data.message || data.error?.message || 'Error al agregar al carrito');
       (err as any).status = res.status;
+      (err as any).code = data.code || data.error?.code || 'UNKNOWN';
       throw err;
     }
     return res.json();
@@ -339,6 +340,7 @@ export class PwaApiClient {
       const data = await res.json().catch(() => ({}));
       const err = new Error(data.message || data.error?.message || 'Error al confirmar pedido');
       (err as any).status = res.status;
+      (err as any).code = data.code || data.error?.code || 'UNKNOWN';
       throw err;
     }
     return res.json();

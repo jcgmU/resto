@@ -1,11 +1,12 @@
 import React from 'react';
 import '@testing-library/jest-dom';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import LoginPage from '../src/app/(auth)/login/page';
 import MenuPage from '../src/app/(panel)/menu/page';
 import DashboardPage from '../src/app/(panel)/dashboard/page';
 import { ProductCard } from '../src/components/ProductCard';
 import { ApiClient } from '../src/lib/api';
+import * as realtimeModule from '../src/lib/realtime';
 import { FeatureGuard } from '@packages/ui-components';
 
 describe('E.1 Admin Dashboard — Comportamiento Bento Box (Tests 31-36)', () => {
@@ -410,6 +411,102 @@ describe('Unidad V23 — Resumen Operativo y Modo de Operación en Dashboard', (
       expect(screen.getByText('0 Libres')).toBeInTheDocument();
       expect(screen.getByText('1 en sala')).toBeInTheDocument();
     });
+  });
+
+  test('U2 (D2.5): tras table:status-changed y order:status-changed (al cerrar sesión en checkout), el dashboard re-pide las órdenes sin poner toda la página en skeleton y "Pedidos Activos" excluye las CANCELLED', async () => {
+    const socketListeners: Record<string, (data?: any) => void> = {};
+    const mockSocket = {
+      on: jest.fn((evt: string, cb: (data?: any) => void) => {
+        socketListeners[evt] = cb;
+      }),
+      off: jest.fn(),
+      disconnect: jest.fn(),
+    };
+    const socketSpy = jest.spyOn(realtimeModule, 'connectOrdersSocket').mockReturnValue(mockSocket as any);
+
+    let currentOrders: any[] = [
+      { id: 'ord-1', tableId: 't-1', status: 'PLACED', total: 25000 },
+      { id: 'ord-2', tableId: 't-1', status: 'IN_KITCHEN', total: 15000 },
+    ];
+    let currentSessions: any[] = [{ tableId: 't-1', status: 'active' }];
+    let ordersFetchCount = 0;
+
+    let resolveNextOrders: ((val: any) => void) | null = null;
+    let delayNextOrders = false;
+
+    ApiClient.request = jest.fn(async (endpoint: string) => {
+      if (endpoint === '/v1/tables') {
+        return [{ tableId: 't-1', label: 'Mesa 1', capacity: 4, zoneId: 'z-1', status: 'AVAILABLE' }];
+      }
+      if (endpoint === '/v1/zones') return [];
+      if (endpoint.includes('/v1/reservations')) return [];
+      if (endpoint.includes('/v1/sessions')) return currentSessions;
+      if (endpoint === '/v1/tenant/settings') return { operatingMode: 'hybrid', estimatedPrepMinutes: 18 };
+      if (endpoint.includes('/v1/orders')) {
+        ordersFetchCount++;
+        if (delayNextOrders) {
+          return new Promise((resolve) => {
+            resolveNextOrders = resolve;
+          });
+        }
+        return currentOrders;
+      }
+      if (endpoint.includes('/v1/service-calls')) return [];
+      return [];
+    });
+
+    try {
+      render(<DashboardPage />);
+
+      expect(await screen.findByText('Resumen Operativo')).toBeInTheDocument();
+      expect(screen.getByText('2 en curso')).toBeInTheDocument();
+      expect(ordersFetchCount).toBe(1);
+
+      // 1. Ahora la sesión se cobra con override: las órdenes pasan a CANCELLED (cancelReason: 'checkout')
+      currentOrders = [
+        { id: 'ord-1', tableId: 't-1', status: 'CANCELLED', cancelReason: 'checkout', total: 25000 },
+        { id: 'ord-2', tableId: 't-1', status: 'CANCELLED', cancelReason: 'checkout', total: 15000 },
+      ];
+      currentSessions = [];
+      delayNextOrders = true;
+
+      // Disparar evento socket table:status-changed
+      act(() => {
+        socketListeners['table:status-changed']?.();
+      });
+
+      // Mientras el refetch está en vuelo, el dashboard NO debe desmontar el contenido a skeleton
+      expect(screen.getByText('Resumen Operativo')).toBeInTheDocument();
+
+      // Resolver el refetch de órdenes
+      await act(async () => {
+        delayNextOrders = false;
+        resolveNextOrders?.(currentOrders);
+      });
+
+      await waitFor(() => {
+        expect(ordersFetchCount).toBeGreaterThan(1);
+        expect(screen.getByText('al día')).toBeInTheDocument();
+      });
+
+      const pedidosLabel = screen.getByText('Pedidos Activos');
+      const kpiContainer = pedidosLabel.closest('[data-component="kpi-delta"]');
+      expect(kpiContainer).toHaveTextContent('0');
+
+      // 2. También debe escuchar order:status-changed y re-pedir órdenes
+      const countBeforeOrderStatusChanged = ordersFetchCount;
+      expect(typeof socketListeners['order:status-changed']).toBe('function');
+
+      await act(async () => {
+        socketListeners['order:status-changed']?.();
+      });
+
+      await waitFor(() => {
+        expect(ordersFetchCount).toBeGreaterThan(countBeforeOrderStatusChanged);
+      });
+    } finally {
+      socketSpy.mockRestore();
+    }
   });
 });
 

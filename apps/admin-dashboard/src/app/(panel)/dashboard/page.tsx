@@ -198,8 +198,10 @@ export default function DashboardPage() {
     }, 3500);
   };
 
-  const loadAllData = useCallback(async () => {
-    setLoading(true);
+  const loadAllData = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const [
@@ -272,12 +274,12 @@ export default function DashboardPage() {
 
     const handleVisibilityChange = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        loadAllData();
+        loadAllData({ silent: true });
       }
     };
 
     const handleFocus = () => {
-      loadAllData();
+      loadAllData({ silent: true });
     };
 
     if (typeof document !== 'undefined') {
@@ -293,16 +295,22 @@ export default function DashboardPage() {
       try {
         socket = realtime.connectOrdersSocket(token);
         socket.on('table:status-changed', () => {
-          loadAllData();
+          loadAllData({ silent: true });
         });
         socket.on('order:created', () => {
-          loadAllData();
+          loadAllData({ silent: true });
+        });
+        socket.on('order:status-changed', () => {
+          loadAllData({ silent: true });
+        });
+        socket.on('session:checkout-completed', () => {
+          loadAllData({ silent: true });
         });
         socket.on('service-call:created', () => {
-          loadAllData();
+          loadAllData({ silent: true });
         });
         socket.on('service-call:resolved', () => {
-          loadAllData();
+          loadAllData({ silent: true });
         });
       } catch {
         // Fallback gracefully

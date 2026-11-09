@@ -1,5 +1,5 @@
 import { ApiClient } from '../api';
-import { BillDTO, PaymentMethod, TableSessionDTO, TableDTO, PaymentDTO } from '@packages/shared-types';
+import { BillDTO, PaymentMethod, TableSessionDTO, TableDTO, PaymentDTO, PendingOrderSummaryDTO } from '@packages/shared-types';
 
 export interface CheckoutConfirmResult {
   bill?: BillDTO;
@@ -11,15 +11,23 @@ export interface FormattedCheckoutError {
   code: string;
   message: string;
   userMessage: string;
+  details?: {
+    pendingOrders?: PendingOrderSummaryDTO[];
+    [key: string]: any;
+  };
+  pendingOrders?: PendingOrderSummaryDTO[];
 }
 
 export function parseCheckoutError(err: any): FormattedCheckoutError {
   const code = err?.code || err?.data?.error?.code || 'UNKNOWN';
   const rawMessage = err?.message || err?.data?.error?.message || 'Error en la petición';
+  const details = err?.details || err?.data?.error?.details || err?.data?.details;
+  const pendingOrders = err?.pendingOrders || details?.pendingOrders;
 
   const friendlyMessages: Record<string, string> = {
     BILL_EMPTY: 'La mesa no tiene pedidos registrados para cobrar.',
     BILL_NOT_FOUND: 'No se encontraron pedidos registrados para esta sesión.',
+    ORDERS_NOT_DELIVERED: 'Hay pedidos pendientes de entregar en cocina o bar.',
     SESSION_NOT_FOUND: 'La sesión no existe o ya fue cerrada.',
     SESSION_CLOSE_FAILED: 'Error al cerrar la sesión en el servidor.',
     SESSION_NOT_ORDERABLE: 'La sesión ya no admite modificaciones.',
@@ -36,6 +44,8 @@ export function parseCheckoutError(err: any): FormattedCheckoutError {
     code,
     message: rawMessage,
     userMessage,
+    ...(details ? { details } : {}),
+    ...(pendingOrders ? { pendingOrders } : {}),
   };
 }
 
@@ -72,11 +82,30 @@ export async function confirmCheckout(params: {
   tableId: string;
   method: PaymentMethod;
   amount?: number;
+  closePendingOrders?: boolean;
 }): Promise<CheckoutConfirmResult> {
-  const res = await ApiClient.request('/v1/checkout/confirm', {
-    method: 'POST',
-    body: JSON.stringify(params),
-  });
+  const { closePendingOrders, ...restParams } = params;
+  const bodyPayload = {
+    ...restParams,
+    ...(closePendingOrders === true ? { closePendingOrders: true } : {}),
+  };
+
+  let res: any;
+  try {
+    res = await ApiClient.request('/v1/checkout/confirm', {
+      method: 'POST',
+      body: JSON.stringify(bodyPayload),
+    });
+  } catch (err: any) {
+    const details = err?.details || err?.data?.error?.details || err?.data?.details;
+    if (details) {
+      err.details = details;
+      if (details.pendingOrders) {
+        err.pendingOrders = details.pendingOrders;
+      }
+    }
+    throw err;
+  }
   const payload = res?.data ?? res;
 
   if (payload && typeof payload === 'object' && ('payment' in payload || 'bill' in payload)) {

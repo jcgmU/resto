@@ -69,6 +69,7 @@ export class PrismaOrderRepository implements OrderRepository {
           ? record.cancelledAt.toISOString()
           : record.cancelledAt
         : undefined,
+      cancelReason: record.cancelReason ?? undefined,
     };
   }
 
@@ -212,6 +213,66 @@ export class PrismaOrderRepository implements OrderRepository {
     });
   }
 
+  async cancelForCheckout(
+    tenantId: string,
+    orderIds: string[],
+    at: Date
+  ): Promise<OrderDTO[]> {
+    if (orderIds.length === 0) {
+      return [];
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const existingOrders = await tx.order.findMany({
+        where: { tenantId, id: { in: orderIds } },
+        include: {
+          items: {
+            include: {
+              modifiers: true,
+            },
+          },
+        },
+      });
+
+      const updatedOrders: any[] = [];
+
+      for (const order of existingOrders) {
+        const fromStatus = order.status;
+        const updated = await tx.order.update({
+          where: { id: order.id },
+          data: {
+            status: 'CANCELLED',
+            ...(order.kitchenStatus !== null ? { kitchenStatus: 'CANCELLED' } : {}),
+            ...(order.barStatus !== null ? { barStatus: 'CANCELLED' } : {}),
+            cancelReason: 'checkout',
+            cancelledAt: at,
+          },
+          include: {
+            items: {
+              include: {
+                modifiers: true,
+              },
+            },
+          },
+        });
+
+        await tx.orderStatusEvent.create({
+          data: {
+            orderId: order.id,
+            fromStatus,
+            toStatus: 'CANCELLED',
+            reason: 'checkout',
+            occurredAt: at,
+          },
+        });
+
+        updatedOrders.push(updated);
+      }
+
+      return updatedOrders.map((r) => this.mapToDTO(r));
+    });
+  }
+
   async updateStatus(
     tenantId: string,
     id: string,
@@ -304,6 +365,7 @@ export class PrismaOrderRepository implements OrderRepository {
       fromStatus: r.fromStatus,
       toStatus: r.toStatus,
       occurredAt: r.occurredAt.toISOString(),
+      reason: r.reason ?? undefined,
     }));
   }
 }

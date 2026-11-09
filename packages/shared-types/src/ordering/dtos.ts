@@ -67,6 +67,19 @@ export interface OrderHistoryEventDTO {
   fromStatus: string;
   toStatus: string;
   occurredAt: string;
+  reason?: string;
+}
+
+export type OrderDestinationStatus = OrderStatus;
+
+export interface PendingOrderSummaryDTO {
+  orderId: string;
+  tableId: string;
+  status: OrderStatus;
+  kitchenStatus?: OrderDestinationStatus | null;
+  barStatus?: OrderDestinationStatus | null;
+  createdAt: string;
+  itemsCount: number;
 }
 
 export function computeEffectiveSlaMinutes(
@@ -129,6 +142,7 @@ export interface OrderDTO {
   invoiceRef?: string;
   invoiceError?: string;
   cancelledAt?: string;
+  cancelReason?: 'checkout' | string;
 }
 
 export type OrderEventType = 'order.created' | 'order.status-changed';
@@ -197,4 +211,19 @@ export interface CheckoutCompletedEvent {
   payment: PaymentDTO;
   occurredAt: string;
 }
+
+export interface ConfirmCheckoutRequestDTO {
+  sessionId: string;
+  tableId?: string;
+  method: PaymentMethod;
+  closePendingOrders?: boolean;
+  invoiceMode?: 'simple' | 'dian';
+  invoiceCustomer?: {
+    type?: 'final_consumer' | 'business';
+    taxId?: string;
+    legalName?: string;
+    email?: string;
+  };
+}
+
 

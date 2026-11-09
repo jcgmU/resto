@@ -52,6 +52,7 @@ export function createCheckoutRouter(checkoutUseCases: CheckoutUseCases): Router
 
       const { sessionId, tableId, method, invoiceMode, invoiceCustomer } = req.body;
       const recordedBy = req.auth?.userId || 'staff-unknown';
+      const closePendingOrders = req.body?.closePendingOrders === true;
 
       const result = (await checkoutUseCases.confirmCheckout.execute({
         tenantId,
@@ -59,6 +60,8 @@ export function createCheckoutRouter(checkoutUseCases: CheckoutUseCases): Router
         tableId,
         method,
         recordedBy,
+        role,
+        closePendingOrders,
         invoiceMode,
         invoiceCustomer,
       })) as ConfirmCheckoutResult;

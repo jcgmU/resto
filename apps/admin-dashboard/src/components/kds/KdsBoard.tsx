@@ -33,8 +33,9 @@ export function KdsBoard({
     ? orders.filter((o) => (o.items || []).some((i) => (i.destination || 'kitchen') === monitorKind))
     : orders;
 
-  // Solo mostramos órdenes en estados activos para este monitor
+  // Solo mostramos órdenes en estados activos para este monitor (y nunca si la orden global está CANCELLED o DELIVERED)
   const activeOrders = destinationOrders.filter((o) => {
+    if (o.status === 'CANCELLED' || o.status === 'DELIVERED') return false;
     const effStatus = monitorKind === 'kitchen'
       ? (o.kitchenStatus || o.status)
       : monitorKind === 'bar'
