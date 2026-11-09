@@ -570,5 +570,349 @@ describe('Gestión de Mesas en Admin Dashboard (Tests Rojo/Verde)', () => {
     expect(mesasSource).toMatch(/Rotar QR[\s\S]*?var\(--bento-tinta\)|var\(--bento-tinta\)[\s\S]*?Rotar QR/);
     expect(mesasSource).toMatch(/Rotar QR[\s\S]*?var\(--bento-papel\)|var\(--bento-papel\)[\s\S]*?Rotar QR/);
   });
+
+  test('12. U9: Creación en lote desde la página abre CreateTablesBatchModal, envía POST /v1/tables/batch y refresca la lista', async () => {
+    let tables = [
+      { tableId: 'tbl-1', label: 'Mesa 1', status: 'active', createdAt: '2026-10-06T10:00:00Z' },
+    ];
+
+    global.fetch = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/v1/sessions')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [],
+        };
+      }
+      if (urlStr.includes('/v1/tables/batch') && opts?.method === 'POST') {
+        const body = JSON.parse(opts.body);
+        expect(body).toEqual({ prefix: 'Terraza', count: 2, start: 1 });
+        const created = [
+          { tableId: 'tbl-t1', label: 'Terraza 1', status: 'active', createdAt: '2026-10-06T12:00:00Z' },
+          { tableId: 'tbl-t2', label: 'Terraza 2', status: 'active', createdAt: '2026-10-06T12:00:00Z' },
+        ];
+        tables = [...tables, ...created];
+        return {
+          ok: true,
+          status: 201,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ tables: created }),
+        };
+      }
+      if (urlStr.includes('/v1/tables')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [...tables],
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as any;
+
+    render(<TablesPage />);
+    expect(await screen.findByText('Mesa 1')).toBeInTheDocument();
+
+    const batchBtn = screen.getByRole('button', { name: /Crear en lote/i });
+    fireEvent.click(batchBtn);
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Prefijo/i), { target: { value: 'Terraza' } });
+    fireEvent.change(screen.getByLabelText(/Cantidad/i), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText(/Número inicial/i), { target: { value: '1' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /^Crear mesas$/i }));
+
+    expect(await screen.findByText('Terraza 1')).toBeInTheDocument();
+    expect(screen.getByText('Terraza 2')).toBeInTheDocument();
+  });
+
+  test('13. U9: Selección múltiple muestra BulkActionBar y permite Desactivar / Activar en lote con PATCH /v1/tables/batch', async () => {
+    let tables = [
+      { tableId: 'tbl-1', label: 'Mesa 1', status: 'active', createdAt: '2026-10-06T10:00:00Z' },
+      { tableId: 'tbl-2', label: 'Mesa 2', status: 'active', createdAt: '2026-10-06T10:00:00Z' },
+    ];
+
+    let lastBatchPatch: any = null;
+    global.fetch = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/v1/sessions')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [],
+        };
+      }
+      if (urlStr.includes('/v1/tables/batch') && opts?.method === 'PATCH') {
+        lastBatchPatch = JSON.parse(opts.body);
+        tables = tables.map((t) => {
+          const patch = lastBatchPatch.updates.find((u: any) => u.tableId === t.tableId);
+          return patch ? { ...t, ...patch } : t;
+        });
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ tables }),
+        };
+      }
+      if (urlStr.includes('/v1/tables')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [...tables],
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as any;
+
+    render(<TablesPage />);
+    expect(await screen.findByText('Mesa 1')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Seleccionar Mesa 1'));
+    fireEvent.click(screen.getByLabelText('Seleccionar Mesa 2'));
+
+    expect(screen.getByRole('region', { name: /Acciones en lote/i })).toBeInTheDocument();
+    expect(screen.getByText(/2 seleccionada\(s\)/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Desactivar$/i }));
+
+    await waitFor(() => {
+      expect(lastBatchPatch).toEqual({
+        updates: [
+          { tableId: 'tbl-1', status: 'inactive' },
+          { tableId: 'tbl-2', status: 'inactive' },
+        ],
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: /Acciones en lote/i })).not.toBeInTheDocument();
+      expect(screen.getAllByText('Deshabilitada').length).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  test('14. U9: Edición individual desde tarjeta abre EditTableModal, envía PATCH /v1/tables/:tableId y refresca la lista', async () => {
+    let tables = [
+      { tableId: 'tbl-1', label: 'Mesa 1', status: 'active', createdAt: '2026-10-06T10:00:00Z' },
+    ];
+
+    global.fetch = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/v1/sessions')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [],
+        };
+      }
+      if (urlStr.includes('/v1/tables/tbl-1') && opts?.method === 'PATCH') {
+        const body = JSON.parse(opts.body);
+        tables = [{ ...tables[0], ...body }];
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => tables[0],
+        };
+      }
+      if (urlStr.includes('/v1/tables')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [...tables],
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as any;
+
+    render(<TablesPage />);
+    expect(await screen.findByText('Mesa 1')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Editar Mesa 1/i }));
+
+    const input = await screen.findByLabelText(/Nombre de la mesa/i);
+    fireEvent.change(input, { target: { value: 'Mesa Ejecutiva' } });
+    fireEvent.click(screen.getByRole('button', { name: /Guardar cambios/i }));
+
+    expect(await screen.findByText('Mesa Ejecutiva')).toBeInTheDocument();
+  });
+
+  test('15. U9: Edición en lote desde BulkActionBar abre BatchEditModal, envía PATCH /v1/tables/batch y limpia selección', async () => {
+    let tables = [
+      { tableId: 'tbl-1', label: 'Mesa 1', status: 'active', createdAt: '2026-10-06T10:00:00Z' },
+      { tableId: 'tbl-2', label: 'Mesa 2', status: 'active', createdAt: '2026-10-06T10:00:00Z' },
+    ];
+
+    global.fetch = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/v1/sessions')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [],
+        };
+      }
+      if (urlStr.includes('/v1/tables/batch') && opts?.method === 'PATCH') {
+        const body = JSON.parse(opts.body);
+        tables = tables.map((t) => {
+          const u = body.updates.find((x: any) => x.tableId === t.tableId);
+          return u ? { ...t, ...u } : t;
+        });
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ tables }),
+        };
+      }
+      if (urlStr.includes('/v1/tables')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [...tables],
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as any;
+
+    render(<TablesPage />);
+    expect(await screen.findByText('Mesa 1')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Seleccionar Mesa 1'));
+    fireEvent.click(screen.getByLabelText('Seleccionar Mesa 2'));
+
+    fireEvent.click(screen.getByRole('button', { name: /Editar \/ Renombrar en lote/i }));
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Prefijo/i), { target: { value: 'Salón' } });
+    fireEvent.change(screen.getByLabelText(/Número inicial/i), { target: { value: '10' } });
+    fireEvent.click(screen.getByRole('button', { name: /Aplicar patrón a seleccionadas/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Guardar cambios/i }));
+
+    expect(await screen.findByText('Salón 10')).toBeInTheDocument();
+    expect(screen.getByText('Salón 11')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /Acciones en lote/i })).not.toBeInTheDocument();
+  });
+
+  test('16. U9: Eliminación en lote con resultado parcial (ocupada + libre) muestra desglose accesible y refresca las eliminadas', async () => {
+    let tables = [
+      { tableId: 'tbl-1', label: 'Mesa Libre', status: 'active', createdAt: '2026-10-06T10:00:00Z' },
+      { tableId: 'tbl-2', label: 'Mesa Ocupada', status: 'active', createdAt: '2026-10-06T10:00:00Z' },
+    ];
+
+    global.fetch = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/v1/sessions')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [{ id: 'sess-2', tableId: 'tbl-2', status: 'active' }],
+        };
+      }
+      if (urlStr.includes('/v1/tables/batch/delete') && opts?.method === 'POST') {
+        tables = tables.filter((t) => t.tableId !== 'tbl-1');
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            deleted: ['tbl-1'],
+            failed: [{ tableId: 'tbl-2', code: 'TABLE_HAS_ACTIVE_SESSION' }],
+          }),
+        };
+      }
+      if (urlStr.includes('/v1/tables')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [...tables],
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as any;
+
+    render(<TablesPage />);
+    expect(await screen.findByText('Mesa Libre')).toBeInTheDocument();
+    expect(screen.getByText('Mesa Ocupada')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Seleccionar Mesa Libre'));
+    fireEvent.click(screen.getByLabelText('Seleccionar Mesa Ocupada'));
+
+    fireEvent.click(screen.getByRole('button', { name: /Eliminar seleccionadas/i }));
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(
+      screen.getByText(/tienen una sesión activa y no podrán eliminarse/i)
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Eliminar mesas/i }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Mesa Ocupada');
+    expect(alert).toHaveTextContent(/Tiene una sesión activa/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /Entendido/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Mesa Libre')).not.toBeInTheDocument();
+      expect(screen.getByText('Mesa Ocupada')).toBeInTheDocument();
+    });
+  });
+
+  test('17. U9: Rol STAFF oculta controles de mutación (Nueva Mesa, Crear en lote, Seleccionar, Editar, Eliminar) y conserva Ver QR y cambio Lista/Mapa', async () => {
+    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+    const body = Buffer.from(JSON.stringify({ role: 'STAFF' })).toString('base64url');
+    ApiClient.token = `${header}.${body}.sig`;
+
+    const mockTables = [
+      { tableId: 'tbl-1', label: 'Mesa 1', status: 'active', createdAt: '2026-10-06T10:00:00Z' },
+    ];
+
+    global.fetch = jest.fn(async (url: any) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/v1/sessions')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [],
+        };
+      }
+      if (urlStr.includes('/v1/tables')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => mockTables,
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as any;
+
+    render(<TablesPage />);
+    expect(await screen.findByText('Mesa 1')).toBeInTheDocument();
+
+    expect(screen.queryByRole('button', { name: /Nueva Mesa/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Crear en lote/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Seleccionar todas/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Seleccionar Mesa 1/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Editar Mesa 1/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Eliminar Mesa 1/i })).not.toBeInTheDocument();
+
+    expect(screen.getByRole('button', { name: /Ver QR/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Mapa/i })).toBeInTheDocument();
+  });
 });
 

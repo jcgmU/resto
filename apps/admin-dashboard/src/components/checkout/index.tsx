@@ -350,7 +350,9 @@ export interface ConfirmPaymentButtonProps {
   disabled?: boolean;
   total?: number;
   method?: PaymentMethod | null;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
+  loading?: boolean;
+  sessionId?: string;
 }
 
 export function ConfirmPaymentButton({
@@ -358,37 +360,75 @@ export function ConfirmPaymentButton({
   total = 0,
   method = null,
   onConfirm,
+  loading = false,
+  sessionId,
 }: ConfirmPaymentButtonProps) {
   const [isConfirming, setIsConfirming] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = React.useRef(false);
+  const isMountedRef = React.useRef(true);
+
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    setIsConfirming(false);
+  }, [sessionId]);
+
+  const isPending = loading || isSubmitting;
+  const isButtonDisabled = disabled || isPending;
+
+  const handleApprove = async () => {
+    if (isSubmittingRef.current || isPending) return;
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+    setIsConfirming(false);
+    try {
+      await onConfirm();
+    } finally {
+      isSubmittingRef.current = false;
+      if (isMountedRef.current) {
+        setIsSubmitting(false);
+      }
+    }
+  };
 
   return (
     <>
       <button
         type="button"
-        disabled={disabled}
-        onClick={() => setIsConfirming(true)}
+        disabled={isButtonDisabled}
+        aria-busy={isPending ? 'true' : undefined}
+        data-pending={isPending ? 'true' : undefined}
+        onClick={() => {
+          if (!isButtonDisabled) setIsConfirming(true);
+        }}
         style={{
           minHeight: '44px',
           minWidth: '44px',
           padding: '0 20px',
           borderRadius: 'var(--bento-pill-radius)',
-          background: disabled
+          background: isButtonDisabled
             ? 'var(--bento-border)'
             : 'var(--bento-tinta)',
-          color: disabled
+          color: isButtonDisabled
             ? 'var(--bento-text-muted)'
             : 'var(--bento-papel)',
           border: 'none',
           fontFamily: 'var(--bento-font-body)',
           fontWeight: 600,
-          cursor: disabled ? 'not-allowed' : 'pointer',
+          cursor: isButtonDisabled ? 'not-allowed' : 'pointer',
         }}
       >
-        Registrar cobro
+        {isPending ? 'Procesando...' : 'Registrar cobro'}
       </button>
 
       <ModalConfirm
-        open={isConfirming}
+        open={isConfirming && !isPending}
         title="Confirmar cobro"
         current={{ label: 'Cuenta actual', value: `$${total}` }}
         proposed={{ label: 'Total a cobrar', value: `$${total}` }}
@@ -397,10 +437,7 @@ export function ConfirmPaymentButton({
         ]}
         approveLabel="Confirmar cobro"
         rejectLabel="Cancelar"
-        onApprove={() => {
-          setIsConfirming(false);
-          onConfirm();
-        }}
+        onApprove={handleApprove}
         onReject={() => setIsConfirming(false)}
         onClose={() => setIsConfirming(false)}
       />
