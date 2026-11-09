@@ -1,0 +1,106 @@
+{
+  "title": "Elige el mundo visual del dashboard",
+  "question": "El sorteo asignó «Placa esmaltada». Quédate con ella, elige una alternativa o pide otra mano.",
+  "options": [
+    {
+      "id": "assigned", "kind": "assigned", "label": "Placa esmaltada", "kicker": "EL SORTEO",
+      "lineage": "rótulos de café en esmalte porcelanizado y placas numeradas de mesa",
+      "thesis": "Cada mesa es una placa esmaltada con su número; el salón se lee como una pared de placas.",
+      "palette": ["#1B3A9E", "#F3F4F0", "#D9392B", "#E8A93A", "#10131A"],
+      "materials": ["esmalte cobalto", "porcelana", "filete de latón"],
+      "viewport": "Riel cobalto a la izquierda; arriba las alertas urgentes; en el centro el mapa de mesas como placas; a la derecha pedidos y COP del día.",
+      "risk": "Si el cobalto domina demasiado, el panel se siente corporativo en vez de cálido.",
+      "raised": [
+        {"from": "design-annual-s-plate-section", "raise": "Estructura solo con filetes de 1 px: sin vidrio, sin sombras, cada placa con su marco."},
+        {"from": "brand-identity-canon-saville-catalog-sleeve", "raise": "Solo lo urgente se decodifica a color pleno; lo demás queda en tinta y porcelana."}
+      ],
+      "html": ".impeccable/mocks/decision/assigned.html",
+      "comp": ".impeccable/mocks/decision/assigned.png"
+    },
+    {
+      "id": "model-pick", "kind": "pick", "label": "Comanda de sala", "kicker": "LA ELECCIÓN DE IMPECCABLE",
+      "lineage": "talonarios de comanda y cuentas con papel carbón",
+      "thesis": "El turno es una comanda abierta: renglones con puntos guía y el total en COP al margen.",
+      "palette": ["#FBF8F3", "#1D2340", "#D8412F", "#2F7D5B"],
+      "materials": ["papel bond", "tinta azul", "sello rojo"],
+      "viewport": "Riel claro; la comanda del turno en columna central con renglones por pedido y puntos guía hasta el monto; mapa de mesas compacto a la derecha.",
+      "risk": "Es la dirección más obvia para restaurantes; puede sentirse literal.",
+      "html": ".impeccable/mocks/decision/pick.html",
+      "comp": ".impeccable/mocks/decision/pick.png"
+    },
+    {
+      "id": "challenger-grid", "kind": "challenger", "catalogId": "crouwel-grid-specimen", "label": "Rejilla Crouwel", "verdict": "competitive",
+      "lineage": "pósters de Wim Crouwel con retícula visible",
+      "thesis": "El salón es una retícula visible: cada mesa ocupa una celda y los números se construyen sobre ella.",
+      "palette": ["#FFFFFF", "#2A4BFF", "#10131A", "#F2C230"],
+      "materials": ["retícula azul", "grotesca neutra"],
+      "viewport": "Retícula de celdas con el mapa de mesas ocupando el centro y los totales en COP en una columna modular.",
+      "case": "Gana en claridad (el plano de sala es una cuadrícula) pero pierde en identificación con el sector.",
+      "risk": "Frío y de diseñador para un salón con ruido y prisa.",
+      "html": ".impeccable/mocks/decision/grid.html",
+      "comp": ".impeccable/mocks/decision/grid.png"
+    },
+    {
+      "id": "challenger-line", "kind": "challenger", "catalogId": "wayfinding-cartography-signage-midnight-transit-diagram", "label": "Línea de servicio", "verdict": "competitive",
+      "lineage": "diagramas de metro en esmalte azul medianoche",
+      "thesis": "Cada pedido recorre una línea: pedido, cocina, listo, mesa; las llamadas son transbordos.",
+      "palette": ["#0B1B3A", "#F4F6FA", "#E5384A", "#2C6BE8", "#F2A93B", "#2DB37A"],
+      "materials": ["esmalte azul medianoche", "estaciones de porcelana"],
+      "viewport": "El flujo de pedidos dibujado como una línea con estaciones y los pedidos detenidos resaltados.",
+      "case": "Gana en claridad del flujo de cocina; la identificación es media.",
+      "risk": "Un diagrama puede estorbar a quien solo quiere ver qué mesa pidió la cuenta.",
+      "html": ".impeccable/mocks/decision/line.html",
+      "comp": ".impeccable/mocks/decision/line.png"
+    },
+    {
+      "id": "challenger-flap", "kind": "challenger", "catalogId": "signals-instruments-split-flap-concourse", "label": "Tablero de salidas", "verdict": "competitive",
+      "lineage": "tableros de aletas de estaciones de tren",
+      "thesis": "Las llamadas y los pedidos son filas ordenadas por tiempo; lo que cambia, gira.",
+      "palette": ["#14161A", "#F2F2EE", "#F0A91F", "#B94A3E"],
+      "materials": ["aletas negras", "marco de acero"],
+      "viewport": "Tabla de filas por tiempo: mesa, estado, espera y monto en COP, con un giro de aletas al actualizarse.",
+      "case": "Gana en claridad (filas por urgencia) y reconocimiento medio; arriesga disfraz de instrumento.",
+      "risk": "Puede leerse como una pantalla de estación y no como un salón.",
+      "html": ".impeccable/mocks/decision/flap.html",
+      "comp": ".impeccable/mocks/decision/flap.png"
+    },
+    {
+      "id": "challenger-annual", "kind": "challenger", "catalogId": "design-annual-s-plate-section", "label": "Anuario de láminas", "verdict": "declined",
+      "lineage": "anuarios de diseño en papel sin estucar",
+      "palette": ["#F5F4F6", "#16181A", "#DCDDF3"],
+      "materials": ["papel sin estucar", "filetes"],
+      "case": "Pierde en identificación: nada ahí huele a salón.",
+      "kept": "Estructura solo con filetes de 1 px."
+    },
+    {
+      "id": "challenger-botanical", "kind": "challenger", "catalogId": "editorial-sequence-montage-botanical-folio-season", "label": "Herbario por estaciones", "verdict": "declined",
+      "lineage": "láminas botánicas secuenciadas",
+      "palette": ["#F1EAD6", "#2F5A3A", "#B3261E"],
+      "materials": ["lámina crema", "tinta sepia"],
+      "case": "Pierde en ambos ejes: crema y serifa es el molde de siempre.",
+      "kept": "Piezas del mismo tamaño y escala para comparar de un vistazo."
+    },
+    {
+      "id": "challenger-catalog", "kind": "challenger", "catalogId": "brand-identity-canon-saville-catalog-sleeve", "label": "Catálogo de funda negra", "verdict": "declined",
+      "lineage": "fundas de catálogo de sello discográfico",
+      "palette": ["#0A0A0A", "#F5F5F5", "#E24A2B"],
+      "materials": ["negro mate", "línea blanca"],
+      "case": "Pierde: códigos de color sin palabras chocan con «estado nunca solo por color».",
+      "kept": "Solo lo activo se decodifica a color pleno."
+    }
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code", "toggle": true},
+  "canon": true,
+  "canonCard": {
+    "kind": "canon", "label": "El estándar de la categoría",
+    "thesis": "Panel de operación de restaurante con tarjetas, KPI y mapa de mesas, ejecutado con oficio.",
+    "palette": ["#FFFFFF", "#111827", "#2563EB"],
+    "materials": ["rejilla limpia", "tarjetas"],
+    "viewport": "Barra lateral, fila de KPI, mapa de mesas y lista de alertas.",
+    "risk": "Indistinguible de la competencia por diseño.",
+    "html": ".impeccable/mocks/decision/canon.html",
+    "comp": ".impeccable/mocks/decision/canon.png"
+  },
+  "steer": true
+}
