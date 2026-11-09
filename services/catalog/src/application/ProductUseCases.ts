@@ -1,7 +1,14 @@
-import { ProductDTO, ProductRepository, CategoryRepository, DomainError } from '@packages/shared-types';
+import {
+  ProductDTO,
+  ProductRepository,
+  CategoryRepository,
+  ModifierGroupRepository,
+  DomainError,
+} from '@packages/shared-types';
 import {
   InMemoryProductRepository,
   InMemoryCategoryRepository,
+  InMemoryModifierGroupRepository,
 } from '../infrastructure/fakes/InMemoryCatalogAdapters';
 
 export class CreateProductUseCaseImpl {
@@ -47,7 +54,10 @@ export class CreateProductUseCaseImpl {
 }
 
 export class UpdateProductUseCaseImpl {
-  constructor(private readonly productRepo: ProductRepository = new InMemoryProductRepository()) {}
+  constructor(
+    private readonly productRepo: ProductRepository = new InMemoryProductRepository(),
+    private readonly categoryRepo: CategoryRepository = new InMemoryCategoryRepository()
+  ) {}
 
   async execute(input: {
     tenantId: string;
@@ -66,6 +76,13 @@ export class UpdateProductUseCaseImpl {
 
     if (input.price !== undefined && input.price < 0) {
       throw new DomainError('BAD_USER_INPUT', 'El precio no puede ser negativo');
+    }
+
+    if (input.categoryId !== undefined) {
+      const category = await this.categoryRepo.findById(input.tenantId, input.categoryId);
+      if (!category) {
+        throw new DomainError('NOT_FOUND', `Categoría ${input.categoryId} no encontrada en este restaurante`);
+      }
     }
 
     const updated: ProductDTO = {
@@ -87,14 +104,31 @@ export class SetProductAvailabilityUseCaseImpl {
   constructor(private readonly productRepo: ProductRepository = new InMemoryProductRepository()) {}
 
   async execute(input: { tenantId: string; id: string; isAvailable: boolean }): Promise<ProductDTO> {
+    const existing = await this.productRepo.findById(input.tenantId, input.id);
+    if (!existing) {
+      throw new DomainError('NOT_FOUND', `Producto ${input.id} no encontrado en este restaurante`);
+    }
     return this.productRepo.setAvailability(input.tenantId, input.id, input.isAvailable);
   }
 }
 
 export class AttachModifierGroupUseCaseImpl {
-  constructor(private readonly productRepo: ProductRepository = new InMemoryProductRepository()) {}
+  constructor(
+    private readonly productRepo: ProductRepository = new InMemoryProductRepository(),
+    private readonly modifierGroupRepo: ModifierGroupRepository = new InMemoryModifierGroupRepository()
+  ) {}
 
   async execute(input: { tenantId: string; productId: string; groupId: string }): Promise<void> {
+    const product = await this.productRepo.findById(input.tenantId, input.productId);
+    if (!product) {
+      throw new DomainError('NOT_FOUND', `Producto ${input.productId} no encontrado en este restaurante`);
+    }
+
+    const group = await this.modifierGroupRepo.findById(input.tenantId, input.groupId);
+    if (!group) {
+      throw new DomainError('NOT_FOUND', `Grupo de modificadores ${input.groupId} no encontrado en este restaurante`);
+    }
+
     await this.productRepo.attachModifierGroup(input.tenantId, input.productId, input.groupId);
   }
 }

@@ -1,10 +1,39 @@
 import request from 'supertest';
+import crypto from 'crypto';
 import { createCatalogApp } from '../../src/app';
 import {
   InMemoryCategoryRepository,
   InMemoryProductRepository,
   InMemoryModifierGroupRepository,
 } from '../../src/infrastructure/fakes/InMemoryCatalogAdapters';
+
+const TEST_JWT_SECRET = 'super-secret-jwt-key-hardening-test';
+process.env.JWT_SECRET = process.env.JWT_SECRET || TEST_JWT_SECRET;
+
+function signTestJwt(
+  payload: {
+    tenantId?: string;
+    userId?: string;
+    role?: string;
+    sessionId?: string;
+    exp?: number;
+    [key: string]: any;
+  },
+  secret: string = process.env.JWT_SECRET || TEST_JWT_SECRET
+): string {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const fullPayload = {
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    ...payload,
+  };
+  const b64Header = Buffer.from(JSON.stringify(header)).toString('base64url');
+  const b64Payload = Buffer.from(JSON.stringify(fullPayload)).toString('base64url');
+  const signature = crypto
+    .createHmac('sha256', secret)
+    .update(`${b64Header}.${b64Payload}`)
+    .digest('base64url');
+  return `${b64Header}.${b64Payload}.${signature}`;
+}
 
 describe('D. Catalog — integración GraphQL (Tests 24-28)', () => {
   let app: any;
@@ -26,9 +55,10 @@ describe('D. Catalog — integración GraphQL (Tests 24-28)', () => {
         }
       }
     `;
+    const adminToken = signTestJwt({ tenantId: 'tenant-100', role: 'ADMIN' });
     const resMut = await request(app)
       .post('/graphql')
-      .set('x-tenant-id', 'tenant-100')
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ query: mutation });
 
     expect(resMut.status).toBe(200);
@@ -119,9 +149,10 @@ describe('D. Catalog — integración GraphQL (Tests 24-28)', () => {
         }
       }
     `;
+    const adminToken = signTestJwt({ tenantId: 'tenant-100', role: 'ADMIN' });
     const res = await request(app)
       .post('/graphql')
-      .set('x-tenant-id', 'tenant-100')
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ query: badMutation });
 
     expect(res.body.errors).toBeDefined();

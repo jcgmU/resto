@@ -1,5 +1,5 @@
 import { PrismaClient } from '../../generated/client';
-import { ProductRepository, ProductDTO } from '@packages/shared-types';
+import { ProductRepository, ProductDTO, DomainError } from '@packages/shared-types';
 
 export class PrismaProductRepository implements ProductRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -107,29 +107,46 @@ export class PrismaProductRepository implements ProductRepository {
   }
 
   async save(tenantId: string, product: ProductDTO): Promise<ProductDTO> {
-    const saved = await this.prisma.product.upsert({
-      where: { id: product.id },
-      update: {
-        name: product.name,
-        description: product.description,
-        price: product.price,
-        imageUrl: product.imageUrl,
-        categoryId: product.categoryId,
-        sortOrder: product.sortOrder,
-        isAvailable: product.isAvailable,
-      },
-      create: {
-        id: product.id,
-        tenantId,
-        categoryId: product.categoryId,
-        name: product.name,
-        description: product.description,
-        price: product.price,
-        imageUrl: product.imageUrl,
-        sortOrder: product.sortOrder,
-        isAvailable: product.isAvailable,
-      },
+    const category = await this.prisma.category.findFirst({
+      where: { id: product.categoryId, tenantId },
     });
+    if (!category) {
+      throw new DomainError('NOT_FOUND', `Categoría ${product.categoryId} no encontrada en este restaurante`);
+    }
+
+    const existing = await this.prisma.product.findUnique({
+      where: { id: product.id },
+    });
+    if (existing && existing.tenantId !== tenantId) {
+      throw new DomainError('NOT_FOUND', `Producto ${product.id} no encontrado en este restaurante`);
+    }
+
+    const saved = existing
+      ? await this.prisma.product.update({
+          where: { id: existing.id },
+          data: {
+            name: product.name,
+            description: product.description,
+            price: product.price,
+            imageUrl: product.imageUrl,
+            categoryId: product.categoryId,
+            sortOrder: product.sortOrder,
+            isAvailable: product.isAvailable,
+          },
+        })
+      : await this.prisma.product.create({
+          data: {
+            id: product.id,
+            tenantId,
+            categoryId: product.categoryId,
+            name: product.name,
+            description: product.description,
+            price: product.price,
+            imageUrl: product.imageUrl,
+            sortOrder: product.sortOrder,
+            isAvailable: product.isAvailable,
+          },
+        });
 
     return {
       ...product,
@@ -148,8 +165,15 @@ export class PrismaProductRepository implements ProductRepository {
   }
 
   async setAvailability(tenantId: string, id: string, isAvailable: boolean): Promise<ProductDTO> {
+    const existing = await this.prisma.product.findFirst({
+      where: { tenantId, id },
+    });
+    if (!existing) {
+      throw new DomainError('NOT_FOUND', `Producto ${id} no encontrado en este restaurante`);
+    }
+
     const updated = await this.prisma.product.update({
-      where: { id },
+      where: { id: existing.id },
       data: { isAvailable },
     });
     return {
@@ -169,7 +193,13 @@ export class PrismaProductRepository implements ProductRepository {
 
   async attachModifierGroup(tenantId: string, productId: string, groupId: string): Promise<void> {
     const product = await this.prisma.product.findFirst({ where: { tenantId, id: productId } });
-    if (!product) return;
+    if (!product) {
+      throw new DomainError('NOT_FOUND', `Producto ${productId} no encontrado en este restaurante`);
+    }
+    const group = await this.prisma.modifierGroup.findFirst({ where: { tenantId, id: groupId } });
+    if (!group) {
+      throw new DomainError('NOT_FOUND', `Grupo de modificadores ${groupId} no encontrado en este restaurante`);
+    }
     await this.prisma.productModifierGroup.upsert({
       where: {
         productId_groupId: { productId, groupId },
@@ -181,7 +211,9 @@ export class PrismaProductRepository implements ProductRepository {
 
   async detachModifierGroup(tenantId: string, productId: string, groupId: string): Promise<void> {
     const product = await this.prisma.product.findFirst({ where: { tenantId, id: productId } });
-    if (!product) return;
+    if (!product) {
+      throw new DomainError('NOT_FOUND', `Producto ${productId} no encontrado en este restaurante`);
+    }
     await this.prisma.productModifierGroup.deleteMany({
       where: { productId, groupId },
     });
