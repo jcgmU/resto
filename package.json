@@ -2,11 +2,13 @@
   "name": "restaurante-os",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@9.15.9",
   "scripts": {
     "build": "pnpm --filter \"@packages/*\" run build",
     "test": "pnpm -r run test",
     "test:gateway": "pnpm --filter @services/gateway test",
     "test:ui": "pnpm --filter @packages/ui-components test",
+    "test:hardening": "node scripts/test-hardening.mjs",
     "lint": "pnpm -r run lint"
   },
   "devDependencies": {

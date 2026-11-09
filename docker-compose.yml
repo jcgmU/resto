@@ -58,8 +58,8 @@ services:
       dockerfile: services/catalog/Dockerfile
     container_name: resto_catalog
     restart: unless-stopped
-    ports:
-      - "4002:4002"
+    expose:
+      - "4002"
     environment:
       NODE_ENV: production
       PORT: 4002
