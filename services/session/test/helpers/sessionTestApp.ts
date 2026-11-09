@@ -2,13 +2,14 @@ import { InMemoryTableRepository, InMemoryTableSessionRepository } from '../../s
 import { createSessionApp } from '../../src/app';
 
 export function createSeededSessionTestApp() {
-  const tableRepo = new InMemoryTableRepository();
   const sessionRepo = new InMemoryTableSessionRepository();
+  const tableRepo = new InMemoryTableRepository(sessionRepo);
 
   tableRepo.tables.push({
     tableId: 'table-1',
     tenantId: 'tenant-100',
-    label: 'Mesa 1',
+    label: 'Mesa Seed 1',
+    labelKey: 'mesa seed 1',
     status: 'active',
     qrKey: 'valid-key',
     createdAt: new Date().toISOString(),

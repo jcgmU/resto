@@ -4,6 +4,10 @@ import { createTablesRouter } from './interfaces/http/tables.routes';
 import { createSessionsRouter } from './interfaces/http/sessions.routes';
 import {
   CreateTableUseCaseImpl,
+  CreateTablesBatchUseCaseImpl,
+  UpdateTablesBatchUseCaseImpl,
+  UpdateSingleTableUseCaseImpl,
+  DeleteTablesBatchUseCaseImpl,
   GenerateTableQrUseCaseImpl,
   RotateTableQrKeyUseCaseImpl,
 } from './application/TableUseCases';
@@ -49,12 +53,21 @@ export function createSessionApp(deps?: SessionAppDeps): express.Application {
   });
 
   const redis = (deps?.tableRepo && deps?.sessionRepo) ? null : getRedisClient();
-  const tableRepo = deps?.tableRepo || new RedisTableRepository(redis!);
-  const sessionRepo = deps?.sessionRepo || new RedisTableSessionRepository(redis!);
+  const tableRepo: TableRepository =
+    deps?.tableRepo || (new RedisTableRepository(redis!) as unknown as TableRepository);
+  const sessionRepo: TableSessionRepository =
+    deps?.sessionRepo || new RedisTableSessionRepository(redis!);
+  if (tableRepo instanceof InMemoryTableRepository) {
+    tableRepo.setSessionRepository(sessionRepo);
+  }
   const tokenIssuer = new JwtGuestTokenIssuer(config.JWT_SECRET);
   const qrGenerator = new QrcodeGeneratorAdapter();
 
   const createTableUseCase = new CreateTableUseCaseImpl(tableRepo);
+  const createTablesBatchUseCase = new CreateTablesBatchUseCaseImpl(tableRepo);
+  const updateTablesBatchUseCase = new UpdateTablesBatchUseCaseImpl(tableRepo);
+  const updateSingleTableUseCase = new UpdateSingleTableUseCaseImpl(tableRepo);
+  const deleteTablesBatchUseCase = new DeleteTablesBatchUseCaseImpl(tableRepo);
   const generateTableQrUseCase = new GenerateTableQrUseCaseImpl(
     tableRepo,
     qrGenerator,
@@ -82,6 +95,10 @@ export function createSessionApp(deps?: SessionAppDeps): express.Application {
     createTablesRouter({
       tableRepo,
       createTableUseCase,
+      createTablesBatchUseCase,
+      updateTablesBatchUseCase,
+      updateSingleTableUseCase,
+      deleteTablesBatchUseCase,
       generateTableQrUseCase,
       rotateTableQrKeyUseCase,
     })
@@ -102,4 +119,3 @@ export function createSessionApp(deps?: SessionAppDeps): express.Application {
 
   return app;
 }
-

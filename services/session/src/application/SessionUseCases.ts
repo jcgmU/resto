@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import {
   OpenSessionRequest,
   OpenSessionResult,
@@ -18,7 +19,7 @@ export class OpenTableSessionUseCaseImpl {
 
   async execute(input: OpenSessionRequest): Promise<OpenSessionResult> {
     const table = await this.tableRepo.findById(input.tenantId, input.tableId);
-    if (!table) {
+    if (!table || table.status === 'deleted') {
       throw new DomainError('TABLE_NOT_FOUND', `TABLE_NOT_FOUND: Mesa ${input.tableId} no encontrada`);
     }
 
@@ -41,7 +42,7 @@ export class OpenTableSessionUseCaseImpl {
     }
 
     const now = new Date();
-    const sessionId = `session-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const sessionId = `session-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
     const session: TableSessionDTO = {
       sessionId,
       tenantId: input.tenantId,
@@ -53,7 +54,7 @@ export class OpenTableSessionUseCaseImpl {
 
     const saved = await this.sessionRepo.save(input.tenantId, session, this.ttlSeconds);
     const guestToken = this.tokenIssuer.issue(
-      { tenantId: input.tenantId, sessionId, role: 'guest' },
+      { tenantId: input.tenantId, sessionId: saved.sessionId, role: 'guest' },
       this.ttlSeconds
     );
 

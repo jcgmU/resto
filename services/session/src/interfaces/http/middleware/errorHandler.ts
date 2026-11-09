@@ -31,16 +31,26 @@ export function errorHandler(
       case 'NOT_FOUND':
         status = 404;
         break;
+      case 'TABLE_LABEL_TAKEN':
+      case 'TABLE_LIMIT_EXCEEDED':
+      case 'TABLES_NOT_DELETABLE':
+      case 'TABLE_HAS_ACTIVE_SESSION':
+      case 'CONFLICT':
+        status = 409;
+        break;
       default:
         status = 400;
         break;
     }
   }
 
+  const details = err instanceof DomainError ? err.details : undefined;
+
   res.status(status).json({
     error: {
       code,
       message,
+      ...(details !== undefined ? { details } : {}),
     },
   });
 }
