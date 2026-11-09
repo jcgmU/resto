@@ -240,4 +240,20 @@ describe('CreateTablesBatchModal (U6)', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent(/500/);
   });
+
+  test('mantiene el foco en el input de prefijo cuando el padre re-renderiza con un onClose nuevo', () => {
+    const onSuccess = jest.fn();
+    const { rerender } = render(
+      <CreateTablesBatchModal open={true} onClose={() => {}} onSuccess={onSuccess} />
+    );
+
+    const input = screen.getByLabelText('Prefijo');
+    input.focus();
+    fireEvent.change(input, { target: { value: 'Mesa.' } });
+
+    rerender(<CreateTablesBatchModal open={true} onClose={() => {}} onSuccess={onSuccess} />);
+
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue('Mesa.');
+  });
 });

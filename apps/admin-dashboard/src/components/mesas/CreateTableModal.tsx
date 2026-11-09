@@ -21,6 +21,8 @@ export function CreateTableModal({
   onClose,
 }: CreateTableModalProps) {
   const createModalRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
@@ -31,7 +33,7 @@ export function CreateTableModal({
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key === 'Tab') {
@@ -61,7 +63,7 @@ export function CreateTableModal({
       window.removeEventListener('keydown', handleKeyDown);
       prevFocus?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

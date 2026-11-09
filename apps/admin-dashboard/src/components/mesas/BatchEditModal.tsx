@@ -30,6 +30,8 @@ export function BatchEditModal({
   onSuccess,
 }: BatchEditModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const [rows, setRows] = useState<RowDraft[]>([]);
   const [prefix, setPrefix] = useState('Mesa');
   const [startNumber, setStartNumber] = useState('1');
@@ -37,6 +39,8 @@ export function BatchEditModal({
   const [serverError, setServerError] = useState<string | null>(null);
   const [conflictIds, setConflictIds] = useState<Set<string>>(new Set());
   const [conflictLabelKeys, setConflictLabelKeys] = useState<Set<string>>(new Set());
+
+  const tablesKey = tables.map((t) => t.tableId).join('|');
 
   useEffect(() => {
     if (!open || tables.length === 0) return;
@@ -55,7 +59,8 @@ export function BatchEditModal({
     setServerError(null);
     setConflictIds(new Set());
     setConflictLabelKeys(new Set());
-  }, [open, tables, initialMode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tablesKey, initialMode]);
 
   useEffect(() => {
     if (!open || tables.length === 0) return;
@@ -66,7 +71,7 @@ export function BatchEditModal({
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key === 'Tab') {
@@ -96,7 +101,7 @@ export function BatchEditModal({
       window.removeEventListener('keydown', handleKeyDown);
       prevFocus?.focus?.();
     };
-  }, [open, tables.length, onClose]);
+  }, [open, tables.length]);
 
   const validation = useMemo(() => {
     const counts = new Map<string, number>();

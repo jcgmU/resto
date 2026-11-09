@@ -25,6 +25,8 @@ export function CreateTablesBatchModal({
   existingTables = [],
 }: CreateTablesBatchModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   const [mode, setMode] = useState<BatchMode>('prefix');
   const [prefix, setPrefix] = useState<string>('Mesa');
@@ -57,7 +59,7 @@ export function CreateTablesBatchModal({
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key === 'Tab') {
@@ -87,7 +89,7 @@ export function CreateTablesBatchModal({
       window.removeEventListener('keydown', handleKeyDown);
       prevFocus?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   const existingKeySet = useMemo(() => {
     const keys = new Set<string>();

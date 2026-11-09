@@ -32,6 +32,8 @@ export function DeleteTablesDialog({
   onCompleted,
 }: DeleteTablesDialogProps) {
   const modalRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const [submitting, setSubmitting] = useState(false);
   const [batchResult, setBatchResult] = useState<DeleteTablesBatchResult | null>(null);
   const [unexpectedError, setUnexpectedError] = useState<string | null>(null);
@@ -52,7 +54,7 @@ export function DeleteTablesDialog({
         e.preventDefault();
         e.stopPropagation();
         if (!submitting) {
-          onClose();
+          onCloseRef.current();
         }
         return;
       }
@@ -83,7 +85,7 @@ export function DeleteTablesDialog({
       window.removeEventListener('keydown', handleKeyDown);
       prevFocus?.focus?.();
     };
-  }, [open, submitting, onClose]);
+  }, [open, submitting]);
 
   const labelByTableId = useMemo(() => {
     const map = new Map<string, string>();

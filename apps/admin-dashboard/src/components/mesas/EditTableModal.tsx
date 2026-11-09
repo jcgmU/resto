@@ -24,6 +24,8 @@ function formatConflictList(conflicts: unknown): string {
 
 export function EditTableModal({ table, onClose, onSuccess }: EditTableModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const [label, setLabel] = useState<string>(table?.label ?? '');
   const [status, setStatus] = useState<'active' | 'inactive'>(
     table?.status === 'inactive' ? 'inactive' : 'active'
@@ -48,7 +50,7 @@ export function EditTableModal({ table, onClose, onSuccess }: EditTableModalProp
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key === 'Tab') {
@@ -78,7 +80,7 @@ export function EditTableModal({ table, onClose, onSuccess }: EditTableModalProp
       window.removeEventListener('keydown', handleKeyDown);
       prevFocus?.focus?.();
     };
-  }, [table, onClose]);
+  }, [table]);
 
   if (!table) return null;
 
