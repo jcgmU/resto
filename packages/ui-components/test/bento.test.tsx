@@ -138,6 +138,30 @@ describe('E.2 Estructura visual Bento Box (Tests 37-44)', () => {
     expect(accentElements[0]).toHaveAttribute('data-component', 'kpi-value');
   });
 
+  test('41b. Ronda 7: KpiValue tone="accent" muestra precio con estilo neutro tipográfico sin pastilla de fondo azul oscuro', () => {
+    const { container } = render(
+      <KpiValue label="Precio" value="$ 18.000" tone="accent" />
+    );
+
+    const kpi = container.querySelector('[data-component="kpi-value"][data-tone="accent"]');
+    expect(kpi).toBeInTheDocument();
+    
+    const valueSpan = kpi?.querySelectorAll('span')[1];
+    expect(valueSpan).toBeInTheDocument();
+    expect(valueSpan?.textContent).toBe('$ 18.000');
+    
+    // No debe tener estilo de pastilla (padding/inline-block/fondo de pastilla)
+    const styleAttr = valueSpan?.getAttribute('style') || '';
+    expect(styleAttr).not.toContain('padding: 2px 8px');
+    expect(styleAttr).not.toContain('display: inline-block');
+
+    const fs = require('fs');
+    const path = require('path');
+    const source = fs.readFileSync(path.resolve(__dirname, '../src/bento/KpiValue.tsx'), 'utf8');
+    expect(source).not.toContain("backgroundColor: 'var(--bento-accent)'");
+    expect(source).not.toContain("var(--bento-primary)");
+  });
+
   test('42. Cero decoración: todo SVG de icono junto a texto tiene aria-hidden="true"; no existe <img> sin alt; no hay emojis usados como iconos', () => {
     const { container } = render(
       <BentoCard>

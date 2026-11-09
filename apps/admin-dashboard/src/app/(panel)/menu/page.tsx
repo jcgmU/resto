@@ -946,7 +946,7 @@ export default function MenuPage() {
         <div data-testid="menu-loading-skeleton" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
           <div>
             <Skeleton width="180px" height="24px" style={{ marginBottom: '16px' }} />
-            <BentoGrid>
+            <BentoGrid style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
               {[1, 2, 3, 4].map((i) => (
                 <BentoCard key={i}>
                   <div style={{ padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1004,7 +1004,7 @@ export default function MenuPage() {
                 }
               />
             ) : (
-              <BentoGrid>
+              <BentoGrid style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
                 {categories.map((cat, idx) => (
                   <CategoryCard
                     key={cat.id}
