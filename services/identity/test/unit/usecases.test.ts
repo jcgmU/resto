@@ -110,12 +110,25 @@ describe('A. Identity — unitarios de casos de uso (Tests 1-10)', () => {
   });
 
   describe('RefreshSession (Tests 7-8)', () => {
-    test('7. RefreshSession con refresh válido -> nuevo par de tokens Y el refresh anterior queda revocado (rotación)', async () => {
-      const useCase = new RefreshSessionUseCaseImpl(new InMemoryUserRepository(), new InMemoryRefreshTokenRepository(), new FakeTokenIssuer());
+    test('7. RefreshSession con refresh válido -> nuevo par de tokens Y el refresh anterior queda revocado (rotación secuencial)', async () => {
+      const refreshRepo = new InMemoryRefreshTokenRepository();
+      const useCase = new RefreshSessionUseCaseImpl(new InMemoryUserRepository(), refreshRepo, new FakeTokenIssuer());
       const tokens = await useCase.execute({ refreshToken: 'valid-refresh-token' });
 
       expect(tokens.accessToken).toBeDefined();
       expect(tokens.refreshToken).toBeDefined();
+
+      // El refresh anterior queda revocado (replay rechazado)
+      await expect(
+        useCase.execute({ refreshToken: 'valid-refresh-token' })
+      ).rejects.toThrow(
+        expect.objectContaining({ code: 'INVALID_CREDENTIALS' } as Partial<DomainError>)
+      );
+
+      // El nuevo refreshToken emitido por rotación es aceptado secuencialmente
+      const nextTokens = await useCase.execute({ refreshToken: tokens.refreshToken });
+      expect(nextTokens.accessToken).toBeDefined();
+      expect(nextTokens.refreshToken).toBeDefined();
     });
 
     test('8. RefreshSession con refresh revocado o expirado -> INVALID_CREDENTIALS', async () => {

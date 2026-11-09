@@ -4,6 +4,7 @@ import {
   FakePasswordHasher,
 } from '../../src/infrastructure/fakes/InMemoryIdentityAdapters';
 import { ManageTeamUseCaseImpl } from '../../src/application/ManageTeam';
+import { hashRefreshToken } from '../../src/infrastructure/security/JwtTokenIssuer';
 import { DomainError } from '@packages/shared-types';
 
 describe('ManageTeam Unit Tests', () => {
@@ -59,7 +60,7 @@ describe('ManageTeam Unit Tests', () => {
       {
         id: 'rt-1',
         userId: 'staff-1',
-        tokenHash: 'hash_rt1',
+        tokenHash: hashRefreshToken('rt1'),
         expiresAt: new Date(Date.now() + 100000),
         revokedAt: null,
       },

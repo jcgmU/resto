@@ -8,6 +8,7 @@ import {
 import { RegisterTenantUseCaseImpl } from '../../src/application/RegisterTenant';
 import { LoginUseCaseImpl } from '../../src/application/Login';
 import { RefreshSessionUseCaseImpl } from '../../src/application/RefreshSession';
+import { hashRefreshToken } from '../../src/infrastructure/security/JwtTokenIssuer';
 import { DomainError } from '@packages/shared-types';
 
 describe('Login status validation and RegisterTenant atomicity', () => {
@@ -68,7 +69,7 @@ describe('Login status validation and RegisterTenant atomicity', () => {
       refreshTokenRepo.tokens.push({
         id: 'rt-disabled',
         userId: 'u-disabled-refresh',
-        tokenHash: 'hash_disabled-token',
+        tokenHash: hashRefreshToken('disabled-token'),
         expiresAt: new Date(Date.now() + 86400000),
         revokedAt: null,
       });
@@ -86,6 +87,7 @@ describe('Login status validation and RegisterTenant atomicity', () => {
       ).rejects.toThrow(
         expect.objectContaining({
           code: 'INVALID_CREDENTIALS',
+          message: 'Sesión inválida o usuario inactivo',
         } as Partial<DomainError>)
       );
     });

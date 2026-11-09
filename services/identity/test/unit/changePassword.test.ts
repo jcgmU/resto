@@ -4,6 +4,7 @@ import {
   FakePasswordHasher,
 } from '../../src/infrastructure/fakes/InMemoryIdentityAdapters';
 import { ChangePasswordUseCaseImpl } from '../../src/application/ChangePassword';
+import { hashRefreshToken } from '../../src/infrastructure/security/JwtTokenIssuer';
 import { DomainError } from '@packages/shared-types';
 
 describe('ChangePasswordUseCase', () => {
@@ -74,7 +75,7 @@ describe('ChangePasswordUseCase', () => {
   });
 
   test('Revocación de refresh tokens al cambiar la contraseña', async () => {
-    const validTokenBefore = await refreshTokenRepo.findValidByHash('hash_valid-refresh-token');
+    const validTokenBefore = await refreshTokenRepo.findValidByHash(hashRefreshToken('valid-refresh-token'));
     expect(validTokenBefore).not.toBeNull();
     expect(validTokenBefore?.userId).toBe('u-valid');
 
@@ -84,7 +85,7 @@ describe('ChangePasswordUseCase', () => {
       newPassword: 'newpassword123',
     });
 
-    const validTokenAfter = await refreshTokenRepo.findValidByHash('hash_valid-refresh-token');
+    const validTokenAfter = await refreshTokenRepo.findValidByHash(hashRefreshToken('valid-refresh-token'));
     expect(validTokenAfter).toBeNull();
 
     const userTokens = refreshTokenRepo.tokens.filter((t) => t.userId === 'u-valid');

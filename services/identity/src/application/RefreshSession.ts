@@ -6,11 +6,7 @@ import {
   TokenIssuer,
   DomainError,
 } from '@packages/shared-types';
-import {
-  InMemoryUserRepository,
-  InMemoryRefreshTokenRepository,
-  FakeTokenIssuer,
-} from '../infrastructure/fakes/InMemoryIdentityAdapters';
+import { hashRefreshToken } from '../infrastructure/security/JwtTokenIssuer';
 
 export class RefreshSessionUseCaseImpl implements RefreshSessionUseCase {
   constructor(
@@ -24,7 +20,7 @@ export class RefreshSessionUseCaseImpl implements RefreshSessionUseCase {
       throw new DomainError('INVALID_CREDENTIALS', 'Token de refresco requerido');
     }
 
-    const tokenHash = `hash_${input.refreshToken}`;
+    const tokenHash = hashRefreshToken(input.refreshToken);
     const valid = await this.refreshTokenRepo.findValidByHash(tokenHash);
     if (!valid) {
       throw new DomainError('INVALID_CREDENTIALS', 'Token de refresco inválido o expirado');

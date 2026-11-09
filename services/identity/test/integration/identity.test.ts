@@ -401,5 +401,47 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
         });
       expect(loginRes.status).toBe(200);
     });
+
+    test('22. POST /auth/refresh con token emitido por login/register rota secuencialmente con SHA-256 real y rechaza replay con 401', async () => {
+      const loginRes = await request(app)
+        .post('/auth/login')
+        .send({
+          email: 'chef@bistro.com',
+          password: 'supersecretpassword',
+        });
+      expect(loginRes.status).toBe(200);
+      const rt1 = loginRes.body.tokens.refreshToken;
+      expect(rt1).toBeDefined();
+
+      // Primer refresh -> 200 OK y nuevo refreshToken
+      const refresh1 = await request(app)
+        .post('/auth/refresh')
+        .send({ refreshToken: rt1 });
+      expect(refresh1.status).toBe(200);
+      expect(refresh1.body.accessToken).toBeDefined();
+      expect(refresh1.body.refreshToken).toBeDefined();
+      expect(refresh1.body.refreshToken).not.toBe(rt1);
+
+      const decoded = jwt.verify(refresh1.body.accessToken, TEST_SECRET) as any;
+      expect(decoded.sub).toBe(loginRes.body.user.id);
+      expect(decoded.tenantId).toBe(loginRes.body.user.tenantId);
+      expect(decoded.role).toBe('ADMIN');
+      expect(decoded.email).toBe('chef@bistro.com');
+
+      // Replay del primer refreshToken -> 401 INVALID_CREDENTIALS
+      const replayRes = await request(app)
+        .post('/auth/refresh')
+        .send({ refreshToken: rt1 });
+      expect(replayRes.status).toBe(401);
+      expect(replayRes.body.error.code).toBe('INVALID_CREDENTIALS');
+
+      // Rotación secuencial usando el segundo refreshToken -> 200 OK
+      const refresh2 = await request(app)
+        .post('/auth/refresh')
+        .send({ refreshToken: refresh1.body.refreshToken });
+      expect(refresh2.status).toBe(200);
+      expect(refresh2.body.accessToken).toBeDefined();
+      expect(refresh2.body.refreshToken).toBeDefined();
+    });
   });
 });

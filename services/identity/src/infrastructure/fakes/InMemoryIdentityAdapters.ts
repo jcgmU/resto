@@ -8,6 +8,7 @@ import {
   UserDTO,
   AccessTokenClaims,
 } from '@packages/shared-types';
+import { hashRefreshToken } from '../security/JwtTokenIssuer';
 
 export class InMemoryTenantRepository implements TenantRepository {
   public tenants: TenantDTO[] = [
@@ -130,14 +131,14 @@ export class InMemoryRefreshTokenRepository implements RefreshTokenRepository {
     {
       id: 'rt-valid',
       userId: 'u-valid',
-      tokenHash: 'hash_valid-refresh-token',
+      tokenHash: hashRefreshToken('valid-refresh-token'),
       expiresAt: new Date(Date.now() + 86400000),
       revokedAt: null,
     },
     {
       id: 'rt-expired',
       userId: 'u-valid',
-      tokenHash: 'hash_expired-or-revoked-token',
+      tokenHash: hashRefreshToken('expired-or-revoked-token'),
       expiresAt: new Date(Date.now() - 1000),
       revokedAt: new Date(),
     },
@@ -194,7 +195,7 @@ export class FakeTokenIssuer implements TokenIssuer {
     const raw = `raw_token_${Math.random()}`;
     return {
       raw,
-      hash: `hash_${raw}`,
+      hash: hashRefreshToken(raw),
     };
   }
 }
