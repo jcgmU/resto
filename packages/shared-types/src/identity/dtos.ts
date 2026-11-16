@@ -1,6 +1,26 @@
 export type TenantStatus = 'ACTIVE' | 'SUSPENDED';
-export type UserRole = 'ADMIN' | 'MANAGER' | 'STAFF' | 'CUSTOMER' | 'WAITER' | 'MONITOR' | 'CASHIER';
-export type UserStatus = 'ACTIVE' | 'INVITED' | 'SUSPENDED';
+
+export type UppercaseUserRole =
+  | 'ADMIN'
+  | 'MANAGER'
+  | 'STAFF'
+  | 'CUSTOMER'
+  | 'WAITER'
+  | 'MONITOR'
+  | 'CASHIER';
+
+export type LowercaseUserRole =
+  | 'admin'
+  | 'manager'
+  | 'staff'
+  | 'customer'
+  | 'waiter'
+  | 'monitor'
+  | 'cashier';
+
+export type UserRole = UppercaseUserRole | LowercaseUserRole;
+
+export type UserStatus = 'ACTIVE' | 'INVITED' | 'SUSPENDED' | 'DISABLED';
 
 export type OperatingMode = 'hybrid' | 'waiter_only';
 export type InvoiceMode = 'simple' | 'dian';
@@ -66,11 +86,42 @@ export interface RegisterTenantRequest {
   slug?: string;
   adminEmail: string;
   adminPassword: string;
-  adminDisplayName: string;
+  adminDisplayName?: string;
 }
 
 export interface RegisterTenantResult {
   tenant: TenantDTO;
   user: UserDTO;
   tokens: AuthTokens;
+}
+
+export interface CreateTeamMemberRequest {
+  email: string;
+  displayName: string;
+  role: UserRole;
+  password: string;
+  monitorKind?: MonitorKind | string | null;
+}
+
+export interface UpdateTeamMemberRequest {
+  displayName?: string;
+  role?: UserRole;
+}
+
+export interface SetTeamMemberStatusRequest {
+  status: 'ACTIVE' | 'DISABLED';
+}
+
+export interface ResetTeamMemberPasswordRequest {
+  password?: string;
+}
+
+export interface ResetTeamMemberPasswordResult {
+  message: string;
+  password?: string;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
 }

@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build, Unit Tests & Real Hardening Harness
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+          cache: 'pnpm'
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma clients
+        run: |
+          pnpm --filter @services/identity exec prisma generate
+          pnpm --filter @services/catalog exec prisma generate
+          pnpm --filter @services/ordering exec prisma generate
+
+      - name: Build all packages, apps, and services
+        run: pnpm --filter "./packages/*" --filter "./apps/*" --filter "./services/*" -r run build
+
+      - name: Run unit and integration tests
+        run: pnpm -r run test
+
+      - name: Run real hardening harness (Postgres + Redis + E2E Gateway)
+        run: pnpm test:hardening
+
+      - name: Collect diagnostic logs on failure
+        if: failure()
+        run: |
+          mkdir -p ci-diagnostics
+          echo "=== Node & pnpm versions ===" > ci-diagnostics/environment.txt
+          node -v >> ci-diagnostics/environment.txt
+          pnpm -v >> ci-diagnostics/environment.txt
+          echo "=== Docker containers ===" > ci-diagnostics/docker-ps.txt
+          docker ps -a >> ci-diagnostics/docker-ps.txt 2>&1 || true
+
+      - name: Upload diagnostic artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-failure-diagnostics
+          path: ci-diagnostics/
+          if-no-files-found: ignore
+          retention-days: 7

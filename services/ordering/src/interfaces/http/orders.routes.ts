@@ -1,13 +1,37 @@
 import { Router } from 'express';
 import { OrderUseCases } from '../../application/OrderUseCases';
+import {
+  ORDER_STATUS_ROLES,
+  ORDER_CANCEL_ROLES,
+  ORDER_STAFF_ROLES,
+  hasRole,
+} from './authzRoles';
 
 export function createOrdersRouter(orderUseCases: OrderUseCases): Router {
   const router = Router();
 
+  // POST /orders/confirm
+  router.post('/confirm', async (req, res, next) => {
+    try {
+      const { tenantId, sessionId } = req.auth!;
+      const tableId = req.body?.tableId || `table-from-${sessionId}`;
+
+      const order = await orderUseCases.confirmOrder.execute({
+        tenantId,
+        sessionId: sessionId!,
+        tableId,
+      });
+
+      res.status(201).json(order);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   router.get('/', async (req, res, next) => {
     try {
       const { tenantId, role, sessionId } = req.auth!;
-      const isStaff = role && ['staff', 'manager', 'admin', 'monitor', 'waiter'].includes(role.toLowerCase());
+      const isStaff = hasRole(role, ORDER_STAFF_ROLES);
 
       if (!isStaff) {
         if (!sessionId) {
@@ -80,7 +104,7 @@ export function createOrdersRouter(orderUseCases: OrderUseCases): Router {
   router.patch('/:id/delay', async (req, res, next) => {
     try {
       const { tenantId, role } = req.auth!;
-      const isStaff = role && ['staff', 'manager', 'admin', 'monitor', 'waiter'].includes(role.toLowerCase());
+      const isStaff = hasRole(role, ORDER_STATUS_ROLES);
 
       if (!isStaff) {
         return res.status(403).json({
@@ -118,10 +142,10 @@ export function createOrdersRouter(orderUseCases: OrderUseCases): Router {
     }
   });
 
-  router.patch('/:id/cancel', async (req, res, next) => {
+  const handleCancelOrder = async (req: any, res: any, next: any) => {
     try {
       const { tenantId, role } = req.auth!;
-      const isAuthorized = role && ['manager', 'admin'].includes(role.toLowerCase());
+      const isAuthorized = hasRole(role, ORDER_CANCEL_ROLES);
 
       if (!isAuthorized) {
         return res.status(403).json({
@@ -139,12 +163,15 @@ export function createOrdersRouter(orderUseCases: OrderUseCases): Router {
     } catch (err) {
       next(err);
     }
-  });
+  };
+
+  router.post('/:id/cancel', handleCancelOrder);
+  router.patch('/:id/cancel', handleCancelOrder);
 
   router.patch('/:id/status', async (req, res, next) => {
     try {
       const { tenantId, role } = req.auth!;
-      const isStaff = role && ['staff', 'manager', 'admin', 'monitor', 'waiter'].includes(role.toLowerCase());
+      const isStaff = hasRole(role, ORDER_STATUS_ROLES);
 
       if (!isStaff) {
         return res.status(403).json({
@@ -158,6 +185,13 @@ export function createOrdersRouter(orderUseCases: OrderUseCases): Router {
       if (!status) {
         return res.status(400).json({
           error: { code: 'VALIDATION_ERROR', message: 'El estado es requerido' },
+        });
+      }
+
+      // Solo manager o admin pueden cancelar pedidos
+      if (status === 'CANCELLED' && !hasRole(role, ORDER_CANCEL_ROLES)) {
+        return res.status(403).json({
+          error: { code: 'FORBIDDEN', message: 'Solo manager o admin pueden cancelar pedidos' },
         });
       }
 

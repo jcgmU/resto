@@ -60,29 +60,47 @@ function CheckoutContent({ allowPendingOrdersOverride = true }: { allowPendingOr
     displayName: string;
   } | null>(null);
 
+  const [currentRequestGen, setCurrentRequestGen] = useState(0);
+  const [loadedBillGen, setLoadedBillGen] = useState<number | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+  const isMountedRef = useRef(true);
+  const latestRequestedSessionIdRef = useRef<string | null>(null);
+  const billRequestGenRef = useRef(0);
+  const isProcessingPaymentRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const paidSessionIdsRef = useRef<Set<string>>(new Set());
+
   const fetchTables = async () => {
     try {
       const data = await apiFetchTables();
-      setTables(data);
+      if (!isMountedRef.current) return;
+      setTables(data.filter((t: TableDTO) => (t as any).status !== 'deleted'));
     } catch {
       // no bloqueante si falla la lista de mesas
     }
   };
 
   const fetchActiveSessions = async () => {
+    if (!isMountedRef.current) return;
     setLoadingSessions(true);
     setSessionError(null);
     try {
       const data = await apiFetchActiveSessions();
-      setSessions(data);
+      if (!isMountedRef.current) return;
+      setSessions(data.filter((s) => !paidSessionIdsRef.current.has(s.sessionId)));
     } catch (err: any) {
+      if (!isMountedRef.current) return;
       setSessionError(parseCheckoutError(err));
     } finally {
-      setLoadingSessions(false);
+      if (isMountedRef.current) {
+        setLoadingSessions(false);
+      }
     }
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
     try {
       const rawUser = typeof window !== 'undefined' ? window.localStorage?.getItem('resto_user') : null;
       if (rawUser) {
@@ -132,6 +150,11 @@ function CheckoutContent({ allowPendingOrdersOverride = true }: { allowPendingOr
     }
 
     return () => {
+      isMountedRef.current = false;
+      latestRequestedSessionIdRef.current = null;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', handleVisibilityChange);
       }
@@ -156,7 +179,20 @@ function CheckoutContent({ allowPendingOrdersOverride = true }: { allowPendingOr
   }, [tableIdParam, sessions]);
 
   const handleSelectSession = async (session: TableSessionDTO) => {
+    if (paidSessionIdsRef.current.has(session.sessionId)) return;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    const requestedSessionId = session.sessionId;
+    const reqGen = ++billRequestGenRef.current;
+    latestRequestedSessionIdRef.current = requestedSessionId;
+
     setSelectedSession(session);
+    setCurrentRequestGen(reqGen);
+    setLoadedBillGen(null);
     setLoadingBill(true);
     setBill(null);
     setBillError(null);
@@ -167,18 +203,68 @@ function CheckoutContent({ allowPendingOrdersOverride = true }: { allowPendingOr
     setReleaseSuccess(null);
     setMethod(null);
 
+    const isStale = () =>
+      !isMountedRef.current ||
+      paidSessionIdsRef.current.has(requestedSessionId) ||
+      billRequestGenRef.current !== reqGen ||
+      latestRequestedSessionIdRef.current !== requestedSessionId;
+
     try {
-      const billData = await fetchSessionBill(session.sessionId);
+      const res = await ApiClient.request(`/v1/checkout/${requestedSessionId}`, {
+        signal: abortController.signal,
+      });
+      if (isStale()) return;
+
+      const payload = res?.data ?? res;
+      const billData: BillDTO =
+        payload && typeof payload === 'object' && 'bill' in payload && payload.bill ? payload.bill : payload;
+
+      if (billData && billData.sessionId && billData.sessionId !== requestedSessionId) return;
+      if ((billData?.payment as { status?: string } | null | undefined)?.status === 'COMPLETED') {
+        paidSessionIdsRef.current.add(requestedSessionId);
+        latestRequestedSessionIdRef.current = null;
+        setSessions((prev) => prev.filter((s) => s.sessionId !== requestedSessionId));
+        setSelectedSession(null);
+        setBill(null);
+        setLoadedBillGen(null);
+        setMethod(null);
+        return;
+      }
+
       setBill(billData);
+      setLoadedBillGen(reqGen);
     } catch (err: any) {
+      if (isStale()) return;
+      if (err?.name === 'AbortError') return;
       setBillError(parseCheckoutError(err));
     } finally {
-      setLoadingBill(false);
+      if (
+        isMountedRef.current &&
+        billRequestGenRef.current === reqGen &&
+        latestRequestedSessionIdRef.current === requestedSessionId
+      ) {
+        setLoadingBill(false);
+      }
     }
   };
 
   const handleConfirmPayment = async (closePendingOrders?: boolean) => {
+    if (isProcessingPaymentRef.current || isProcessingPayment) return;
     if (!selectedSession || !bill || !method) return;
+    if (loadingBill) return;
+    if (bill.sessionId && bill.sessionId !== selectedSession.sessionId) return;
+    if (loadedBillGen === null || loadedBillGen !== currentRequestGen || billRequestGenRef.current !== currentRequestGen) {
+      return;
+    }
+
+    const snapshotSessionId = selectedSession.sessionId;
+    const snapshotTableId = selectedSession.tableId;
+    const snapshotBillTotal = bill.total;
+    const snapshotMethod = method;
+    const snapshotRequestGen = billRequestGenRef.current;
+
+    isProcessingPaymentRef.current = true;
+    setIsProcessingPayment(true);
     setPaymentError(undefined);
     if (!closePendingOrders) {
       setPendingOrders([]);
@@ -186,34 +272,61 @@ function CheckoutContent({ allowPendingOrdersOverride = true }: { allowPendingOr
 
     try {
       const result = await confirmCheckout({
-        sessionId: selectedSession.sessionId,
-        tableId: selectedSession.tableId,
-        method,
-        amount: bill.total,
+        sessionId: snapshotSessionId,
+        tableId: snapshotTableId,
+        method: snapshotMethod,
+        amount: snapshotBillTotal,
         ...(closePendingOrders === true ? { closePendingOrders: true } : {}),
       });
 
+      if (!isMountedRef.current) return;
+
+      paidSessionIdsRef.current.add(snapshotSessionId);
+      setSessions((prev) => prev.filter((s) => s.sessionId !== snapshotSessionId));
+
       const paymentData = result.payment;
       setCompletedPayment({
-        tableId: selectedSession.tableId,
-        amount: result.amount || bill.total,
-        method,
-        sessionId: selectedSession.sessionId,
+        tableId: snapshotTableId,
+        amount: result.amount || snapshotBillTotal,
+        method: snapshotMethod,
+        sessionId: snapshotSessionId,
         invoiceStatus: paymentData?.invoiceStatus,
         invoiceRef: paymentData?.invoiceRef,
         invoiceError: paymentData?.invoiceError,
       });
 
-      setSelectedSession(null);
-      setBill(null);
-      setMethod(null);
-      setPendingOrders([]);
+      if (latestRequestedSessionIdRef.current === snapshotSessionId) {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+        const nextGen = ++billRequestGenRef.current;
+        latestRequestedSessionIdRef.current = null;
+        setCurrentRequestGen(nextGen);
+        setSelectedSession(null);
+        setBill(null);
+        setLoadedBillGen(null);
+        setLoadingBill(false);
+        setMethod(null);
+        setPendingOrders([]);
+      }
+
       await fetchActiveSessions();
     } catch (err: any) {
-      const parsed = parseCheckoutError(err);
-      setPaymentError(parsed.code || err.code || err.message || 'Error al procesar cobro');
-      if (parsed.pendingOrders && Array.isArray(parsed.pendingOrders)) {
-        setPendingOrders(parsed.pendingOrders);
+      if (!isMountedRef.current) return;
+      if (
+        latestRequestedSessionIdRef.current === snapshotSessionId &&
+        billRequestGenRef.current === snapshotRequestGen
+      ) {
+        const parsed = parseCheckoutError(err);
+        setPaymentError(parsed.code || err.code || err.message || 'Error al procesar cobro');
+        if (parsed.pendingOrders && Array.isArray(parsed.pendingOrders)) {
+          setPendingOrders(parsed.pendingOrders);
+        }
+      }
+    } finally {
+      isProcessingPaymentRef.current = false;
+      if (isMountedRef.current) {
+        setIsProcessingPayment(false);
       }
     }
   };
@@ -248,7 +361,7 @@ function CheckoutContent({ allowPendingOrdersOverride = true }: { allowPendingOr
       await fetchActiveSessions();
       return;
     }
-    if (selectedSession && !bill) {
+    if (selectedSession && !activeBill) {
       await handleSelectSession(selectedSession);
       return;
     }
@@ -268,6 +381,15 @@ function CheckoutContent({ allowPendingOrdersOverride = true }: { allowPendingOr
 
   const pendingAmount =
     bill && !bill.payment && bill.total > 0 ? bill.total : 0;
+
+  const activeBill =
+    bill &&
+    selectedSession &&
+    (!bill.sessionId || bill.sessionId === selectedSession.sessionId) &&
+    loadedBillGen !== null &&
+    loadedBillGen === currentRequestGen
+      ? bill
+      : null;
 
   const canOverridePendingOrders =
     allowPendingOrdersOverride && (userRole === 'ADMIN' || userRole === 'MANAGER');
@@ -434,7 +556,7 @@ function CheckoutContent({ allowPendingOrdersOverride = true }: { allowPendingOr
           </BentoCard>
         )}
 
-        {billError && !bill && (
+        {billError && !activeBill && (
           billError.code === 'BILL_NOT_FOUND' ? (
             <BentoCard
               data-testid="bill-empty-state"
@@ -590,10 +712,10 @@ function CheckoutContent({ allowPendingOrdersOverride = true }: { allowPendingOr
           )
         )}
 
-        {bill && (
+        {activeBill && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <BillSummaryCard
-              bill={bill}
+              bill={activeBill}
               tables={tables}
               error={paymentError}
               onRetry={handleRetry}
@@ -604,8 +726,10 @@ function CheckoutContent({ allowPendingOrdersOverride = true }: { allowPendingOr
             <PaymentMethodPicker selectedMethod={method} onSelect={setMethod} />
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
               <ConfirmPaymentButton
-                disabled={!method}
-                total={bill.total}
+                disabled={!method || loadingBill || isProcessingPayment}
+                loading={isProcessingPayment}
+                sessionId={selectedSession?.sessionId}
+                total={activeBill.total}
                 method={method}
                 onConfirm={() => handleConfirmPayment(false)}
               />

@@ -1362,6 +1362,24 @@ export default function DashboardPage() {
                 Zonas
               </button>
 
+              <button
+                type="button"
+                onClick={() => router.push('/mesas/gestion')}
+                style={{
+                  padding: '8px 14px',
+                  backgroundColor: 'rgba(255,255,255,0.7)',
+                  color: 'var(--bento-text)',
+                  border: '1px solid var(--bento-border)',
+                  borderRadius: 'var(--bento-pill-radius)',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  minHeight: '36px',
+                }}
+              >
+                Gestión en lote
+              </button>
+
               {/* Botón Nueva Mesa */}
               <button
                 type="button"

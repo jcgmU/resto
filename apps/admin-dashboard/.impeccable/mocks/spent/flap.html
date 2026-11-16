@@ -1,0 +1,18 @@
+<!doctype html><html lang="es"><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}body{width:1440px;height:900px;overflow:hidden;font:500 15px Barlow,sans-serif;background:#E4E5E1;color:#14161A;display:grid;grid-template-columns:210px 1fr}
+nav{background:#14161A;color:#fff;padding:28px 18px;display:flex;flex-direction:column;gap:4px}nav h1{font:700 22px "Barlow Condensed";letter-spacing:.06em;margin-bottom:24px}nav a{padding:10px 12px;border-radius:4px;color:#a3a6ad}nav a.on{background:#F0A91F;color:#14161A;font-weight:600}
+main{padding:26px 30px;display:grid;grid-template-columns:1fr 330px;gap:22px}.board{background:#14161A;border-radius:8px;padding:10px 18px;color:#F2F2EE;align-self:start}
+.h,.rw{display:grid;grid-template-columns:90px 1fr 140px 120px 150px;gap:12px;align-items:center;font:600 26px "Barlow Condensed";letter-spacing:.06em;text-transform:uppercase}.h{font-size:13px;color:#8d9097;padding:10px 0;border-bottom:1px solid #333}
+.rw{padding:12px 0;border-bottom:1px solid #2a2c31}.rw span:first-child{background:#222;padding:2px 12px;border-radius:3px;width:max-content}.rw .a{color:#F0A91F}.rw .r{color:#e8776a}.rw b{font-weight:700;text-align:right}
+aside{display:flex;flex-direction:column;gap:18px}.card{background:#fff;border-radius:8px;padding:18px}.card h2{font:600 13px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#6a6d74;margin-bottom:10px}.big{font:700 52px "Barlow Condensed"}.m{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.t{aspect-ratio:1.3;border-radius:4px;background:#14161A;color:#fff;display:grid;place-items:center;font:700 22px "Barlow Condensed"}.t.f{background:#fff;color:#14161A;border:1.5px solid #14161A}.t.c{background:#B94A3E}.t.m{background:#F0A91F;color:#14161A}
+</style><body><nav><h1>RESTAURANTE‑OS</h1><a class=on>Inicio</a><a>Mesas</a><a>Cocina</a><a>Menú</a><a>Cobros</a></nav>
+<main><div class=board><div class=h><span>Mesa</span><span>Estado</span><span>Espera</span><span>Pedido</span><b>Monto (COP)</b></div>
+<div class=rw><span>4</span><span class=r>Pidió la cuenta</span><span class=r>3 min</span><span>—</span><b>$ 186.000</b></div>
+<div class=rw><span>9</span><span class=a>Llamó al mesero</span><span class=a>1 min</span><span>—</span><b>—</b></div>
+<div class=rw><span>7</span><span>Listo para servir</span><span>6 min</span><span>#128</span><b>$ 142.000</b></div>
+<div class=rw><span>1</span><span>En cocina</span><span>12 min</span><span>#126</span><b>$ 186.000</b></div>
+<div class=rw><span>3</span><span>En cocina</span><span>9 min</span><span>#127</span><b>$ 94.500</b></div>
+<div class=rw><span>8</span><span>Pedido nuevo</span><span>1 min</span><span>#129</span><b>$ 61.800</b></div></div>
+<aside><div class=card><h2>Ingresos de hoy · ejemplo</h2><div class=big>$ 2.847.500</div></div><div class=card><h2>Pedidos activos</h2><div class=big>7</div></div>
+<div class=card><h2>Mesas · 8 de 12</h2><div class=m><div class=t>1</div><div class="t f">2</div><div class=t>3</div><div class="t c">4</div><div class=t>5</div><div class="t f">6</div><div class=t>7</div><div class=t>8</div><div class="t m">9</div><div class="t f">10</div><div class=t>11</div><div class="t f">12</div></div></div></aside></main></body></html>

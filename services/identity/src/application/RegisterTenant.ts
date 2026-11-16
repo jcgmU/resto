@@ -10,13 +10,6 @@ import {
   TenantDTO,
   DomainError,
 } from '@packages/shared-types';
-import {
-  InMemoryTenantRepository,
-  InMemoryUserRepository,
-  InMemoryRefreshTokenRepository,
-  FakePasswordHasher,
-  FakeTokenIssuer,
-} from '../infrastructure/fakes/InMemoryIdentityAdapters';
 
 export class RegisterTenantUseCaseImpl implements RegisterTenantUseCase {
   constructor(
@@ -64,46 +57,55 @@ export class RegisterTenantUseCaseImpl implements RegisterTenantUseCase {
       status: 'ACTIVE',
       operatingMode: 'hybrid',
       estimatedPrepMinutes: 18,
+      invoiceMode: 'simple',
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+
+    const adminDisplayName = input.adminDisplayName?.trim() || input.restaurantName;
 
     const savedTenant = await this.tenantRepo.save(tenant);
-    const passwordHash = await this.passwordHasher.hash(input.adminPassword);
 
-    const userId = `user-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    const savedUser = await this.userRepo.save({
-      id: userId,
-      tenantId: savedTenant.id,
-      email: input.adminEmail,
-      displayName: input.adminDisplayName,
-      role: 'ADMIN',
-      status: 'ACTIVE',
-      passwordHash,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+    try {
+      const passwordHash = await this.passwordHasher.hash(input.adminPassword);
 
-    const accessToken = this.tokenIssuer.issueAccessToken({
-      sub: savedUser.id,
-      tenantId: savedTenant.id,
-      role: savedUser.role,
-      email: savedUser.email,
-      displayName: savedUser.displayName || savedUser.email,
-    });
+      const userId = `user-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const savedUser = await this.userRepo.save({
+        id: userId,
+        tenantId: savedTenant.id,
+        email: input.adminEmail,
+        displayName: adminDisplayName,
+        role: 'ADMIN',
+        status: 'ACTIVE',
+        passwordHash,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
-    const refresh = this.tokenIssuer.generateRefreshToken();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    await this.refreshTokenRepo.save(savedUser.id, refresh.hash, expiresAt);
+      const accessToken = this.tokenIssuer.issueAccessToken({
+        sub: savedUser.id,
+        tenantId: savedTenant.id,
+        role: savedUser.role,
+        email: savedUser.email,
+        displayName: savedUser.displayName || savedUser.email,
+      });
 
-    return {
-      tenant: savedTenant,
-      user: savedUser,
-      tokens: {
-        accessToken,
-        refreshToken: refresh.raw,
-        expiresIn: 900,
-      },
-    };
+      const refresh = this.tokenIssuer.generateRefreshToken();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await this.refreshTokenRepo.save(savedUser.id, refresh.hash, expiresAt);
+
+      return {
+        tenant: savedTenant,
+        user: savedUser,
+        tokens: {
+          accessToken,
+          refreshToken: refresh.raw,
+          expiresIn: 900,
+        },
+      };
+    } catch (err) {
+      await this.tenantRepo.delete?.(savedTenant.id);
+      throw err;
+    }
   }
 }

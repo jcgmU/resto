@@ -2,6 +2,137 @@ import Redis from 'ioredis';
 import { TableSessionRepository, TableSessionDTO, DomainError } from '@packages/shared-types';
 import { RedisKeys } from './keys';
 
+const LUA_SAVE_ACTIVE = `
+local pointerKey = KEYS[1]
+local sessionKey = KEYS[2]
+local setKey = KEYS[3]
+local tableKey = KEYS[4]
+
+local candidateId = ARGV[1]
+local candidatePayload = ARGV[2]
+local ttl = tonumber(ARGV[3])
+local tenantId = ARGV[4]
+
+local tableRaw = redis.call('GET', tableKey)
+if not tableRaw then
+  return redis.error_reply('TABLE_NOT_FOUND')
+end
+
+local tableObj = cjson.decode(tableRaw)
+if tableObj.tenantId ~= tenantId or tableObj.status == 'deleted' then
+  return redis.error_reply('TABLE_NOT_FOUND')
+end
+
+if tableObj.status == 'DISABLED' or tableObj.status == 'inactive' then
+  return redis.error_reply('TABLE_INACTIVE')
+end
+
+local existingSessionId = redis.call('GET', pointerKey)
+if existingSessionId then
+  local existingSessionKey = 'session:' .. existingSessionId
+  local existingRaw = redis.call('GET', existingSessionKey)
+  if existingRaw then
+    local existing = cjson.decode(existingRaw)
+    if (existing.status == 'active' or existing.status == 'billRequested') and existing.tenantId == tenantId then
+      redis.call('EXPIRE', existingSessionKey, ttl)
+      redis.call('EXPIRE', pointerKey, ttl)
+      return existingRaw
+    end
+  end
+end
+
+redis.call('SET', sessionKey, candidatePayload, 'EX', ttl)
+redis.call('SET', pointerKey, candidateId, 'EX', ttl)
+redis.call('SADD', setKey, candidateId)
+return candidatePayload
+`;
+
+const LUA_SAVE_INACTIVE = `
+local pointerKey = KEYS[1]
+local sessionKey = KEYS[2]
+local setKey = KEYS[3]
+
+local sessionId = ARGV[1]
+local payload = ARGV[2]
+local ttl = tonumber(ARGV[3])
+
+redis.call('SET', sessionKey, payload, 'EX', ttl)
+redis.call('SADD', setKey, sessionId)
+if redis.call('GET', pointerKey) == sessionId then
+  redis.call('DEL', pointerKey)
+end
+return payload
+`;
+
+const LUA_CLOSE = `
+local sessionKey = KEYS[1]
+local tenantId = ARGV[1]
+local sessionId = ARGV[2]
+local closedAt = ARGV[3]
+local ttl = tonumber(ARGV[4])
+
+local raw = redis.call('GET', sessionKey)
+if not raw then
+  return redis.error_reply('SESSION_NOT_FOUND')
+end
+
+local session = cjson.decode(raw)
+if session.tenantId ~= tenantId then
+  return redis.error_reply('SESSION_NOT_FOUND')
+end
+
+local pointerKey = 'tenant:' .. tenantId .. ':table:' .. session.tableId .. ':session'
+
+if session.status ~= 'closed' then
+  session.status = 'closed'
+  session.closedAt = closedAt
+  local updatedRaw = cjson.encode(session)
+  redis.call('SET', sessionKey, updatedRaw, 'EX', ttl)
+  if redis.call('GET', pointerKey) == sessionId then
+    redis.call('DEL', pointerKey)
+  end
+  return updatedRaw
+else
+  if redis.call('GET', pointerKey) == sessionId then
+    redis.call('DEL', pointerKey)
+  end
+  return raw
+end
+`;
+
+const LUA_TOUCH = `
+local sessionKey = KEYS[1]
+local tenantId = ARGV[1]
+local sessionId = ARGV[2]
+local ttl = tonumber(ARGV[3])
+local newExpiresAt = ARGV[4]
+
+local raw = redis.call('GET', sessionKey)
+if not raw then
+  return 0
+end
+
+local session = cjson.decode(raw)
+if session.tenantId ~= tenantId then
+  return 0
+end
+
+if session.status ~= 'active' and session.status ~= 'billRequested' then
+  return 0
+end
+
+session.expiresAt = newExpiresAt
+local updatedRaw = cjson.encode(session)
+redis.call('SET', sessionKey, updatedRaw, 'EX', ttl)
+
+local pointerKey = 'tenant:' .. tenantId .. ':table:' .. session.tableId .. ':session'
+if redis.call('GET', pointerKey) == sessionId then
+  redis.call('EXPIRE', pointerKey, ttl)
+end
+
+return 1
+`;
+
 export class RedisTableSessionRepository implements TableSessionRepository {
   constructor(private readonly redis: Redis) {}
 
@@ -31,20 +162,53 @@ export class RedisTableSessionRepository implements TableSessionRepository {
     const sessionKey = RedisKeys.session(session.sessionId);
     const pointerKey = RedisKeys.tableSessionPointer(tenantId, session.tableId);
     const setKey = RedisKeys.tenantSessions(tenantId);
-
     const payload = JSON.stringify(session);
-    const multi = this.redis.multi();
 
-    multi.set(sessionKey, payload, 'EX', ttlSeconds);
+    let rawResult: unknown;
     if (session.status === 'active' || session.status === 'billRequested') {
-      multi.set(pointerKey, session.sessionId, 'EX', ttlSeconds);
+      const tableKey = RedisKeys.table(tenantId, session.tableId);
+      try {
+        rawResult = await this.redis.eval(
+          LUA_SAVE_ACTIVE,
+          4,
+          pointerKey,
+          sessionKey,
+          setKey,
+          tableKey,
+          session.sessionId,
+          payload,
+          ttlSeconds,
+          tenantId
+        );
+      } catch (err: any) {
+        if (err?.message?.includes('TABLE_NOT_FOUND')) {
+          throw new DomainError(
+            'TABLE_NOT_FOUND',
+            `TABLE_NOT_FOUND: Mesa ${session.tableId} no encontrada`
+          );
+        }
+        if (err?.message?.includes('TABLE_INACTIVE')) {
+          throw new DomainError(
+            'TABLE_INACTIVE',
+            `TABLE_INACTIVE: Mesa ${session.tableId} inactiva`
+          );
+        }
+        throw err;
+      }
     } else {
-      multi.del(pointerKey);
+      rawResult = await this.redis.eval(
+        LUA_SAVE_INACTIVE,
+        3,
+        pointerKey,
+        sessionKey,
+        setKey,
+        session.sessionId,
+        payload,
+        ttlSeconds
+      );
     }
-    multi.sadd(setKey, session.sessionId);
 
-    await multi.exec();
-    return session;
+    return JSON.parse(rawResult as string);
   }
 
   async requestBill(tenantId: string, sessionId: string): Promise<TableSessionDTO> {
@@ -123,34 +287,23 @@ export class RedisTableSessionRepository implements TableSessionRepository {
 
   async close(tenantId: string, sessionId: string, closedAt: Date): Promise<TableSessionDTO> {
     const sessionKey = RedisKeys.session(sessionId);
-    const raw = await this.redis.get(sessionKey);
-    if (!raw) {
-      throw new DomainError('SESSION_NOT_FOUND', `SESSION_NOT_FOUND: Sesión ${sessionId} no encontrada`);
+    try {
+      const rawResult = await this.redis.eval(
+        LUA_CLOSE,
+        1,
+        sessionKey,
+        tenantId,
+        sessionId,
+        closedAt.toISOString(),
+        86400
+      );
+      return JSON.parse(rawResult as string);
+    } catch (err: any) {
+      if (err?.message?.includes('SESSION_NOT_FOUND')) {
+        throw new DomainError('SESSION_NOT_FOUND', `SESSION_NOT_FOUND: Sesión ${sessionId} no encontrada`);
+      }
+      throw err;
     }
-
-    const session: TableSessionDTO = JSON.parse(raw);
-    if (session.tenantId !== tenantId) {
-      throw new DomainError('SESSION_NOT_FOUND', `SESSION_NOT_FOUND: Sesión ${sessionId} no encontrada`);
-    }
-
-    if (session.status === 'closed') {
-      return session;
-    }
-
-    session.status = 'closed';
-    session.closedAt = closedAt.toISOString();
-
-    const pointerKey = RedisKeys.tableSessionPointer(tenantId, session.tableId);
-    const payload = JSON.stringify(session);
-
-    // Persistir estado cerrado (mantener historial en Redis con TTL de 24h) y LIMPIAR puntero mesa-sesión
-    await this.redis
-      .multi()
-      .set(sessionKey, payload, 'EX', 86400)
-      .del(pointerKey)
-      .exec();
-
-    return session;
   }
 
   async listByTenant(
@@ -264,22 +417,17 @@ export class RedisTableSessionRepository implements TableSessionRepository {
 
   async touch(tenantId: string, sessionId: string, ttlSeconds: number): Promise<void> {
     const sessionKey = RedisKeys.session(sessionId);
-    const raw = await this.redis.get(sessionKey);
-    if (!raw) return;
+    const newExpiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
 
-    const session: TableSessionDTO = JSON.parse(raw);
-    if (session.tenantId !== tenantId) return;
-
-    session.expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
-    const payload = JSON.stringify(session);
-
-    const pointerKey = RedisKeys.tableSessionPointer(tenantId, session.tableId);
-    const multi = this.redis.multi();
-    multi.set(sessionKey, payload, 'EX', ttlSeconds);
-    if (session.status === 'active' || session.status === 'billRequested') {
-      multi.expire(pointerKey, ttlSeconds);
-    }
-    await multi.exec();
+    await this.redis.eval(
+      LUA_TOUCH,
+      1,
+      sessionKey,
+      tenantId,
+      sessionId,
+      ttlSeconds,
+      newExpiresAt
+    );
   }
 
   async getOrCreateActive(
@@ -307,59 +455,7 @@ export class RedisTableSessionRepository implements TableSessionRepository {
       ttlSeconds = maybeTtl ?? 14400;
     }
 
-    const pointerKey = RedisKeys.tableSessionPointer(tenantId, tableId);
-    const setKey = RedisKeys.tenantSessions(tenantId);
-    const candidateSessionKey = RedisKeys.session(candidate.sessionId);
-    const candidatePayload = JSON.stringify(candidate);
-
-    const luaScript = `
-      local pointerKey = KEYS[1]
-      local setKey = KEYS[2]
-      local candidateSessionKey = KEYS[3]
-
-      local candidatePayload = ARGV[1]
-      local candidateSessionId = ARGV[2]
-      local ttl = tonumber(ARGV[3])
-
-      local existingSessionId = redis.call('GET', pointerKey)
-      if existingSessionId and existingSessionId ~= '' then
-        local existingSessionKey = 'session:' .. existingSessionId
-        local rawExisting = redis.call('GET', existingSessionKey)
-        if rawExisting then
-          local ok, session = pcall(cjson.decode, rawExisting)
-          if ok and session and (session.status == 'active' or session.status == 'billRequested') then
-            if ttl and ttl > 0 then
-              redis.call('EXPIRE', existingSessionKey, ttl)
-              redis.call('EXPIRE', pointerKey, ttl)
-            end
-            return rawExisting
-          end
-        end
-      end
-
-      if ttl and ttl > 0 then
-        redis.call('SET', candidateSessionKey, candidatePayload, 'EX', ttl)
-        redis.call('SET', pointerKey, candidateSessionId, 'EX', ttl)
-      else
-        redis.call('SET', candidateSessionKey, candidatePayload)
-        redis.call('SET', pointerKey, candidateSessionId)
-      end
-      redis.call('SADD', setKey, candidateSessionId)
-      return candidatePayload
-    `;
-
-    const result = await this.redis.eval(
-      luaScript,
-      3,
-      pointerKey,
-      setKey,
-      candidateSessionKey,
-      candidatePayload,
-      candidate.sessionId,
-      ttlSeconds
-    );
-
-    return JSON.parse(result as string);
+    return this.save(tenantId, candidate, ttlSeconds);
   }
 
   async getOrCreate(

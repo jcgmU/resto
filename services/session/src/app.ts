@@ -6,6 +6,10 @@ import { createZonesRouter } from './interfaces/http/zones.routes';
 import { createReservationsRouter } from './interfaces/http/reservations.routes';
 import {
   CreateTableUseCaseImpl,
+  CreateTablesBatchUseCaseImpl,
+  UpdateTablesBatchUseCaseImpl,
+  UpdateSingleTableUseCaseImpl,
+  DeleteTablesBatchUseCaseImpl,
   GenerateTableQrUseCaseImpl,
   RotateTableQrKeyUseCaseImpl,
 } from './application/TableUseCases';
@@ -101,15 +105,30 @@ export function createSessionApp(deps?: SessionAppDeps): express.Application {
 
   app.use(internalAuthMiddleware);
 
-  const tableRepo = deps?.tableRepo || (redis ? new RedisTableRepository(redis) : new InMemoryTableRepository());
-  const sessionRepo = deps?.sessionRepo || (redis ? new RedisTableSessionRepository(redis) : new InMemoryTableSessionRepository());
-  const zoneRepo = deps?.zoneRepo || (redis ? new RedisZoneRepository(redis) : new InMemoryZoneRepository());
-  const reservationRepo = deps?.reservationRepo || (redis ? new RedisReservationRepository(redis) : new InMemoryReservationRepository());
+  const tableRepo: TableRepository =
+    deps?.tableRepo || (redis ? (new RedisTableRepository(redis) as unknown as TableRepository) : new InMemoryTableRepository());
+  const sessionRepo: TableSessionRepository =
+    deps?.sessionRepo || (redis ? new RedisTableSessionRepository(redis) : new InMemoryTableSessionRepository());
+  const zoneRepo: ZoneRepository =
+    deps?.zoneRepo || (redis ? new RedisZoneRepository(redis) : new InMemoryZoneRepository());
+  const reservationRepo: ReservationRepository =
+    deps?.reservationRepo || (redis ? new RedisReservationRepository(redis) : new InMemoryReservationRepository());
+
+  if (tableRepo instanceof InMemoryTableRepository) {
+    tableRepo.setSessionRepository(sessionRepo);
+  }
 
   const tokenIssuer = new JwtGuestTokenIssuer(config.JWT_SECRET);
   const qrGenerator = new QrcodeGeneratorAdapter();
 
-  const createTableUseCase = new CreateTableUseCaseImpl(tableRepo, zoneRepo);
+  const eventPublisher =
+    deps?.eventPublisher || (redis ? new RedisSessionEventPublisher(redis) : undefined);
+
+  const createTableUseCase = new CreateTableUseCaseImpl(tableRepo, zoneRepo, eventPublisher);
+  const createTablesBatchUseCase = new CreateTablesBatchUseCaseImpl(tableRepo, zoneRepo, eventPublisher);
+  const updateTablesBatchUseCase = new UpdateTablesBatchUseCaseImpl(tableRepo, zoneRepo, eventPublisher);
+  const updateSingleTableUseCase = new UpdateSingleTableUseCaseImpl(tableRepo, zoneRepo, eventPublisher);
+  const deleteTablesBatchUseCase = new DeleteTablesBatchUseCaseImpl(tableRepo, reservationRepo, sessionRepo, eventPublisher);
   const generateTableQrUseCase = new GenerateTableQrUseCaseImpl(
     tableRepo,
     qrGenerator,
@@ -126,9 +145,6 @@ export function createSessionApp(deps?: SessionAppDeps): express.Application {
 
   const orderingServiceCall =
     deps?.orderingServiceCall || new HttpOrderingServiceCallAdapter(config.ORDERING_INTERNAL_URL);
-
-  const eventPublisher =
-    deps?.eventPublisher || (redis ? new RedisSessionEventPublisher(redis) : undefined);
 
   const openTableSessionUseCase = new OpenTableSessionUseCaseImpl(
     sessionRepo,
@@ -185,11 +201,16 @@ export function createSessionApp(deps?: SessionAppDeps): express.Application {
     createTablesRouter({
       tableRepo,
       createTableUseCase,
+      createTablesBatchUseCase,
+      updateTablesBatchUseCase,
+      updateSingleTableUseCase,
+      deleteTablesBatchUseCase,
       generateTableQrUseCase,
       rotateTableQrKeyUseCase,
       sessionRepo,
       zoneRepo,
       reservationRepo,
+      eventPublisher,
     })
   );
 

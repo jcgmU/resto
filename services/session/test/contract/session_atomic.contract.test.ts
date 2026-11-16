@@ -138,27 +138,32 @@ describe('R04 Sesión Atómica (Contract Test con Redis Real db2)', () => {
   });
 
   test('8 peticiones HTTP concurrentes (POST /sessions/open) devuelven el mismo sessionId', async () => {
-    const promises = Array.from({ length: 8 }).map(() =>
-      request(app)
-        .post('/sessions/open')
-        .send({ tenantId, tableId, qrKey })
-    );
+    const server = app.listen(0);
+    try {
+      const promises = Array.from({ length: 8 }).map(() =>
+        request(server)
+          .post('/sessions/open')
+          .send({ tenantId, tableId, qrKey })
+      );
 
-    const responses = await Promise.all(promises);
-    expect(responses).toHaveLength(8);
+      const responses = await Promise.all(promises);
+      expect(responses).toHaveLength(8);
 
-    for (const res of responses) {
-      expect(res.status).toBe(200);
-      expect(res.body.session).toBeDefined();
+      for (const res of responses) {
+        expect(res.status).toBe(200);
+        expect(res.body.session).toBeDefined();
+      }
+
+      const expectedSessionId = responses[0].body.session.sessionId;
+      for (const res of responses) {
+        expect(res.body.session.sessionId).toBe(expectedSessionId);
+      }
+
+      const sessionIdsInSet = await redis.smembers(`tenant:${tenantId}:sessions`);
+      expect(sessionIdsInSet).toEqual([expectedSessionId]);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
     }
-
-    const expectedSessionId = responses[0].body.session.sessionId;
-    for (const res of responses) {
-      expect(res.body.session.sessionId).toBe(expectedSessionId);
-    }
-
-    const sessionIdsInSet = await redis.smembers(`tenant:${tenantId}:sessions`);
-    expect(sessionIdsInSet).toEqual([expectedSessionId]);
   });
 
   test('getOrCreateActive a nivel repositorio con 8 candidatos concurrentes resuelve a un único candidato ganador', async () => {

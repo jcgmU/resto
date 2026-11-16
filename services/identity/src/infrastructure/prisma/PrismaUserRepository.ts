@@ -10,6 +10,12 @@ export class PrismaUserRepository implements UserRepository {
     return this.mapToDto(u);
   }
 
+  async findWithPasswordById(id: string): Promise<(UserDTO & { passwordHash: string }) | null> {
+    const u = await this.prisma.user.findUnique({ where: { id } });
+    if (!u) return null;
+    return { ...this.mapToDto(u), passwordHash: u.passwordHash };
+  }
+
   async findByEmail(tenantId: string, email: string): Promise<UserDTO | null> {
     const u = await this.findWithPasswordByEmail(tenantId, email);
     if (!u) return null;

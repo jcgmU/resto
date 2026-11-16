@@ -14,9 +14,14 @@ export const routeTable: RouteDefinition[] = [
 
   // Auth & Identity (protegidas)
   { method: 'POST', path: '/v1/auth/logout', auth: true, targetService: 'identity' },
+  { method: 'POST', path: '/v1/auth/change-password', auth: true, targetService: 'identity' },
   { method: 'GET', path: '/v1/identity/me', auth: true, targetService: 'identity' },
-  { method: 'POST', path: '/v1/identity/users', auth: true, requiredRoles: ['admin'], targetService: 'identity' },
   { method: 'GET', path: '/v1/identity/users', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'identity' },
+  { method: 'POST', path: '/v1/identity/users', auth: true, requiredRoles: ['admin'], targetService: 'identity' },
+  { method: 'POST', path: '/v1/identity/users/:id/disable', auth: true, requiredRoles: ['admin'], targetService: 'identity' },
+  { method: 'POST', path: '/v1/identity/users/:id/enable', auth: true, requiredRoles: ['admin'], targetService: 'identity' },
+  { method: 'POST', path: '/v1/identity/users/:id/reset-password', auth: true, requiredRoles: ['admin'], targetService: 'identity' },
+  { method: 'PATCH', path: '/v1/identity/users/:id', auth: true, requiredRoles: ['admin'], targetService: 'identity' },
   { path: '/v1/identity/users/:id', auth: true, requiredRoles: ['admin'], targetService: 'identity' },
 
   // Tenant Settings (FASE B)
@@ -45,6 +50,9 @@ export const routeTable: RouteDefinition[] = [
   // Mesas & Sesiones (Oleada 2 & FASE B)
   { method: 'POST', path: '/v1/sessions/open', auth: false, targetService: 'session' },
   { method: 'POST', path: '/v1/sessions/staff-open', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter'], targetService: 'session' },
+  { method: 'POST', path: '/v1/tables/batch/delete', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },
+  { method: 'POST', path: '/v1/tables/batch', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },
+  { method: 'PATCH', path: '/v1/tables/batch', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },
   { method: 'POST', path: '/v1/tables/:tableId/qr/rotate', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },
   { method: 'GET', path: '/v1/tables/:tableId/qr', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter'], targetService: 'session' },
   { method: 'PATCH', path: '/v1/tables/:tableId', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },

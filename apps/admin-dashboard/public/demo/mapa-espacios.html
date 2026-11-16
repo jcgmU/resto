@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Editor de espacios · demo</title>
+<style>
+  :root{
+    --papel:#fbf8f3; --hueso:#f1ece3; --tinta:#1f1b16; --muted:#6f665a; --border:#ddd5c8;
+    --acc:#c2410c; --danger:#b42318;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--hueso);color:var(--tinta);font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+  header{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;padding:14px 20px;background:var(--papel);border-bottom:1px solid var(--border)}
+  header h1{margin:0;font-size:18px}
+  header span{color:var(--muted)}
+  main{display:grid;grid-template-columns:220px minmax(0,1fr) 290px;gap:14px;padding:14px;align-items:start}
+  @media (max-width:1000px){main{grid-template-columns:1fr}}
+  .card{background:var(--papel);border:1px solid var(--border);border-radius:14px;padding:14px}
+  .col{display:grid;gap:14px}
+  h2{margin:0 0 10px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .pal{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .pal button{cursor:grab;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;background:var(--hueso);border:1px solid var(--border);border-radius:10px;font:inherit;color:inherit}
+  .pal button:hover{border-color:var(--acc)}
+  .pal svg{width:52px;height:36px}
+  .pal small{font-size:11px;color:var(--muted);text-align:center;line-height:1.2}
+  .toolbar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center}
+  .toolbar .sp{flex:1}
+  .btn{min-height:36px;padding:0 12px;border:1px solid var(--border);background:var(--papel);border-radius:999px;font:inherit;color:inherit;cursor:pointer}
+  .btn:hover{border-color:var(--tinta)}
+  .btn[aria-pressed="true"]{background:var(--tinta);color:var(--papel);border-color:var(--tinta)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.danger{color:var(--danger);border-color:var(--danger)}
+  .btn.primary{background:var(--tinta);color:var(--papel);border-color:var(--tinta)}
+  .hint{min-height:20px;color:var(--muted);font-size:13px;margin:0 0 8px}
+  .toast{display:none;margin:0 0 8px;padding:9px 12px;border-radius:10px;font-size:13px}
+  .toast.show{display:block}
+  .toast.warn{background:#fff4e5;border:1px solid #f0b46a;color:#7a3b00}
+  .toast.error{background:#fdecea;border:1px solid var(--danger);color:var(--danger)}
+  .stage{background:var(--papel);border:1px solid var(--border);border-radius:14px;padding:10px}
+  svg#cv{display:block;width:100%;height:auto;background:#fff;border-radius:8px;touch-action:none;user-select:none}
+  svg#cv.drawing{cursor:crosshair}
+  .space polygon{cursor:move}
+  .space.sel polygon{stroke-dasharray:8 5}
+  .space.bad polygon{stroke:var(--danger)}
+  .sp-label{font-size:15px;font-weight:700;fill:var(--tinta);opacity:.75;pointer-events:none}
+  .sp-area{font-size:12px;fill:var(--muted);pointer-events:none}
+  .item{cursor:move}
+  .tbl{fill:#fff;stroke:var(--tinta);stroke-width:2}
+  .tbl.bar{fill:#f3dfc4}
+  .item.bad .tbl{stroke:var(--danger);fill:#fdecea}
+  .seat{fill:var(--hueso);stroke:var(--tinta);stroke-width:1.5}
+  .lbl{font-weight:700;fill:var(--tinta);pointer-events:none}
+  .lbl2{fill:var(--muted);pointer-events:none}
+  .selbox{fill:none;stroke:var(--acc);stroke-width:2;stroke-dasharray:5 4;pointer-events:none}
+  .dim{font-size:11px;font-weight:700;fill:var(--acc);paint-order:stroke;stroke:#fff;stroke-width:3.5px;pointer-events:none}
+  .h{fill:#fff;stroke:var(--acc);stroke-width:2.5}
+  .h.rot{cursor:grab}.h.res{cursor:nwse-resize}.h.vtx{cursor:pointer}
+  .draft{fill:var(--acc);fill-opacity:.1;stroke:var(--acc);stroke-width:2.5;stroke-dasharray:6 4}
+  label{display:block;font-size:12px;font-weight:600;margin:10px 0 4px}
+  input[type=text],input[type=number]{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font:inherit;background:#fff;color:inherit}
+  input:disabled{background:var(--hueso);color:var(--muted)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .swatches{display:flex;gap:8px;margin-top:4px}
+  .sw{width:28px;height:28px;border-radius:50%;border:2px solid transparent;cursor:pointer}
+  .sw[aria-pressed="true"]{border-color:var(--tinta)}
+  .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .meta{margin:0;color:var(--muted);font-size:12px}
+  pre{margin:8px 0 0;padding:10px;background:var(--tinta);color:#f5efe4;border-radius:10px;font-size:11px;max-height:260px;overflow:auto}
+  summary{cursor:pointer;font-weight:600}
+  .stats{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin-top:8px}
+  .stats b{color:var(--tinta)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Editor de espacios</h1>
+  <span>Demo · medidas reales en metros. Las mesas solo caben dentro de un espacio y no se superponen. Se guarda en este navegador.</span>
+</header>
+
+<main>
+  <aside class="col">
+    <div class="card">
+      <h2>Mobiliario</h2>
+      <div class="pal" id="pal"></div>
+      <p class="meta" style="margin-top:10px">Arrastra al plano o haz clic para añadir dentro del espacio seleccionado. Luego ajusta las medidas en Propiedades.</p>
+    </div>
+    <div class="card">
+      <h2>Espacio por medidas</h2>
+      <label for="ns-name">Nombre</label><input id="ns-name" type="text" value="Nuevo espacio" maxlength="40">
+      <div class="row">
+        <div><label for="ns-w">Ancho (m)</label><input id="ns-w" type="number" min="1.5" step="0.1" value="4"></div>
+        <div><label for="ns-h">Largo (m)</label><input id="ns-h" type="number" min="1.5" step="0.1" value="3"></div>
+      </div>
+      <div class="actions"><button class="btn primary" id="ns-create">Crear espacio</button></div>
+      <p class="meta" style="margin-top:10px">Para formas irregulares (en L, etc.) usa <b>Dibujar espacio</b>.</p>
+    </div>
+  </aside>
+
+  <section>
+    <div class="stage">
+      <div class="toolbar" role="toolbar" aria-label="Herramientas">
+        <button class="btn" id="t-select" aria-pressed="true">Seleccionar</button>
+        <button class="btn" id="t-draw" aria-pressed="false">Dibujar espacio</button>
+        <button class="btn" id="t-delete" aria-pressed="false">Borrar</button>
+        <span class="sp"></span>
+        <button class="btn" id="undo" title="Ctrl/Cmd+Z">Deshacer</button>
+        <button class="btn" id="redo" title="Ctrl/Cmd+Shift+Z">Rehacer</button>
+        <button class="btn" id="sample">Ejemplo</button>
+        <button class="btn danger" id="clear">Limpiar</button>
+      </div>
+      <p class="hint" id="hint"></p>
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+      <svg id="cv" viewBox="0 0 1000 640" role="img" aria-label="Plano del restaurante"></svg>
+      <div class="stats" id="stats"></div>
+    </div>
+  </section>
+
+  <aside class="col">
+    <div class="card" id="inspector"></div>
+    <div class="card">
+      <details>
+        <summary>Cómo se guardaría (JSON)</summary>
+        <pre id="json"></pre>
+      </details>
+    </div>
+  </aside>
+</main>
+
+<script>
+const PPM = 60;                 // píxeles por metro: el plano mide 16,7 × 10,7 m
+const W = 1000, H = 640;
+const GRID = 6;                 // 0,1 m: salto de posición
+const SZ = 3;                   // 0,05 m: salto de medida
+const SEAT_M = 0.55;            // metros de borde de mesa por puesto
+const MIN_T = 0.4, MIN_AREA_M2 = 2;
+
+const TYPES = {
+  sq:    { name: 'Cuadrada',     shape: 'rect',  w: 0.8, h: 0.8, seats: 2, max: 3 },
+  round: { name: 'Redonda',      shape: 'round', w: 1.0, h: 1.0, seats: 4, max: 3 },
+  rect:  { name: 'Rectangular',  shape: 'rect',  w: 1.6, h: 0.8, seats: 4, max: 6 },
+  oval:  { name: 'Ovalada',      shape: 'oval',  w: 1.6, h: 0.9, seats: 4, max: 6 },
+  half:  { name: 'Semicircular', shape: 'half',  w: 1.2, h: 0.6, seats: 3, max: 4 },
+  hex:   { name: 'Hexagonal',    shape: 'hex',   w: 1.2, h: 1.0, seats: 4, max: 3 },
+  bar:   { name: 'Barra',        shape: 'rect',  w: 4.0, h: 0.6, seats: 6, max: 10, single: true },
+};
+const COLORS = ['#e8b86d', '#8fb996', '#9ab4d6', '#d6a0b4', '#c9c2f0'];
+const KEY = 'resto-demo-mapa-espacios-v2';
+
+const svg = document.getElementById('cv');
+let state = { spaces: [], items: [] };
+let sel = null, tool = 'select', draft = null, drag = null;
+let hist = [], histI = -1, uid = 1, toastTimer = null;
+
+const snap = v => Math.round(v / GRID) * GRID;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const m2p = m => Math.round(m * PPM / SZ) * SZ;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fm = p => String(Math.round(p / PPM * 100) / 100).replace('.', ',');
+const mval = p => String(Math.round(p / PPM * 100) / 100);
+const nid = () => 'e' + (uid++);
+const find = id => state.spaces.find(s => s.id === id) || state.items.find(i => i.id === id);
+const isSpace = o => !!o && Array.isArray(o.points);
+
+function notify(msg, kind) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show ' + (kind || 'warn');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, 5000);
+}
+function hideToast() { document.getElementById('toast').className = 'toast'; }
+
+/* ---------- geometría ---------- */
+function pt(e) {
+  const p = svg.createSVGPoint();
+  p.x = e.clientX; p.y = e.clientY;
+  const q = p.matrixTransform(svg.getScreenCTM().inverse());
+  return { x: q.x, y: q.y };
+}
+function centroid(pts) {
+  const n = pts.length;
+  return [pts.reduce((a, p) => a + p[0], 0) / n, pts.reduce((a, p) => a + p[1], 0) / n];
+}
+function bbox(pts) {
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  return { x0, y0, x1, y1, w: x1 - x0, h: y1 - y0 };
+}
+function polyArea(pts) {
+  let a = 0;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) a += (pts[j][0] + pts[i][0]) * (pts[j][1] - pts[i][1]);
+  return Math.abs(a / 2);
+}
+const areaM2 = pts => polyArea(pts) / (PPM * PPM);
+function inPoly(x, y, pts) {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i], [xj, yj] = pts[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+function segDist(px, py, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy;
+  const t = l2 ? clamp(((px - a[0]) * dx + (py - a[1]) * dy) / l2, 0, 1) : 0;
+  return Math.hypot(px - (a[0] + t * dx), py - (a[1] + t * dy));
+}
+function onBoundary(x, y, pts) {
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) if (segDist(x, y, pts[j], pts[i]) < 0.6) return true;
+  return false;
+}
+const insideOrOn = (x, y, pts) => onBoundary(x, y, pts) || inPoly(x, y, pts);
+const strictlyInside = (v, pts) => inPoly(v[0], v[1], pts) && !onBoundary(v[0], v[1], pts);
+const orient = (p, q, r) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+function segsCross(a, b, c, d) {
+  const o1 = orient(a, b, c), o2 = orient(a, b, d), o3 = orient(c, d, a), o4 = orient(c, d, b);
+  return o1 * o2 < 0 && o3 * o4 < 0;
+}
+function polysCross(A, B) {
+  for (let i = 0, j = A.length - 1; i < A.length; j = i++)
+    for (let k = 0, l = B.length - 1; k < B.length; l = k++)
+      if (segsCross(A[j], A[i], B[l], B[k])) return true;
+  return false;
+}
+function selfIntersects(pts) {
+  const n = pts.length;
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    if (j === i + 1 || (i === 0 && j === n - 1)) continue;
+    if (segsCross(pts[i], pts[(i + 1) % n], pts[j], pts[(j + 1) % n])) return true;
+  }
+  return false;
+}
+function satOverlap(A, B) {
+  for (const P of [A, B]) {
+    for (let i = 0; i < P.length; i++) {
+      const a = P[i], b = P[(i + 1) % P.length];
+      const nx = b[1] - a[1], ny = a[0] - b[0];
+      const proj = Q => { let mn = Infinity, mx = -Infinity; for (const q of Q) { const v = q[0] * nx + q[1] * ny; mn = Math.min(mn, v); mx = Math.max(mx, v); } return [mn, mx]; };
+      const [a0, a1] = proj(A), [b0, b1] = proj(B), eps = 0.5 * Math.hypot(nx, ny);
+      if (a1 <= b0 + eps || b1 <= a0 + eps) return false;
+    }
+  }
+  return true;
+}
+const ellPerim = (a, b) => Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)));
+
+/* ---------- formas ---------- */
+function localPoly(it) {
+  const w = it.w, h = it.h, sh = TYPES[it.type].shape, out = [];
+  if (sh === 'rect') return [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]];
+  if (sh === 'hex') return [[-w / 4, -h / 2], [w / 4, -h / 2], [w / 2, 0], [w / 4, h / 2], [-w / 4, h / 2], [-w / 2, 0]];
+  if (sh === 'half') {
+    for (let i = 0; i <= 14; i++) { const t = Math.PI + Math.PI * i / 14; out.push([Math.cos(t) * w / 2, h / 2 + Math.sin(t) * h]); }
+    return out;
+  }
+  for (let i = 0; i < 28; i++) { const t = 2 * Math.PI * i / 28; out.push([Math.cos(t) * w / 2, Math.sin(t) * h / 2]); }
+  return out;
+}
+function shapePoly(it) {
+  const a = it.rot * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  return localPoly(it).map(([x, y]) => [it.x + x * c - y * s, it.y + x * s + y * c]);
+}
+const spaceOf = it => state.spaces.find(s => inPoly(it.x, it.y, s.points));
+
+function seatCap(it) {
+  const t = TYPES[it.type], w = it.w / PPM, h = it.h / PPM;
+  if (t.shape === 'rect') { const row = Math.max(1, Math.floor(w / SEAT_M)); return t.single ? row : row * 2; }
+  if (t.shape === 'half') return Math.max(1, Math.floor(ellPerim(w / 2, h) / 2 / SEAT_M));
+  return Math.max(1, Math.floor(ellPerim(w / 2, h / 2) / SEAT_M));
+}
+function seatPositions(it) {
+  const n = it.seats, t = TYPES[it.type], out = [];
+  if (t.shape === 'half') {
+    for (let i = 0; i < n; i++) { const a = Math.PI + Math.PI * (i + 1) / (n + 1); out.push([Math.cos(a) * (it.w / 2 + 10), it.h / 2 + Math.sin(a) * (it.h + 10)]); }
+    return out;
+  }
+  if (t.shape !== 'rect') {
+    for (let i = 0; i < n; i++) { const a = 2 * Math.PI * i / n - Math.PI / 2; out.push([Math.cos(a) * (it.w / 2 + 10), Math.sin(a) * (it.h / 2 + 10)]); }
+    return out;
+  }
+  const row = (k, y) => { for (let i = 0; i < k; i++) out.push([-it.w / 2 + it.w * (i + 0.5) / k, y]); };
+  if (t.single) row(n, it.h / 2 + 10);
+  else { row(Math.ceil(n / 2), -it.h / 2 - 10); row(Math.floor(n / 2), it.h / 2 + 10); }
+  return out;
+}
+
+/* ---------- reglas de coherencia ---------- */
+function containedIn(poly, spacePts) {
+  return poly.every(p => insideOrOn(p[0], p[1], spacePts))
+    && !polysCross(poly, spacePts)
+    && !spacePts.some(v => strictlyInside(v, poly));
+}
+function footprintFits(it, spacePts) {
+  const b = bbox(spacePts), d = [it.w, it.h].sort((x, y) => x - y), e = [b.w, b.h].sort((x, y) => x - y);
+  return d[0] <= e[0] + 0.5 && d[1] <= e[1] + 0.5;
+}
+const tableName = it => `${TYPES[it.type].name.toLowerCase()} de ${fm(it.w)} × ${fm(it.h)} m`;
+function checkItem(it) {
+  const sp = spaceOf(it);
+  if (!sp) return 'Las mesas tienen que estar dentro de un espacio.';
+  const poly = shapePoly(it);
+  if (!containedIn(poly, sp.points)) {
+    const b = bbox(sp.points);
+    return footprintFits(it, sp.points)
+      ? `La mesa se saldría de «${sp.name}».`
+      : `Una mesa ${tableName(it)} no cabe en «${sp.name}» (${fm(b.w)} × ${fm(b.h)} m).`;
+  }
+  for (const o of state.items) {
+    if (o.id === it.id) continue;
+    if (satOverlap(poly, shapePoly(o))) return `Se superpondría con «${o.label}».`;
+  }
+  return null;
+}
+function checkSpacePts(pts, selfId) {
+  const b = bbox(pts);
+  if (b.x0 < 0 || b.y0 < 0 || b.x1 > W || b.y1 > H) return `El espacio se sale del plano (máximo ${fm(W)} × ${fm(H)} m).`;
+  if (areaM2(pts) < MIN_AREA_M2) return `El espacio es demasiado pequeño (mínimo ${MIN_AREA_M2} m²).`;
+  if (selfIntersects(pts)) return 'Los lados del espacio no pueden cruzarse.';
+  for (const o of state.spaces) {
+    if (o.id === selfId) continue;
+    if (polysCross(pts, o.points) || pts.some(v => strictlyInside(v, o.points)) || o.points.some(v => strictlyInside(v, pts)))
+      return `El espacio se superpondría con «${o.name}».`;
+  }
+  return null;
+}
+function checkContent(pts, items) {
+  for (const it of items) if (!containedIn(shapePoly(it), pts)) return `No se puede: «${it.label}» quedaría fuera del espacio.`;
+  return null;
+}
+const itemsIn = sp => state.items.filter(i => spaceOf(i) === sp);
+
+function findSpot(it, sp, px, py) {
+  if (!footprintFits(it, sp.points)) return null;
+  const b = bbox(sp.points);
+  if (px == null) { px = (b.x0 + b.x1) / 2; py = (b.y0 + b.y1) / 2; }
+  px = snap(px); py = snap(py);
+  const maxR = Math.min(60, Math.ceil(Math.max(b.w, b.h) / GRID));
+  for (let r = 0; r <= maxR; r++)
+    for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const c = { ...it, x: px + dx * GRID, y: py + dy * GRID };
+      if (spaceOf(c) !== sp) continue;
+      if (!checkItem(c)) return c;
+    }
+  return null;
+}
+
+/* ---------- render ---------- */
+function dimLabels(pts) {
+  let s = '';
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (len < 24) continue;
+    s += `<text class="dim" x="${(a[0] + b[0]) / 2}" y="${(a[1] + b[1]) / 2 - 5}" text-anchor="middle">${fm(len)} m</text>`;
+  }
+  return s;
+}
+function itemSvg(it) {
+  const t = TYPES[it.type], on = sel === it.id, bad = drag && drag.blocked && drag.o === it;
+  const fs = clamp(Math.min(it.w, it.h) / 5.5, 8, 12);
+  let body;
+  if (t.shape === 'rect') body = `<rect x="${-it.w / 2}" y="${-it.h / 2}" width="${it.w}" height="${it.h}" rx="6" class="tbl ${it.type === 'bar' ? 'bar' : ''}"/>`;
+  else if (t.shape === 'round' || t.shape === 'oval') body = `<ellipse rx="${it.w / 2}" ry="${it.h / 2}" class="tbl"/>`;
+  else body = `<polygon class="tbl" points="${localPoly(it).map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ')}"/>`;
+  const seats = seatPositions(it).map(([x, y]) => `<circle class="seat" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7"/>`).join('');
+  let h = '';
+  if (on) {
+    h = `<rect class="selbox" x="${-it.w / 2 - 6}" y="${-it.h / 2 - 6}" width="${it.w + 12}" height="${it.h + 12}" rx="10"/>`
+      + `<line x1="0" y1="${-it.h / 2 - 22}" x2="0" y2="${-it.h / 2 - 34}" stroke="#c2410c" stroke-width="2"/>`
+      + `<circle class="h rot" data-role="rotate" cx="0" cy="${-it.h / 2 - 40}" r="8"/>`
+      + `<rect class="h res" data-role="resize" x="${it.w / 2 - 2}" y="${it.h / 2 - 2}" width="12" height="12" rx="3"/>`
+      + `<g transform="rotate(${-it.rot})"><text class="dim" text-anchor="middle" y="${it.h / 2 + 34}">${fm(it.w)} × ${fm(it.h)} m</text></g>`;
+  }
+  return `<g class="item ${bad ? 'bad' : ''}" data-id="${it.id}" transform="translate(${it.x},${it.y}) rotate(${it.rot})">`
+    + seats + body
+    + `<g transform="rotate(${-it.rot})"><text class="lbl" font-size="${fs}" text-anchor="middle" y="-1">${esc(it.label)}</text>`
+    + `<text class="lbl2" font-size="${fs - 2}" text-anchor="middle" y="${fs + 1}">${it.seats} p</text></g>${h}</g>`;
+}
+function render() {
+  let s = `<defs><pattern id="g" width="${PPM}" height="${PPM}" patternUnits="userSpaceOnUse">`
+    + `<path d="M ${PPM} 0 L 0 0 0 ${PPM}" fill="none" stroke="#eee6d8" stroke-width="1"/></pattern></defs>`
+    + `<rect width="${W}" height="${H}" fill="url(#g)"/>`
+    + `<g><line x1="16" y1="${H - 16}" x2="${16 + PPM}" y2="${H - 16}" stroke="#6f665a" stroke-width="3"/><text class="dim" x="${16 + PPM / 2}" y="${H - 22}" text-anchor="middle">1 m</text></g>`;
+  for (const sp of state.spaces) {
+    const [cx, cy] = centroid(sp.points), on = sel === sp.id, bad = drag && drag.blocked && drag.o === sp;
+    s += `<g class="space ${on ? 'sel' : ''} ${bad ? 'bad' : ''}" data-id="${sp.id}">`
+      + `<polygon points="${sp.points.map(p => p.join(',')).join(' ')}" fill="${sp.color}" fill-opacity=".28" stroke="${sp.color}" stroke-width="4" stroke-linejoin="round"/>`
+      + `<text class="sp-label" x="${cx}" y="${cy}" text-anchor="middle">${esc(sp.name)}</text>`
+      + `<text class="sp-area" x="${cx}" y="${cy + 16}" text-anchor="middle">${areaM2(sp.points).toFixed(1).replace('.', ',')} m²</text>`
+      + (on ? dimLabels(sp.points) + sp.points.map((p, i) => `<circle class="h vtx" data-role="vertex" data-i="${i}" cx="${p[0]}" cy="${p[1]}" r="7"/>`).join('') : '')
+      + `</g>`;
+  }
+  for (const it of state.items) s += itemSvg(it);
+  if (draft) {
+    const pts = draft.points.concat(draft.cursor ? [draft.cursor] : []);
+    if (pts.length > 1) s += `<polyline class="draft" points="${pts.map(p => p.join(',')).join(' ')}" fill="none"/>`;
+    if (pts.length > 1) {
+      for (let i = 0; i < pts.length - 1; i++) {
+        const a = pts[i], b = pts[i + 1], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (len >= 24) s += `<text class="dim" x="${(a[0] + b[0]) / 2}" y="${(a[1] + b[1]) / 2 - 6}" text-anchor="middle">${fm(len)} m</text>`;
+      }
+    }
+    draft.points.forEach((p, i) => { s += `<circle class="h" cx="${p[0]}" cy="${p[1]}" r="${i === 0 ? 9 : 5}"/>`; });
+  }
+  svg.innerHTML = s;
+  svg.classList.toggle('drawing', tool === 'draw');
+}
+
+/* ---------- datos ---------- */
+function toApi() {
+  const r2 = v => Math.round(v / PPM * 100) / 100;
+  return {
+    units: 'm',
+    spaces: state.spaces.map(s => ({ id: s.id, name: s.name, color: s.color, areaM2: Math.round(areaM2(s.points) * 100) / 100, polygon: s.points.map(([x, y]) => [r2(x), r2(y)]) })),
+    tables: state.items.map(i => ({
+      id: i.id, label: i.label, seats: i.seats, shape: TYPES[i.type].shape, kind: i.type,
+      spaceId: (spaceOf(i) || {}).id || null,
+      x: r2(i.x), y: r2(i.y), width: r2(i.w), depth: r2(i.h), rotation: i.rot,
+    })),
+  };
+}
+function refreshMeta() {
+  const cap = state.items.reduce((a, i) => a + i.seats, 0);
+  const area = state.spaces.reduce((a, s) => a + areaM2(s.points), 0);
+  document.getElementById('stats').innerHTML =
+    `<span><b>${state.spaces.length}</b> espacios (${area.toFixed(1).replace('.', ',')} m²)</span><span><b>${state.items.length}</b> mesas/muebles</span><span><b>${cap}</b> puestos</span>`;
+  document.getElementById('json').textContent = JSON.stringify(toApi(), null, 1);
+  document.getElementById('undo').disabled = histI <= 0;
+  document.getElementById('redo').disabled = histI >= hist.length - 1;
+}
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+function commit() {
+  hist = hist.slice(0, histI + 1);
+  hist.push(JSON.stringify(state));
+  histI = hist.length - 1;
+  persist(); refreshMeta();
+}
+function restore(i) {
+  if (i < 0 || i >= hist.length) return;
+  histI = i; state = JSON.parse(hist[i]);
+  if (sel && !find(sel)) sel = null;
+  persist(); render(); renderInspector(); refreshMeta();
+}
+
+/* ---------- acciones ---------- */
+function nextLabel() {
+  const nums = state.items.map(i => (/^Mesa (\d+)$/.exec(i.label) || [])[1]).filter(Boolean).map(Number);
+  return 'Mesa ' + ((nums.length ? Math.max(...nums) : 0) + 1);
+}
+function newItem(type) {
+  const t = TYPES[type];
+  return { id: nid(), type, x: 0, y: 0, w: m2p(t.w), h: m2p(t.h), rot: 0, seats: t.seats, label: type === 'bar' ? 'Barra' : nextLabel() };
+}
+function addItem(type, x, y) {
+  if (!state.spaces.length) { notify('Primero crea un espacio: las mesas solo pueden ir dentro de uno.'); return; }
+  const it = newItem(type);
+  let candidates;
+  if (x != null) {
+    const target = state.spaces.find(s => insideOrOn(x, y, s.points));
+    if (!target) { notify('Suelta la mesa dentro de un espacio.'); return; }
+    candidates = [target];
+  } else {
+    const cur = sel ? find(sel) : null;
+    const pref = cur ? (isSpace(cur) ? cur : spaceOf(cur)) : null;
+    candidates = [pref, ...state.spaces].filter((v, i, a) => v && a.indexOf(v) === i);
+  }
+  for (const sp of candidates) {
+    const spot = findSpot(it, sp, x, y);
+    if (spot) { state.items.push(spot); select(spot.id); commit(); hideToast(); return; }
+  }
+  const sp = candidates[0], b = bbox(sp.points);
+  notify(footprintFits(it, sp.points)
+    ? `No queda lugar libre en «${sp.name}» para una mesa ${tableName(it)}.`
+    : `Una mesa ${tableName(it)} no cabe en «${sp.name}» (${fm(b.w)} × ${fm(b.h)} m).`, 'error');
+}
+function removeObj(id) {
+  const o = find(id); if (!o) return;
+  if (isSpace(o)) {
+    const inside = itemsIn(o);
+    if (inside.length && !confirm(`Se eliminarán también las ${inside.length} mesas de «${o.name}». ¿Continuar?`)) return;
+    state.items = state.items.filter(i => !inside.includes(i));
+    state.spaces = state.spaces.filter(s => s !== o);
+  } else state.items = state.items.filter(i => i !== o);
+  if (sel === id) sel = null;
+  hideToast(); render(); renderInspector(); commit();
+}
+function select(id) { sel = id; render(); renderInspector(); }
+function setTool(t) {
+  tool = t; draft = null;
+  for (const k of ['select', 'draw', 'delete']) document.getElementById('t-' + k).setAttribute('aria-pressed', String(k === t));
+  document.getElementById('hint').textContent = {
+    select: 'Arrastra para mover · esquina para redimensionar · círculo superior para rotar · vértices para reformar un espacio.',
+    draw: 'Clic para marcar las esquinas (se muestran las medidas). Mantén Shift para lados rectos. Cierra con clic en el primer punto, doble clic o Enter. Esc cancela.',
+    delete: 'Haz clic sobre una mesa o un espacio para eliminarlo.',
+  }[t];
+  render();
+}
+function closeDraft() {
+  if (!draft || draft.points.length < 3) return;
+  const err = checkSpacePts(draft.points, null);
+  if (err) { notify(err, 'error'); return; }
+  const sp = { id: nid(), name: 'Espacio ' + (state.spaces.length + 1), color: COLORS[state.spaces.length % COLORS.length], points: draft.points };
+  state.spaces.push(sp);
+  draft = null; hideToast(); setTool('select'); select(sp.id); commit();
+}
+function createSpaceByMeasures(name, wm, hm) {
+  if (!(wm >= 1.5) || !(hm >= 1.5)) { notify('Cada lado debe medir al menos 1,5 m.', 'error'); return; }
+  const w = m2p(wm), h = m2p(hm);
+  if (w > W || h > H) { notify(`Máximo ${fm(W)} × ${fm(H)} m en este plano.`, 'error'); return; }
+  for (let y = 0; y + h <= H; y += 30) for (let x = 0; x + w <= W; x += 30) {
+    const pts = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+    if (!checkSpacePts(pts, null)) {
+      const sp = { id: nid(), name: name.trim() || 'Espacio ' + (state.spaces.length + 1), color: COLORS[state.spaces.length % COLORS.length], points: pts };
+      state.spaces.push(sp); hideToast(); select(sp.id); commit(); return;
+    }
+  }
+  notify('No hay lugar libre en el plano para un espacio de esas medidas.', 'error');
+}
+function spaceBase(o) {
+  return { pts: o.points.map(p => p.slice()), items: itemsIn(o).map(it => ({ it, x: it.x, y: it.y })) };
+}
+function shiftSpace(o, base, dx, dy) {
+  const pts = base.pts.map(([x, y]) => [x + dx, y + dy]);
+  const err = checkSpacePts(pts, o.id);
+  if (err) return err;
+  o.points = pts; base.items.forEach(b => { b.it.x = b.x + dx; b.it.y = b.y + dy; });
+  return null;
+}
+function resizeSpace(o, wm, hm) {
+  const b = bbox(o.points);
+  if (!(wm >= 1.5) || !(hm >= 1.5)) { notify('Cada lado debe medir al menos 1,5 m.', 'error'); return false; }
+  const sx = m2p(wm) / b.w, sy = m2p(hm) / b.h;
+  const pts = o.points.map(([x, y]) => [Math.round(b.x0 + (x - b.x0) * sx), Math.round(b.y0 + (y - b.y0) * sy)]);
+  const inside = itemsIn(o);
+  const err = checkSpacePts(pts, o.id) || checkContent(pts, inside);
+  if (err) { notify(err, 'error'); return false; }
+  o.points = pts; hideToast(); render(); commit();
+  return true;
+}
+function trimSeats(o) {
+  const cap = seatCap(o);
+  if (o.seats > cap) { o.seats = cap; notify(`Los puestos se ajustaron a ${cap}: es lo que cabe en el borde de esta mesa.`); }
+}
+
+/* ---------- puntero ---------- */
+svg.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  const p = pt(e);
+  if (tool === 'draw') {
+    draft = draft || { points: [], cursor: null };
+    let q = [clamp(snap(p.x), 0, W), clamp(snap(p.y), 0, H)];
+    const last = draft.points[draft.points.length - 1], first = draft.points[0];
+    if (first && draft.points.length >= 3 && Math.hypot(first[0] - p.x, first[1] - p.y) < 16) { closeDraft(); return; }
+    if (e.shiftKey && last) { if (Math.abs(q[0] - last[0]) > Math.abs(q[1] - last[1])) q[1] = last[1]; else q[0] = last[0]; }
+    if (!last || last[0] !== q[0] || last[1] !== q[1]) draft.points.push(q);
+    render(); return;
+  }
+  const role = e.target.dataset ? e.target.dataset.role : null;
+  const g = e.target.closest ? e.target.closest('[data-id]') : null;
+  const id = g ? g.dataset.id : null;
+  if (tool === 'delete') { if (id) removeObj(id); return; }
+  if (!id) { select(null); return; }
+  select(id);
+  const o = find(id);
+  if (role === 'rotate') drag = { mode: 'rotate', o };
+  else if (role === 'resize') drag = { mode: 'resize', o };
+  else if (role === 'vertex') drag = { mode: 'vertex', o, i: +e.target.dataset.i, items: itemsIn(o) };
+  else if (isSpace(o)) drag = { mode: 'move', o, start: p, base: spaceBase(o) };
+  else drag = { mode: 'move', o, start: p, orig: { x: o.x, y: o.y } };
+  drag.moved = false; drag.changed = false; drag.blocked = false;
+  e.preventDefault();
+});
+
+window.addEventListener('pointermove', e => {
+  if (draft && tool === 'draw') {
+    const p = pt(e), last = draft.points[draft.points.length - 1];
+    let q = [snap(p.x), snap(p.y)];
+    if (e.shiftKey && last) { if (Math.abs(q[0] - last[0]) > Math.abs(q[1] - last[1])) q[1] = last[1]; else q[0] = last[0]; }
+    draft.cursor = q; render(); return;
+  }
+  if (!drag) return;
+  const p = pt(e), o = drag.o;
+  drag.moved = true;
+  let err = null;
+  if (drag.mode === 'move') {
+    const dx = snap(p.x - drag.start.x), dy = snap(p.y - drag.start.y);
+    if (isSpace(o)) err = shiftSpace(o, drag.base, dx, dy);
+    else {
+      const nx = drag.orig.x + dx, ny = drag.orig.y + dy;
+      for (const [x, y] of [[nx, ny], [nx, o.y], [o.x, ny]]) {
+        err = checkItem({ ...o, x, y });
+        if (!err) { o.x = x; o.y = y; break; }
+        if (!drag.firstErr) drag.firstErr = err;
+      }
+      if (err) err = drag.firstErr;
+      drag.firstErr = null;
+    }
+  } else if (drag.mode === 'vertex') {
+    const pts = o.points.map(v => v.slice());
+    pts[drag.i] = [clamp(snap(p.x), 0, W), clamp(snap(p.y), 0, H)];
+    err = checkSpacePts(pts, o.id) || checkContent(pts, drag.items);
+    if (!err) o.points = pts;
+  } else if (drag.mode === 'rotate') {
+    let a = Math.atan2(p.y - o.y, p.x - o.x) * 180 / Math.PI + 90;
+    a = Math.round(a / 5) * 5; a = ((a % 360) + 360) % 360;
+    err = checkItem({ ...o, rot: a });
+    if (!err) o.rot = a;
+  } else if (drag.mode === 'resize') {
+    const r = -o.rot * Math.PI / 180, dx = p.x - o.x, dy = p.y - o.y;
+    const lx = dx * Math.cos(r) - dy * Math.sin(r), ly = dx * Math.sin(r) + dy * Math.cos(r);
+    const t = TYPES[o.type], maxP = t.max * PPM, minP = MIN_T * PPM;
+    let w = clamp(Math.round(Math.abs(lx) * 2 / SZ) * SZ, minP, maxP), h = clamp(Math.round(Math.abs(ly) * 2 / SZ) * SZ, minP, maxP);
+    if (t.shape === 'round') w = h = Math.max(w, h);
+    err = checkItem({ ...o, w, h });
+    if (!err) { o.w = w; o.h = h; trimSeats(o); }
+  }
+  drag.blocked = !!err;
+  if (err) notify(err, 'error'); else { drag.changed = true; if (document.getElementById('toast').className.includes('error')) hideToast(); }
+  render();
+});
+window.addEventListener('pointerup', () => {
+  if (drag) {
+    const changed = drag.changed;
+    drag = null;
+    if (changed) { renderInspector(); commit(); }
+    render();
+  }
+});
+svg.addEventListener('dblclick', () => { if (tool === 'draw') closeDraft(); });
+svg.addEventListener('dragover', e => e.preventDefault());
+svg.addEventListener('drop', e => {
+  e.preventDefault();
+  const type = e.dataTransfer.getData('text/plain');
+  if (!TYPES[type]) return;
+  const p = pt(e);
+  if (tool !== 'select') setTool('select');
+  addItem(type, p.x, p.y);
+});
+
+window.addEventListener('keydown', e => {
+  const typing = /^(INPUT|TEXTAREA)$/.test((e.target || {}).tagName || '');
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); restore(histI + (e.shiftKey ? 1 : -1)); return; }
+  if (typing) return;
+  if (e.key === 'Escape') { draft = null; setTool('select'); }
+  else if (e.key === 'Enter') closeDraft();
+  else if ((e.key === 'Delete' || e.key === 'Backspace') && sel) { e.preventDefault(); removeObj(sel); }
+  else if (sel && e.key.startsWith('Arrow')) {
+    e.preventDefault();
+    const o = find(sel), d = { ArrowLeft: [-GRID, 0], ArrowRight: [GRID, 0], ArrowUp: [0, -GRID], ArrowDown: [0, GRID] }[e.key];
+    const err = isSpace(o) ? shiftSpace(o, spaceBase(o), d[0], d[1]) : (() => { const c = { x: o.x + d[0], y: o.y + d[1] }; const r = checkItem({ ...o, ...c }); if (!r) Object.assign(o, c); return r; })();
+    if (err) notify(err, 'error'); else { hideToast(); render(); renderInspector(); commit(); }
+  }
+});
+
+/* ---------- propiedades ---------- */
+const numOf = el => parseFloat(String(el.value).replace(',', '.'));
+function renderInspector() {
+  const box = document.getElementById('inspector'), o = sel ? find(sel) : null;
+  if (!o) {
+    box.innerHTML = `<h2>Propiedades</h2><p class="meta">Selecciona una mesa o un espacio para editar nombre y medidas. Con <b>Dibujar espacio</b> trazas el contorno de un salón, terraza o barra; con <b>Espacio por medidas</b> lo describes con números.</p>`;
+    return;
+  }
+  if (isSpace(o)) {
+    const b = bbox(o.points), inside = itemsIn(o);
+    box.innerHTML = `<h2>Espacio</h2>
+      <label for="f-name">Nombre</label><input id="f-name" type="text" value="${esc(o.name)}" maxlength="40">
+      <div class="row">
+        <div><label for="f-w">Ancho (m)</label><input id="f-w" type="number" min="1.5" step="0.1" value="${mval(b.w)}"></div>
+        <div><label for="f-h">Largo (m)</label><input id="f-h" type="number" min="1.5" step="0.1" value="${mval(b.h)}"></div>
+      </div>
+      <label>Color</label><div class="swatches">${COLORS.map(c => `<button class="sw" data-c="${c}" style="background:${c}" aria-pressed="${c === o.color}" aria-label="Color ${c}"></button>`).join('')}</div>
+      <p class="meta" style="margin-top:12px">Área: ${areaM2(o.points).toFixed(1).replace('.', ',')} m² · ${o.points.length} lados · ${inside.length} mesas dentro</p>
+      <p class="meta" style="margin-top:6px">Al cambiar las medidas, el espacio no puede quedar más pequeño que sus mesas.</p>
+      <div class="actions"><button class="btn danger" id="f-del">Eliminar espacio</button></div>`;
+    const name = box.querySelector('#f-name');
+    name.oninput = () => { o.name = name.value; render(); };
+    name.onchange = commit;
+    const apply = () => { if (!resizeSpace(o, numOf(box.querySelector('#f-w')), numOf(box.querySelector('#f-h')))) renderInspector(); else renderInspector(); };
+    box.querySelector('#f-w').onchange = apply;
+    box.querySelector('#f-h').onchange = apply;
+    box.querySelectorAll('.sw').forEach(bt => bt.onclick = () => { o.color = bt.dataset.c; render(); renderInspector(); commit(); });
+  } else {
+    const t = TYPES[o.type], sp = spaceOf(o), round = t.shape === 'round', cap = seatCap(o);
+    box.innerHTML = `<h2>${t.name}</h2>
+      <label for="f-name">Nombre</label><input id="f-name" type="text" value="${esc(o.label)}" maxlength="40">
+      <div class="row">
+        <div><label for="f-w">${round ? 'Diámetro (m)' : 'Ancho (m)'}</label><input id="f-w" type="number" min="${MIN_T}" max="${t.max}" step="0.05" value="${mval(o.w)}"></div>
+        <div><label for="f-h">${t.shape === 'half' ? 'Fondo (m)' : 'Largo (m)'}</label><input id="f-h" type="number" min="${MIN_T}" max="${t.max}" step="0.05" value="${mval(o.h)}" ${round ? 'disabled' : ''}></div>
+        <div><label for="f-seats">Puestos (máx. ${cap})</label><input id="f-seats" type="number" min="1" max="${cap}" value="${o.seats}"></div>
+        <div><label for="f-rot">Rotación (°)</label><input id="f-rot" type="number" min="0" max="355" step="5" value="${o.rot}"></div>
+      </div>
+      <p class="meta" style="margin-top:12px">${sp ? 'En: ' + esc(sp.name) : 'Fuera de todo espacio'} · medidas entre ${fm(MIN_T * PPM)} y ${t.max} m</p>
+      <div class="actions"><button class="btn" id="f-dup">Duplicar</button><button class="btn danger" id="f-del">Eliminar</button></div>`;
+    const name = box.querySelector('#f-name');
+    name.oninput = () => { o.label = name.value; render(); };
+    name.onchange = commit;
+    const dims = () => {
+      const wm = numOf(box.querySelector('#f-w')), hm = round ? wm : numOf(box.querySelector('#f-h'));
+      if (!(wm >= MIN_T && wm <= t.max && hm >= MIN_T && hm <= t.max)) { notify(`Las medidas de esta mesa deben estar entre ${fm(MIN_T * PPM)} y ${t.max} m.`, 'error'); renderInspector(); return; }
+      const w = m2p(wm), h = round ? w : m2p(hm), err = checkItem({ ...o, w, h });
+      if (err) { notify(err, 'error'); renderInspector(); return; }
+      o.w = w; o.h = h; hideToast(); trimSeats(o); render(); renderInspector(); commit();
+    };
+    box.querySelector('#f-w').onchange = dims;
+    box.querySelector('#f-h').onchange = dims;
+    box.querySelector('#f-seats').onchange = ev => {
+      let n = parseInt(ev.target.value, 10) || 1;
+      if (n > cap) { notify(`En esta mesa solo caben ${cap} puestos (${SEAT_M * 100} cm de borde por puesto).`, 'error'); n = cap; }
+      o.seats = clamp(n, 1, cap); render(); renderInspector(); commit();
+    };
+    box.querySelector('#f-rot').onchange = ev => {
+      const a = (((parseInt(ev.target.value, 10) || 0) % 360) + 360) % 360, err = checkItem({ ...o, rot: a });
+      if (err) { notify(err, 'error'); renderInspector(); return; }
+      o.rot = a; hideToast(); render(); renderInspector(); commit();
+    };
+    box.querySelector('#f-dup').onclick = () => {
+      const c = { ...o, id: nid(), label: o.type === 'bar' ? o.label : nextLabel() };
+      const spot = findSpot(c, sp || state.spaces[0], o.x + GRID * 5, o.y + GRID * 5);
+      if (!spot) { notify('No queda lugar libre para duplicarla en este espacio.', 'error'); return; }
+      state.items.push(spot); hideToast(); select(spot.id); commit();
+    };
+  }
+  box.querySelector('#f-del').onclick = () => removeObj(o.id);
+}
+
+/* ---------- ejemplo e inicio ---------- */
+function loadSample() {
+  uid = 1;
+  const M = m => Math.round(m * PPM);
+  const mk = (type, xm, ym, label, extra) => { const t = TYPES[type]; return { id: nid(), type, x: M(xm), y: M(ym), w: m2p(t.w), h: m2p(t.h), rot: 0, seats: t.seats, label, ...(extra || {}) }; };
+  state = {
+    spaces: [
+      { id: nid(), name: 'Salón', color: COLORS[0], points: [[0.6, 0.6], [9, 0.6], [9, 6], [6.6, 6], [6.6, 9.6], [0.6, 9.6]].map(p => p.map(M)) },
+      { id: nid(), name: 'Terraza', color: COLORS[1], points: [[10.2, 0.6], [16, 0.6], [16, 6], [10.2, 6]].map(p => p.map(M)) },
+    ],
+    items: [
+      mk('bar', 3, 1.5, 'Barra'),
+      mk('sq', 1.8, 3.6, 'Mesa 1'), mk('sq', 3.6, 3.6, 'Mesa 2'), mk('sq', 5.4, 3.6, 'Mesa 3'),
+      mk('round', 7.8, 2.4, 'Mesa 4'), mk('oval', 7.2, 4.5, 'Mesa 5'),
+      mk('rect', 3, 7.8, 'Mesa 6'), mk('hex', 11.4, 2.4, 'Mesa 7'),
+      mk('round', 13.8, 2.4, 'Mesa 8'), mk('half', 11.4, 4.8, 'Mesa 9'), mk('round', 13.8, 4.5, 'Mesa 10'),
+    ],
+  };
+  sel = null; hist = []; histI = -1; hideToast();
+  render(); renderInspector(); commit();
+}
+
+(function init() {
+  const pal = document.getElementById('pal');
+  const icons = {
+    sq: '<rect x="16" y="8" width="20" height="20" rx="3"/>',
+    round: '<circle cx="26" cy="18" r="11"/>',
+    rect: '<rect x="7" y="10" width="38" height="16" rx="3"/>',
+    oval: '<ellipse cx="26" cy="18" rx="19" ry="11"/>',
+    half: '<path d="M8 27 A18 19 0 0 1 44 27 Z"/>',
+    hex: '<polygon points="17,7 35,7 44,18 35,29 17,29 8,18"/>',
+    bar: '<rect x="3" y="14" width="46" height="9" rx="3"/>',
+  };
+  for (const [k, t] of Object.entries(TYPES)) {
+    const b = document.createElement('button');
+    b.draggable = true; b.type = 'button';
+    b.innerHTML = `<svg viewBox="0 0 52 36" fill="#fff" stroke="#1f1b16" stroke-width="2">${icons[k]}</svg><small>${t.name}<br>${String(t.w).replace('.', ',')} × ${String(t.h).replace('.', ',')} m</small>`;
+    b.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', k); e.dataTransfer.effectAllowed = 'copy'; });
+    b.addEventListener('click', () => { if (tool !== 'select') setTool('select'); addItem(k); });
+    pal.appendChild(b);
+  }
+  document.getElementById('t-select').onclick = () => setTool('select');
+  document.getElementById('t-draw').onclick = () => { setTool('draw'); select(null); };
+  document.getElementById('t-delete').onclick = () => setTool('delete');
+  document.getElementById('undo').onclick = () => restore(histI - 1);
+  document.getElementById('redo').onclick = () => restore(histI + 1);
+  document.getElementById('sample').onclick = loadSample;
+  document.getElementById('clear').onclick = () => {
+    if (!state.spaces.length && !state.items.length) return;
+    if (confirm('¿Borrar todo el plano?')) { state = { spaces: [], items: [] }; sel = null; render(); renderInspector(); commit(); }
+  };
+  document.getElementById('ns-create').onclick = () =>
+    createSpaceByMeasures(document.getElementById('ns-name').value, numOf(document.getElementById('ns-w')), numOf(document.getElementById('ns-h')));
+
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
+  if (saved && Array.isArray(saved.spaces) && Array.isArray(saved.items)) {
+    state = saved;
+    const ids = [...state.spaces, ...state.items].map(o => parseInt(String(o.id).slice(1), 10) || 0);
+    uid = Math.max(0, ...ids) + 1;
+    render(); renderInspector(); commit();
+  } else loadSample();
+  setTool('select');
+})();
+</script>
+</body>
+</html>

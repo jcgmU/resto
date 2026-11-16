@@ -2,7 +2,7 @@ import Redis from 'ioredis';
 import { closeDefaultSessionAppConnections } from '../../src/app';
 
 export const TEST_SESSION_REDIS_URL =
-  process.env.REDIS_URL || 'redis://localhost:6379/2';
+  process.env.REDIS_SESSION_TEST_URL || process.env.REDIS_URL || 'redis://localhost:6379/2';
 
 process.env.REDIS_URL = TEST_SESSION_REDIS_URL;
 

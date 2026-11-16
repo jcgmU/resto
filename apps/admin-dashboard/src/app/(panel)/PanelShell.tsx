@@ -1,10 +1,12 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { SidebarRail, PageHeader } from '@packages/ui-components';
+import { SidebarRail, PageHeader, ErrorState, BentoCard } from '@packages/ui-components';
 import type { SidebarRailItem } from '@packages/ui-components';
 import { ApiClient } from '../../lib/api';
 import { logout } from '../../lib/auth/logout';
+import { getUserRole, isRouteAllowedForRole } from '../../lib/auth';
+import type { UserRole } from '../../lib/auth';
 
 const Svg = ({ children }: { children: React.ReactNode }) => (
   <svg
@@ -103,7 +105,7 @@ const NAV: NavDef[] = [
 ];
 
 const STAFF_FORBIDDEN_PATHS = ['/menu', '/ajustes'];
-const STAFF_FORBIDDEN_NAV_IDS = new Set(['menu', 'ajustes']);
+const STAFF_NAV_IDS = new Set(['dashboard', 'kds', 'checkout']);
 
 function isStaffForbiddenPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
@@ -197,8 +199,16 @@ export default function PanelShell({
     return null;
   }
 
-  const isStaff = String(currentUser?.role || '').toUpperCase() === 'STAFF';
-  const visibleNav = isStaff ? NAV.filter((n) => !STAFF_FORBIDDEN_NAV_IDS.has(n.id)) : NAV;
+  const storedRole = String(currentUser?.role || '').toUpperCase();
+  const role: UserRole | null =
+    getUserRole(ApiClient.token) ??
+    (storedRole === 'ADMIN' || storedRole === 'MANAGER' || storedRole === 'STAFF' ? storedRole : null);
+  const visibleNav =
+    role === 'STAFF'
+      ? NAV.filter((n) => STAFF_NAV_IDS.has(n.id)).map((n) =>
+          n.id === 'dashboard' ? { ...n, href: '/mesas' } : n,
+        )
+      : NAV;
   const activeId = activeIdFor(pathname);
   const items: SidebarRailItem[] = visibleNav.map((n) => ({
     id: n.id,
@@ -207,6 +217,8 @@ export default function PanelShell({
     icon: n.icon,
   }));
   const title = titleFor(pathname, activeId);
+
+  const isAllowed = isRouteAllowedForRole(pathname || '', role);
 
   return (
     <div
@@ -494,7 +506,22 @@ export default function PanelShell({
               flex: 1,
             }}
           >
-            {children}
+            {isAllowed ? (
+              children
+            ) : (
+              <BentoCard
+                style={{
+                  backgroundColor: 'var(--bento-card-bg-solid)',
+                  padding: '32px',
+                  textAlign: 'center',
+                }}
+              >
+                <ErrorState
+                  title="Sin permiso"
+                  message="No tienes los permisos requeridos para acceder a esta sección."
+                />
+              </BentoCard>
+            )}
           </main>
         </div>
       </div>

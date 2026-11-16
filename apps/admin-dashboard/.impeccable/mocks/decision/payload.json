@@ -1,0 +1,27 @@
+{
+  "title": "Elige la distribución de la grilla Bento",
+  "question": "Estilo fijo: Soft Minimalist de tu imagen (hueso, tarjetas redondeadas, coral). Elige cómo se reparte la grilla.",
+  "options": [
+    {"id":"cocina","kind":"assigned","label":"Cocina en marcha","kicker":"EL SORTEO",
+     "thesis":"El flujo de pedidos abre la pantalla; mapa, alertas e ingresos debajo.",
+     "palette":["#F6F6F5","#FFFFFF","#E8603C","#111111"],"materials":["tarjetas suaves","píldoras"],
+     "viewport":"Franja de pedidos (nuevo, en cocina, listo) arriba; mapa de mesas, alertas e ingresos en una fila inferior.",
+     "risk":"El mapa baja de jerarquía frente a la cocina.",
+     "html":".impeccable/mocks/decision/a-cocina.html","comp":".impeccable/mocks/decision/a-cocina.png"},
+    {"id":"mosaico","kind":"dealt","label":"Mosaico de reojo","kicker":"LO REPARTIDO",
+     "thesis":"Cuatro cifras enormes y un mapa grande: se lee de pie y a distancia.",
+     "palette":["#F6F6F5","#E8603C","#111111","#FFFFFF"],"materials":["tarjetas suaves","cifras grandes"],
+     "viewport":"Fila de cuatro cifras (mesas, pedidos, llamadas, ingresos); mapa 2x2 y alertas con cocina debajo.",
+     "risk":"Sacrifica detalle por legibilidad; las cifras compiten entre sí.",
+     "html":".impeccable/mocks/decision/b-mosaico.html","comp":".impeccable/mocks/decision/b-mosaico.png"},
+    {"id":"salon","kind":"dealt","label":"Salón protagonista","kicker":"LO REPARTIDO",
+     "thesis":"El plano de mesas ocupa dos tercios; el resto es una columna de contexto.",
+     "palette":["#F6F6F5","#FFFFFF","#E8603C","#111111"],"materials":["tarjetas suaves","placas de mesa"],
+     "viewport":"Mapa de mesas a la izquierda a toda altura; alertas, pedidos, mesas e ingresos en columna derecha.",
+     "risk":"Con pocas mesas el mapa queda vacío y desproporcionado.",
+     "html":".impeccable/mocks/decision/c-salon.html","comp":".impeccable/mocks/decision/c-salon.png"}
+  ],
+  "reroll": {"registers":["safer","bolder"]},
+  "buildPath": {"value":"code","toggle":true},
+  "steer": true
+}

@@ -1,13 +1,75 @@
-export type TableStatus = 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'DISABLED' | 'active' | 'inactive';
+export type TableStatus =
+  | 'AVAILABLE'
+  | 'OCCUPIED'
+  | 'RESERVED'
+  | 'DISABLED'
+  | 'active'
+  | 'inactive'
+  | 'deleted';
 
 export interface TableDTO {
   tableId: string;
+  id?: string;
   tenantId: string;
   label: string;
+  labelKey?: string;
   status: TableStatus;
   zoneId?: string;
   capacity?: number;
+  activeSessionId?: string | null;
   createdAt: string;
+  updatedAt?: string;
+  deletedAt?: string | null;
+}
+
+export type CreateTablesBatchInput =
+  | {
+      prefix: string;
+      count: number;
+      start?: number;
+      zoneId: string;
+      capacity?: number;
+    }
+  | {
+      labels: string[];
+      zoneId: string;
+      capacity?: number;
+    };
+
+export interface TableUpdatePatch {
+  tableId: string;
+  label?: string;
+  labelKey?: string;
+  status?: TableStatus;
+  zoneId?: string;
+  capacity?: number;
+}
+
+export interface UpdateTablesBatchInput {
+  updates: TableUpdatePatch[];
+}
+
+export interface DeleteTablesBatchInput {
+  tableIds: string[];
+}
+
+export interface DeleteBatchFailedItem {
+  tableId: string;
+  code: 'TABLE_HAS_ACTIVE_SESSION' | 'TABLE_NOT_FOUND' | 'TABLE_HAS_RESERVATIONS';
+}
+
+export interface DeleteTablesBatchResult {
+  deleted: string[];
+  failed: DeleteBatchFailedItem[];
+}
+
+export interface TableBatchItemInput {
+  tableId?: string;
+  label?: string;
+  labelKey?: string;
+  status?: TableStatus;
+  zoneId?: string;
+  capacity?: number;
 }
 
 export interface ZoneDTO {

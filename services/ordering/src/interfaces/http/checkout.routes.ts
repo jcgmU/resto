@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { CheckoutUseCases } from '../../application/CheckoutUseCases';
 import { ConfirmCheckoutResult } from '../../application/ConfirmCheckout';
+import { CHECKOUT_ROLES, hasRole } from './authzRoles';
 
 export function createCheckoutRouter(checkoutUseCases: CheckoutUseCases): Router {
   const router = Router();
@@ -15,8 +16,8 @@ export function createCheckoutRouter(checkoutUseCases: CheckoutUseCases): Router
         });
       }
 
-      const role = req.auth?.role?.toLowerCase();
-      if (role && !['staff', 'manager', 'admin', 'waiter', 'cashier'].includes(role)) {
+      const role = req.auth?.role;
+      if (role && !hasRole(role, CHECKOUT_ROLES)) {
         return res.status(403).json({
           error: { code: 'FORBIDDEN', message: 'Acceso denegado' },
         });
@@ -43,8 +44,8 @@ export function createCheckoutRouter(checkoutUseCases: CheckoutUseCases): Router
         });
       }
 
-      const role = req.auth?.role?.toLowerCase();
-      if (!role || !['staff', 'manager', 'admin', 'waiter', 'cashier'].includes(role)) {
+      const role = req.auth?.role;
+      if (!role || !hasRole(role, CHECKOUT_ROLES)) {
         return res.status(403).json({
           error: { code: 'FORBIDDEN', message: 'Solo personal autorizado puede registrar cobros' },
         });
@@ -86,8 +87,8 @@ export function createCheckoutRouter(checkoutUseCases: CheckoutUseCases): Router
         });
       }
 
-      const role = req.auth?.role?.toLowerCase();
-      if (!role || !['staff', 'manager', 'admin', 'waiter', 'cashier'].includes(role)) {
+      const role = req.auth?.role;
+      if (!role || !hasRole(role, CHECKOUT_ROLES)) {
         return res.status(403).json({
           error: { code: 'FORBIDDEN', message: 'Solo personal autorizado puede reintentar facturación' },
         });

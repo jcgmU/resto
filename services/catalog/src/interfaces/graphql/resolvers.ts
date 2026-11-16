@@ -14,7 +14,6 @@ import {
 } from '../../application/ProductUseCases';
 import { CreateModifierGroupUseCaseImpl } from '../../application/ModifierGroupUseCases';
 import { CatalogContext } from './context';
-import { requireRole } from './authz';
 
 export function createResolvers(deps: {
   categoryRepo: CategoryRepository;
@@ -26,9 +25,9 @@ export function createResolvers(deps: {
   const createCategoryUseCase = new CreateCategoryUseCaseImpl(categoryRepo);
   const deleteCategoryUseCase = new DeleteCategoryUseCaseImpl(categoryRepo);
   const createProductUseCase = new CreateProductUseCaseImpl(productRepo, categoryRepo);
-  const updateProductUseCase = new UpdateProductUseCaseImpl(productRepo);
+  const updateProductUseCase = new UpdateProductUseCaseImpl(productRepo, categoryRepo);
   const setProductAvailabilityUseCase = new SetProductAvailabilityUseCaseImpl(productRepo);
-  const attachModifierGroupUseCase = new AttachModifierGroupUseCaseImpl(productRepo);
+  const attachModifierGroupUseCase = new AttachModifierGroupUseCaseImpl(productRepo, modifierGroupRepo);
   const createModifierGroupUseCase = new CreateModifierGroupUseCaseImpl(modifierGroupRepo);
 
   function toGraphQLError(err: any): never {
@@ -53,12 +52,42 @@ export function createResolvers(deps: {
     });
   }
 
+  function assertCatalogMutationAuthorized(context: CatalogContext): void {
+    if (context.isGuest) {
+      throw new GraphQLError('Forbidden: insufficient permissions', {
+        extensions: {
+          code: 'FORBIDDEN',
+        },
+      });
+    }
+    const role = context.role?.trim().toUpperCase();
+    if (role !== 'ADMIN' && role !== 'MANAGER') {
+      throw new GraphQLError('Forbidden: insufficient permissions', {
+        extensions: {
+          code: 'FORBIDDEN',
+        },
+      });
+    }
+  }
+
+  function assertNotGuest(context: CatalogContext): void {
+    const role = context.role?.trim().toUpperCase();
+    if (context.isGuest || role === 'GUEST') {
+      throw new GraphQLError('Forbidden: guests are not allowed to query this field directly', {
+        extensions: {
+          code: 'FORBIDDEN',
+        },
+      });
+    }
+  }
+
   return {
     Query: {
       categories: async (_parent: any, _args: any, context: CatalogContext) => {
         return categoryRepo.listByTenant(context.tenantId);
       },
       category: async (_parent: any, { id }: { id: string }, context: CatalogContext) => {
+        assertNotGuest(context);
         return categoryRepo.findById(context.tenantId, id);
       },
       products: async (
@@ -70,18 +99,20 @@ export function createResolvers(deps: {
         return list.map((p) => ({ ...p, price: Number(p.price) }));
       },
       product: async (_parent: any, { id }: { id: string }, context: CatalogContext) => {
+        assertNotGuest(context);
         const p = await productRepo.findById(context.tenantId, id);
         if (!p) return null;
         return { ...p, price: Number(p.price) };
       },
       modifierGroups: async (_parent: any, _args: any, context: CatalogContext) => {
+        assertNotGuest(context);
         return modifierGroupRepo.listByTenant(context.tenantId);
       },
     },
 
     Mutation: {
       createCategory: async (_parent: any, { input }: any, context: CatalogContext) => {
-        requireRole(context, ['ADMIN', 'MANAGER']);
+        assertCatalogMutationAuthorized(context);
         try {
           return await createCategoryUseCase.execute({ tenantId: context.tenantId, ...input });
         } catch (err) {
@@ -89,7 +120,7 @@ export function createResolvers(deps: {
         }
       },
       updateCategory: async (_parent: any, { id, input }: any, context: CatalogContext) => {
-        requireRole(context, ['ADMIN', 'MANAGER']);
+        assertCatalogMutationAuthorized(context);
         try {
           const existing = await categoryRepo.findById(context.tenantId, id);
           if (!existing) throw new DomainError('NOT_FOUND', `Categoría ${id} no encontrada`);
@@ -100,7 +131,7 @@ export function createResolvers(deps: {
         }
       },
       deleteCategory: async (_parent: any, { id }: any, context: CatalogContext) => {
-        requireRole(context, ['ADMIN', 'MANAGER']);
+        assertCatalogMutationAuthorized(context);
         try {
           await deleteCategoryUseCase.execute({ tenantId: context.tenantId, id });
           return true;
@@ -109,7 +140,7 @@ export function createResolvers(deps: {
         }
       },
       createProduct: async (_parent: any, { input }: any, context: CatalogContext) => {
-        requireRole(context, ['ADMIN', 'MANAGER']);
+        assertCatalogMutationAuthorized(context);
         try {
           const p = await createProductUseCase.execute({ tenantId: context.tenantId, ...input });
           return { ...p, price: Number(p.price) };
@@ -118,7 +149,7 @@ export function createResolvers(deps: {
         }
       },
       updateProduct: async (_parent: any, { id, input }: any, context: CatalogContext) => {
-        requireRole(context, ['ADMIN', 'MANAGER']);
+        assertCatalogMutationAuthorized(context);
         try {
           const p = await updateProductUseCase.execute({ tenantId: context.tenantId, id, ...input });
           return { ...p, price: Number(p.price) };
@@ -127,7 +158,7 @@ export function createResolvers(deps: {
         }
       },
       deleteProduct: async (_parent: any, { id }: any, context: CatalogContext) => {
-        requireRole(context, ['ADMIN', 'MANAGER']);
+        assertCatalogMutationAuthorized(context);
         try {
           await productRepo.delete(context.tenantId, id);
           return true;
@@ -136,7 +167,7 @@ export function createResolvers(deps: {
         }
       },
       setProductAvailability: async (_parent: any, { id, isAvailable }: any, context: CatalogContext) => {
-        requireRole(context, ['ADMIN', 'MANAGER']);
+        assertCatalogMutationAuthorized(context);
         try {
           const p = await setProductAvailabilityUseCase.execute({ tenantId: context.tenantId, id, isAvailable });
           return { ...p, price: Number(p.price) };
@@ -145,7 +176,7 @@ export function createResolvers(deps: {
         }
       },
       createModifierGroup: async (_parent: any, { input }: any, context: CatalogContext) => {
-        requireRole(context, ['ADMIN', 'MANAGER']);
+        assertCatalogMutationAuthorized(context);
         try {
           return await createModifierGroupUseCase.execute({ tenantId: context.tenantId, ...input });
         } catch (err) {
@@ -153,7 +184,7 @@ export function createResolvers(deps: {
         }
       },
       updateModifierGroup: async (_parent: any, { id, input }: any, context: CatalogContext) => {
-        requireRole(context, ['ADMIN', 'MANAGER']);
+        assertCatalogMutationAuthorized(context);
         try {
           const existing = await modifierGroupRepo.findById(context.tenantId, id);
           if (!existing) throw new DomainError('NOT_FOUND', `Grupo ${id} no encontrado`);
@@ -164,7 +195,7 @@ export function createResolvers(deps: {
         }
       },
       deleteModifierGroup: async (_parent: any, { id }: any, context: CatalogContext) => {
-        requireRole(context, ['ADMIN', 'MANAGER']);
+        assertCatalogMutationAuthorized(context);
         try {
           await modifierGroupRepo.delete(context.tenantId, id);
           return true;
@@ -173,7 +204,7 @@ export function createResolvers(deps: {
         }
       },
       addModifierOption: async (_parent: any, { groupId, input }: any, context: CatalogContext) => {
-        requireRole(context, ['ADMIN', 'MANAGER']);
+        assertCatalogMutationAuthorized(context);
         try {
           const option = {
             id: `opt-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -188,7 +219,7 @@ export function createResolvers(deps: {
         }
       },
       removeModifierOption: async (_parent: any, { id }: any, context: CatalogContext) => {
-        requireRole(context, ['ADMIN', 'MANAGER']);
+        assertCatalogMutationAuthorized(context);
         try {
           await modifierGroupRepo.removeOption(context.tenantId, id);
           return true;
@@ -197,7 +228,7 @@ export function createResolvers(deps: {
         }
       },
       attachModifierGroup: async (_parent: any, { productId, groupId }: any, context: CatalogContext) => {
-        requireRole(context, ['ADMIN', 'MANAGER']);
+        assertCatalogMutationAuthorized(context);
         try {
           await attachModifierGroupUseCase.execute({ tenantId: context.tenantId, productId, groupId });
           const p = await productRepo.findById(context.tenantId, productId);
@@ -208,7 +239,7 @@ export function createResolvers(deps: {
         }
       },
       detachModifierGroup: async (_parent: any, { productId, groupId }: any, context: CatalogContext) => {
-        requireRole(context, ['ADMIN', 'MANAGER']);
+        assertCatalogMutationAuthorized(context);
         try {
           await productRepo.detachModifierGroup(context.tenantId, productId, groupId);
           const p = await productRepo.findById(context.tenantId, productId);

@@ -16,8 +16,19 @@ import {
 } from '@packages/shared-types';
 import { calculateBill } from '../domain/bill';
 import { validatePaymentMethod } from '../domain/payment';
-import { BillEmptyError, ForbiddenError, OrdersNotDeliveredError, SessionCloseFailedError } from '../domain/errors';
+import {
+  BillEmptyError,
+  CartBusyError,
+  ForbiddenError,
+  OrdersNotDeliveredError,
+  SessionCloseFailedError,
+} from '../domain/errors';
 import { guardCheckoutSession } from './sessionGuard';
+import { OrderingSessionPort } from '../domain/sessionValidation';
+import { TransactionCoordinator } from './ports/TransactionCoordinator';
+import { isOperationInFlight } from './ports/CartReservationPort';
+import { config } from '../config';
+import { CHECKOUT_OVERRIDE_PENDING_ROLES, hasRole } from '../interfaces/http/authzRoles';
 
 export interface ConfirmCheckoutResult {
   bill: BillDTO;
@@ -26,15 +37,35 @@ export interface ConfirmCheckoutResult {
 }
 
 export class ConfirmCheckout implements ConfirmCheckoutUseCase {
+  private localCompletedCheckouts = new Set<string>();
+  private readonly invoiceProvider?: InvoiceProvider;
+  private readonly txCoordinator?: TransactionCoordinator;
+
   constructor(
     private readonly orderRepo: OrderRepository,
     private readonly paymentRepo: PaymentRepository,
-    private readonly sessionService: SessionServicePort,
+    private readonly sessionService: SessionServicePort | OrderingSessionPort,
     private readonly cartRepo: CartRepository,
     private readonly serviceCallRepo: ServiceCallRepository,
     private readonly eventPublisher?: EventPublisher,
-    private readonly invoiceProvider?: InvoiceProvider
-  ) {}
+    arg7?: InvoiceProvider | TransactionCoordinator,
+    arg8?: TransactionCoordinator | InvoiceProvider
+  ) {
+    if (arg7) {
+      if ('issue' in arg7) {
+        this.invoiceProvider = arg7 as InvoiceProvider;
+      } else if ('runInSessionLock' in arg7) {
+        this.txCoordinator = arg7 as TransactionCoordinator;
+      }
+    }
+    if (arg8) {
+      if ('runInSessionLock' in arg8) {
+        this.txCoordinator = arg8 as TransactionCoordinator;
+      } else if ('issue' in arg8) {
+        this.invoiceProvider = arg8 as InvoiceProvider;
+      }
+    }
+  }
 
   async execute(input: {
     tenantId: string;
@@ -54,161 +85,248 @@ export class ConfirmCheckout implements ConfirmCheckoutUseCase {
   }): Promise<ConfirmCheckoutResult> {
     const { tenantId, sessionId, tableId, recordedBy } = input;
     const method = validatePaymentMethod(input.method);
-    const normalizedRole = (input.role || '').toLowerCase();
 
-    // Idempotencia: Verificar si ya existe Payment para (tenantId, sessionId)
+    // 1. Idempotencia y Retry: Verificar primero si ya existe Payment para (tenantId, sessionId)
     const existingPayment = await this.paymentRepo.findBySession(tenantId, sessionId);
 
     // Validar sesión y derivar mesa efectiva
     const { effectiveTableId } = await guardCheckoutSession({
-      sessionService: this.sessionService,
+      sessionService: this.sessionService as any,
       tenantId,
       sessionId,
       inputTableId: tableId,
       hasExistingPayment: Boolean(existingPayment),
     });
 
-    // 1. Calcular la cuenta: OrderRepository.listBySession filtrando status != CANCELLED
-    const orders = await this.orderRepo.listBySession(tenantId, sessionId);
-    const calculated = calculateBill(orders);
-
-    if (!existingPayment && calculated.orders.length === 0) {
-      throw new BillEmptyError('BILL_EMPTY: No hay órdenes activas para cobrar en esta sesión');
-    }
-
-    // Validación de órdenes sin entregar (solo en cobros nuevos, no en reintentos con pago existente)
-    const pending = !existingPayment
-      ? orders.filter((o) => ['PLACED', 'IN_KITCHEN', 'READY'].includes(o.status))
-      : [];
-
-    if (!existingPayment && pending.length > 0) {
-      if (!input.closePendingOrders) {
-        const pendingSummaries: PendingOrderSummaryDTO[] = pending.map((o) => ({
-          orderId: o.id,
-          tableId: o.tableId,
-          status: o.status,
-          kitchenStatus: (o.kitchenStatus as any) ?? null,
-          barStatus: (o.barStatus as any) ?? null,
-          createdAt: o.createdAt,
-          itemsCount: (o.items || []).reduce((sum, item) => sum + (item.quantity || 1), 0),
-        }));
-        throw new OrdersNotDeliveredError(pendingSummaries);
-      }
-
-      if (normalizedRole !== 'admin' && normalizedRole !== 'manager') {
-        throw new ForbiddenError('Solo personal con rol admin o manager puede cerrar pedidos pendientes al cobrar');
-      }
-    }
-
-    // 2. Persistir Payment con amount = total calculado en servidor (el body NUNCA trae monto)
     let payment: PaymentDTO;
     let isExisting = false;
+    let cancelledOrders: OrderDTO[] = [];
+    const prevStatusMap = new Map<string, string>();
 
     if (existingPayment) {
       payment = existingPayment;
       isExisting = true;
     } else {
-      let invoiceStatus: any = 'none';
-      let invoiceRef: string | undefined;
-      let invoiceError: string | undefined;
+      // 2b. Recuperar reservas huérfanas de carrito antes de avanzar con el cobro
+      if (
+        'findReservation' in this.cartRepo &&
+        typeof (this.cartRepo as any).findReservation === 'function'
+      ) {
+        const reservationRepo = this.cartRepo as any;
+        const pending = await reservationRepo.findReservation(tenantId, sessionId);
+        if (pending) {
+          const isLeaseActive =
+            typeof reservationRepo.isReservationLeaseActive === 'function'
+              ? await reservationRepo.isReservationLeaseActive(tenantId, sessionId, pending.operationId)
+              : isOperationInFlight(pending.operationId);
 
-      const paymentId = randomUUID();
+          if (!isLeaseActive) {
+            const recoverWork = async (
+              tx?: any
+            ): Promise<{ action: 'ACK' | 'RESTORE' | 'NONE'; operationId?: string }> => {
+              const currentPending = await reservationRepo.findReservation(tenantId, sessionId);
+              if (!currentPending || currentPending.operationId !== pending.operationId) {
+                return { action: 'NONE' };
+              }
+              if (typeof reservationRepo.isReservationLeaseActive === 'function') {
+                const stillActive = await reservationRepo.isReservationLeaseActive(
+                  tenantId,
+                  sessionId,
+                  currentPending.operationId
+                );
+                if (stillActive) return { action: 'NONE' };
+              }
 
-      if (this.invoiceProvider && (input.invoiceMode === 'dian' || input.invoiceCustomer)) {
-        try {
-          const itemsPayload = calculated.orders.flatMap((o) =>
-            o.items.map((i) => ({
-              name: i.productName,
-              quantity: i.quantity,
-              unitPrice: i.unitPrice,
-              total: i.unitPrice * i.quantity,
-            }))
-          );
+              const fenceRepo = this.orderRepo as any;
+              let fenceStatus: 'COMMITTED' | 'ABORTED' = 'ABORTED';
+              if (fenceRepo && typeof fenceRepo.abortReservationFence === 'function') {
+                fenceStatus = await fenceRepo.abortReservationFence(
+                  tenantId,
+                  sessionId,
+                  currentPending.operationId,
+                  currentPending.orderId,
+                  tx
+                );
+              } else if (this.orderRepo) {
+                const existingOrder = await (this.orderRepo as any).findById(
+                  tenantId,
+                  currentPending.orderId,
+                  tx
+                );
+                if (existingOrder) {
+                  fenceStatus = 'COMMITTED';
+                }
+              }
 
-          const invoiceRes = await this.invoiceProvider.issue({
-            tenantId,
-            paymentId,
-            amount: calculated.total,
-            customer: input.invoiceCustomer,
-            items: itemsPayload,
-          });
+              if (fenceStatus === 'COMMITTED') {
+                return { action: 'ACK', operationId: currentPending.operationId };
+              }
 
-          invoiceStatus = invoiceRes.status;
-          invoiceRef = invoiceRes.ref;
-          invoiceError = invoiceRes.error;
-        } catch (invoiceErr: any) {
-          invoiceStatus = 'error';
-          invoiceError = invoiceErr?.message || 'Error al emitir factura DIAN';
-        }
-      }
+              return { action: 'RESTORE', operationId: currentPending.operationId };
+            };
 
-      const paymentToSave: PaymentDTO = {
-        id: paymentId,
-        tenantId,
-        sessionId,
-        tableId: effectiveTableId,
-        amount: calculated.total, // CRITICAL: Server-calculated amount ONLY
-        method,
-        ordersCount: calculated.ordersCount,
-        recordedBy,
-        createdAt: new Date().toISOString(),
-        invoiceStatus,
-        invoiceRef,
-        invoiceError,
-      };
+            const decision = this.txCoordinator
+              ? await this.txCoordinator.runInSessionLock(tenantId, sessionId, recoverWork)
+              : await recoverWork();
 
-      try {
-        payment = await this.paymentRepo.save(tenantId, paymentToSave);
-      } catch (err: any) {
-        // La unique constraint @@unique([tenantId, sessionId]) es la fuente de idempotencia
-        if (err?.code === 'P2002' || err?.message?.includes('Unique constraint')) {
-          const found = await this.paymentRepo.findBySession(tenantId, sessionId);
-          if (found) {
-            payment = found;
-            isExisting = true;
-          } else {
-            throw err;
+            if (decision?.action === 'ACK' && decision.operationId) {
+              await reservationRepo.ackReservation(tenantId, sessionId, decision.operationId);
+            } else if (decision?.action === 'RESTORE' && decision.operationId) {
+              const restored = await reservationRepo.restoreReservation(
+                tenantId,
+                sessionId,
+                decision.operationId,
+                config.cartTtlSeconds,
+                { requireExpiredLease: true }
+              );
+              if (restored && (restored.status === 'CONFLICT' || restored.status === 'ACTIVE')) {
+                throw new CartBusyError();
+              }
+            }
           }
-        } else {
-          throw err;
         }
       }
-    }
 
-    // 3. Si pending.length > 0: cancelForCheckout(tenantId, pendingIds, now)
-    const now = new Date();
-    let cancelledOrders: OrderDTO[] = [];
-    if (!isExisting && pending.length > 0) {
-      const pendingIds = pending.map((o) => o.id);
-      cancelledOrders = await this.orderRepo.cancelForCheckout(tenantId, pendingIds, now);
-    }
+      // 3. Coordinación transaccional local con pg_advisory_xact_lock
+      const checkoutWork = async (
+        tx?: any
+      ): Promise<{ payment: PaymentDTO; isExisting: boolean; cancelledOrders: OrderDTO[] }> => {
+        // Doble verificación dentro de la transacción protegida por lock
+        const inTxPayment = await (this.paymentRepo as any).findBySession(
+          tenantId,
+          sessionId,
+          tx
+        );
+        if (inTxPayment) {
+          return { payment: inTxPayment, isExisting: true, cancelledOrders: [] };
+        }
 
-    // 4. Por cada orden en pending: publicar evento order.status-changed
-    if (this.eventPublisher && !isExisting && pending.length > 0) {
-      for (const p of pending) {
-        const cancelled = cancelledOrders.find((c) => c.id === p.id) || {
-          ...p,
-          status: 'CANCELLED' as const,
-          cancelReason: 'checkout',
-          kitchenStatus: p.kitchenStatus ? ('CANCELLED' as const) : undefined,
-          barStatus: p.barStatus ? ('CANCELLED' as const) : undefined,
-          destinationStatus: {
-            ...(p.kitchenStatus ? { kitchen: 'CANCELLED' as const } : {}),
-            ...(p.barStatus ? { bar: 'CANCELLED' as const } : {}),
-          },
-          cancelledAt: now.toISOString(),
+        // Calcular la cuenta leyendo las órdenes dentro de la misma transacción
+        const orders = await (this.orderRepo as any).listBySession(tenantId, sessionId, tx);
+        const calculated = calculateBill(orders);
+
+        if (calculated.orders.length === 0) {
+          throw new BillEmptyError(
+            'BILL_EMPTY: No hay órdenes activas para cobrar en esta sesión'
+          );
+        }
+
+        // Validación de órdenes sin entregar (solo en cobros nuevos, no en reintentos con pago existente)
+        const pending = orders.filter((o: OrderDTO) =>
+          ['PLACED', 'IN_KITCHEN', 'READY'].includes(o.status)
+        );
+        pending.forEach((o: OrderDTO) => prevStatusMap.set(o.id, o.status));
+
+        let txCancelledOrders: OrderDTO[] = [];
+        if (pending.length > 0) {
+          if (!input.closePendingOrders) {
+            const pendingSummaries: PendingOrderSummaryDTO[] = pending.map((o: OrderDTO) => ({
+              orderId: o.id,
+              tableId: o.tableId,
+              status: o.status,
+              kitchenStatus: (o.kitchenStatus as any) ?? null,
+              barStatus: (o.barStatus as any) ?? null,
+              createdAt: o.createdAt,
+              itemsCount: (o.items || []).reduce((sum, item) => sum + (item.quantity || 1), 0),
+            }));
+            throw new OrdersNotDeliveredError(pendingSummaries);
+          }
+
+          if (!hasRole(input.role, CHECKOUT_OVERRIDE_PENDING_ROLES)) {
+            throw new ForbiddenError(
+              'Solo personal con rol admin o manager puede cerrar pedidos pendientes al cobrar'
+            );
+          }
+
+          const now = new Date();
+          const pendingIds = pending.map((o: OrderDTO) => o.id);
+          if (typeof (this.orderRepo as any).cancelForCheckout === 'function') {
+            txCancelledOrders = await (this.orderRepo as any).cancelForCheckout(
+              tenantId,
+              pendingIds,
+              now,
+              tx
+            );
+          }
+        }
+
+        let invoiceStatus: any = 'none';
+        let invoiceRef: string | undefined;
+        let invoiceError: string | undefined;
+
+        const paymentId = randomUUID();
+
+        if (this.invoiceProvider && (input.invoiceMode === 'dian' || input.invoiceCustomer)) {
+          try {
+            const itemsPayload = calculated.orders.flatMap((o) =>
+              o.items.map((i) => ({
+                name: i.productName,
+                quantity: i.quantity,
+                unitPrice: i.unitPrice,
+                total: i.unitPrice * i.quantity,
+              }))
+            );
+
+            const invoiceRes = await this.invoiceProvider.issue({
+              tenantId,
+              paymentId,
+              amount: calculated.total,
+              customer: input.invoiceCustomer,
+              items: itemsPayload,
+            });
+
+            invoiceStatus = invoiceRes.status;
+            invoiceRef = invoiceRes.ref;
+            invoiceError = invoiceRes.error;
+          } catch (invoiceErr: any) {
+            invoiceStatus = 'error';
+            invoiceError = invoiceErr?.message || 'Error al emitir factura DIAN';
+          }
+        }
+
+        const paymentToSave: PaymentDTO = {
+          id: paymentId,
+          tenantId,
+          sessionId,
+          tableId: effectiveTableId,
+          amount: calculated.total, // CRITICAL: Server-calculated amount ONLY
+          method,
+          ordersCount: calculated.ordersCount,
+          recordedBy,
+          createdAt: new Date().toISOString(),
+          invoiceStatus,
+          invoiceRef,
+          invoiceError,
         };
 
+        const saved = await (this.paymentRepo as any).save(tenantId, paymentToSave, tx);
+        return { payment: saved, isExisting: false, cancelledOrders: txCancelledOrders };
+      };
+
+      const result = this.txCoordinator
+        ? await this.txCoordinator.runInSessionLock(tenantId, sessionId, checkoutWork)
+        : await checkoutWork();
+
+      payment = result.payment;
+      isExisting = result.isExisting;
+      cancelledOrders = result.cancelledOrders;
+    }
+
+    // 4. Por cada orden en pending cancelada: publicar evento order.status-changed
+    if (this.eventPublisher && !isExisting && cancelledOrders.length > 0) {
+      const now = new Date();
+      for (const p of cancelledOrders) {
         await this.eventPublisher.publishOrderEvent(tenantId, {
           type: 'order.status-changed',
-          order: cancelled,
-          previousStatus: p.status,
+          order: p,
+          previousStatus: (prevStatusMap.get(p.id) as any) || 'PLACED',
           occurredAt: now.toISOString(),
         });
       }
     }
 
-    // 5. Orquestación: closeSession DESPUÉS de persistir el pago, propagando identidad
+    // 5. Orquestación: closeSession DESPUÉS de persistir el pago en BD localmente
+    // IMPORTANTE: NO mantener el transaction lock abierto durante la llamada HTTP externa.
     try {
       await this.sessionService.closeSession(tenantId, sessionId, {
         userId: recordedBy,
@@ -221,7 +339,19 @@ export class ConfirmCheckout implements ConfirmCheckoutUseCase {
     }
 
     // 6. Limpieza de residuos propios (solo claves de ordering, redis db1)
-    await this.cartRepo.clear(tenantId, sessionId);
+    const cleanupCart = async () => {
+      if ('clearAll' in this.cartRepo && typeof (this.cartRepo as any).clearAll === 'function') {
+        await (this.cartRepo as any).clearAll(tenantId, sessionId);
+      } else {
+        await this.cartRepo.clear(tenantId, sessionId);
+      }
+    };
+
+    if (this.txCoordinator) {
+      await this.txCoordinator.runInSessionLock(tenantId, sessionId, cleanupCart);
+    } else {
+      await cleanupCart();
+    }
 
     try {
       const pendingCalls = await this.serviceCallRepo.listByTenant(tenantId, { status: 'pending' });
@@ -234,27 +364,62 @@ export class ConfirmCheckout implements ConfirmCheckoutUseCase {
       // Ignorar fallo secundario de limpieza de service calls
     }
 
-    // 7. Publicar evento session.checkout-completed tras la orquestación y limpieza (solo si es pago nuevo)
-    if (this.eventPublisher && !isExisting) {
-      await this.eventPublisher.publishCheckoutCompleted(tenantId, {
-        type: 'session.checkout-completed',
-        sessionId,
-        tableId: effectiveTableId,
-        payment,
-        occurredAt: new Date().toISOString(),
-      });
+    // 7. Publicar evento session.checkout-completed con outbox duradero y deduplicación determinista
+    const eventId = `checkout-completed:${tenantId}:${sessionId}:${payment.id}`;
+    const eventPayload = {
+      eventId,
+      type: 'session.checkout-completed' as const,
+      tenantId,
+      sessionId,
+      tableId: effectiveTableId,
+      payment,
+      paymentId: payment.id,
+      total: payment.amount,
+      method: payment.method,
+      paidAt: payment.createdAt || new Date().toISOString(),
+      occurredAt: new Date().toISOString(),
+    };
+
+    let isAlreadyPublished = false;
+
+    if (
+      'isCheckoutEventPublished' in this.cartRepo &&
+      typeof (this.cartRepo as any).isCheckoutEventPublished === 'function'
+    ) {
+      if (
+        'ensureCheckoutOutboxPending' in this.cartRepo &&
+        typeof (this.cartRepo as any).ensureCheckoutOutboxPending === 'function'
+      ) {
+        await (this.cartRepo as any).ensureCheckoutOutboxPending(tenantId, sessionId, eventPayload);
+      }
+      isAlreadyPublished = await (this.cartRepo as any).isCheckoutEventPublished(tenantId, sessionId);
+    } else {
+      const key = `${tenantId}:${sessionId}`;
+      isAlreadyPublished = this.localCompletedCheckouts.has(key);
     }
 
-    const finalOrders = calculated.orders.map((o) => {
-      const cancelled = cancelledOrders.find((c) => c.id === o.id);
-      return cancelled || o;
-    });
+    if (this.eventPublisher && !isAlreadyPublished) {
+      await this.eventPublisher.publishCheckoutCompleted(tenantId, eventPayload as any);
+
+      if (
+        'markCheckoutCompleted' in this.cartRepo &&
+        typeof (this.cartRepo as any).markCheckoutCompleted === 'function'
+      ) {
+        await (this.cartRepo as any).markCheckoutCompleted(tenantId, sessionId);
+      } else {
+        const key = `${tenantId}:${sessionId}`;
+        this.localCompletedCheckouts.add(key);
+      }
+    }
+
+    const currentOrders = await this.orderRepo.listBySession(tenantId, sessionId);
+    const calculatedFinal = calculateBill(currentOrders);
 
     const bill: BillDTO = {
       sessionId,
       tableId: effectiveTableId,
-      orders: finalOrders,
-      ordersCount: calculated.ordersCount,
+      orders: calculatedFinal.orders,
+      ordersCount: calculatedFinal.ordersCount,
       total: payment.amount,
       payment,
     };

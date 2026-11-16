@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { TokenIssuer, AccessTokenClaims } from '@packages/shared-types';
 import { hashRefreshToken } from './tokenHash';
+export { hashRefreshToken } from './tokenHash';
 
 export class JwtTokenIssuer implements TokenIssuer {
   constructor(private readonly secret = process.env.JWT_SECRET || 'super-secret-jwt-key-oleada-0') {}

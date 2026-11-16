@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { CartUseCases } from '../../application/CartUseCases';
 import { OrderUseCases } from '../../application/OrderUseCases';
+import { parseCartItemQuantity, validateQuantity } from '../../domain/validation';
 import { ValidationError } from '../../domain/errors';
+import { CART_STAFF_ROLES, hasRole } from './authzRoles';
 
 export function createCartRouter(
   cartUseCases: CartUseCases,
@@ -22,18 +24,16 @@ export function createCartRouter(
   router.post('/items', async (req, res, next) => {
     try {
       const { tenantId, sessionId, role } = req.auth!;
-      const { productId, modifiers, quantity, notes, addedBy, display } = req.body;
+      const { productId, modifiers, quantity, notes, addedBy, display } = req.body || {};
 
-      if (typeof quantity !== 'number' || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
-        throw new ValidationError('La cantidad debe ser un número entero entre 1 y 99');
-      }
+      const parsedQuantity = parseCartItemQuantity(quantity);
 
       const cart = await cartUseCases.addCartItem.execute({
         tenantId,
         sessionId: sessionId!,
         productId,
         modifiers: modifiers || [],
-        quantity,
+        quantity: parsedQuantity,
         notes,
         addedBy,
         userRole: role,
@@ -50,17 +50,15 @@ export function createCartRouter(
     try {
       const { tenantId, sessionId } = req.auth!;
       const { cartItemId } = req.params;
-      const { quantity } = req.body;
+      const { quantity } = req.body || {};
 
-      if (typeof quantity !== 'number' || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
-        throw new ValidationError('La cantidad debe ser un número entero entre 1 y 99');
-      }
+      const parsedQuantity = validateQuantity(quantity);
 
       const cart = await cartUseCases.updateCartItemQuantity.execute({
         tenantId,
         sessionId: sessionId!,
         cartItemId,
-        quantity,
+        quantity: parsedQuantity,
       });
 
       res.json(cart);
@@ -97,7 +95,7 @@ export function createCartRouter(
         }
       }
 
-      const isStaff = role && ['staff', 'manager', 'admin', 'waiter'].includes(role.toLowerCase());
+      const isStaff = hasRole(role, CART_STAFF_ROLES);
       const effectiveEstimatedMinutes = isStaff ? estimatedMinutes : undefined;
 
       if (effectiveEstimatedMinutes !== undefined && effectiveEstimatedMinutes !== null) {

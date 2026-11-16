@@ -78,7 +78,9 @@ export class DeleteZoneUseCaseImpl {
     }
 
     const tables = await this.tableRepo.listByTenant(input.tenantId);
-    const hasTables = tables.some((t) => t.zoneId === input.zoneId);
+    const hasTables = tables.some(
+      (t) => t.zoneId === input.zoneId && t.status !== 'deleted' && !t.deletedAt
+    );
     if (hasTables) {
       throw new DomainError(
         'ZONE_HAS_TABLES',

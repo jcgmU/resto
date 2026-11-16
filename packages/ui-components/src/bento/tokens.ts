@@ -54,6 +54,8 @@ export const BENTO_TOKENS: Record<string, string> = {
   '--bento-note-general-bg': '#fdf6e7',
   '--bento-note-general-border': 'rgba(138, 107, 50, 0.2)',
   '--bento-panel-bg': 'rgba(224, 227, 229, 0.5)',
+  '--bento-field-bg': 'var(--bento-panel-bg)',
+  '--bento-field-border': 'color-mix(in srgb, var(--bento-text-muted) 40%, transparent)',
   '--bento-overlay-dark': 'rgba(34, 34, 34, 0.95)',
   '--bento-subtle': 'rgba(0, 0, 0, 0.03)',
 
@@ -127,6 +129,8 @@ export const BENTO_STYLESHEET = `
   --bento-note-general-bg: #fdf6e7;
   --bento-note-general-border: rgba(138, 107, 50, 0.2);
   --bento-panel-bg: rgba(224, 227, 229, 0.5);
+  --bento-field-bg: var(--bento-panel-bg);
+  --bento-field-border: color-mix(in srgb, var(--bento-text-muted) 40%, transparent);
   --bento-overlay-dark: rgba(34, 34, 34, 0.95);
   --bento-subtle: rgba(0, 0, 0, 0.03);
   --bento-danger-text: #a05a5a;

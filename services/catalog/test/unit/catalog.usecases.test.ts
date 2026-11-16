@@ -114,4 +114,56 @@ describe('C. Catalog — unitarios de casos de uso (Tests 16-23)', () => {
 
     expect(product.isAvailable).toBe(false);
   });
+
+  test('24. SetProductAvailability apuntando a producto de OTRO tenant -> NOT_FOUND (aislamiento U3)', async () => {
+    const useCase = new SetProductAvailabilityUseCaseImpl();
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-100',
+        id: 'product-of-tenant-B',
+        isAvailable: false,
+      })
+    ).rejects.toThrow(
+      expect.objectContaining({ code: 'NOT_FOUND' } as Partial<DomainError>)
+    );
+  });
+
+  test('25. UpdateProduct con categoryId de OTRO tenant -> NOT_FOUND (aislamiento U3)', async () => {
+    const useCase = new UpdateProductUseCaseImpl();
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-100',
+        id: 'prod-1',
+        categoryId: 'cat-b',
+      })
+    ).rejects.toThrow(
+      expect.objectContaining({ code: 'NOT_FOUND' } as Partial<DomainError>)
+    );
+  });
+
+  test('26. AttachModifierGroup con producto de OTRO tenant -> NOT_FOUND (aislamiento U3)', async () => {
+    const useCase = new AttachModifierGroupUseCaseImpl();
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-100',
+        productId: 'product-of-tenant-B',
+        groupId: 'group-1',
+      })
+    ).rejects.toThrow(
+      expect.objectContaining({ code: 'NOT_FOUND' } as Partial<DomainError>)
+    );
+  });
+
+  test('27. AttachModifierGroup con groupId de OTRO tenant -> NOT_FOUND (aislamiento U3)', async () => {
+    const useCase = new AttachModifierGroupUseCaseImpl();
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-100',
+        productId: 'prod-1',
+        groupId: 'group-of-tenant-B',
+      })
+    ).rejects.toThrow(
+      expect.objectContaining({ code: 'NOT_FOUND' } as Partial<DomainError>)
+    );
+  });
 });

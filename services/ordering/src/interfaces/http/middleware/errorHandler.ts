@@ -23,13 +23,20 @@ export function errorHandler(
     else if (
       code === 'INVALID_STATUS_TRANSITION' ||
       code === 'SESSION_NOT_ORDERABLE' ||
+      code === 'SESSION_NOT_ACTIVE' ||
+      code === 'CART_BUSY' ||
       code === 'TABLE_MISMATCH' ||
       code === 'PRODUCT_UNAVAILABLE' ||
       code === 'ORDER_ALREADY_TERMINAL' ||
       code === 'ORDERS_NOT_DELIVERED'
     )
       statusCode = 409;
-    else if (code === 'CATALOG_UNREACHABLE' || code === 'SESSION_CLOSE_FAILED') statusCode = 502;
+    else if (
+      code === 'CATALOG_UNREACHABLE' ||
+      code === 'SESSION_CLOSE_FAILED' ||
+      code === 'SESSION_UNREACHABLE'
+    )
+      statusCode = 502;
     else if (
       code === 'CART_EMPTY' ||
       code === 'BILL_EMPTY' ||

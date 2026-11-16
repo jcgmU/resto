@@ -1,5 +1,6 @@
 import { CartUseCases } from '../../src/application/CartUseCases';
 import { OrderUseCases } from '../../src/application/OrderUseCases';
+import { ValidationError } from '../../src/domain/errors';
 import {
   InMemoryCartRepository,
   InMemoryOrderRepository,
@@ -90,13 +91,14 @@ describe('A. Ordering — unitarios de casos de uso (Tests 1-12)', () => {
     });
     expect(updated.items[0].quantity).toBe(5);
 
-    const cleared = await cartUseCases.updateCartItemQuantity.execute({
-      tenantId: 'tenant-1',
-      sessionId: 'session-1',
-      cartItemId: itemId,
-      quantity: 0,
-    });
-    expect(cleared.items).toHaveLength(0);
+    await expect(
+      cartUseCases.updateCartItemQuantity.execute({
+        tenantId: 'tenant-1',
+        sessionId: 'session-1',
+        cartItemId: itemId,
+        quantity: 0,
+      })
+    ).rejects.toThrow(ValidationError);
   });
 
   test('4. RemoveCartItem elimina solo esa línea; las demás quedan intactas', async () => {

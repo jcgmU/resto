@@ -13,20 +13,28 @@ export type DomainErrorCode =
   | 'QR_KEY_INVALID'
   | 'TABLE_NOT_FOUND'
   | 'TABLE_INACTIVE'
+  | 'TABLE_LABEL_TAKEN'
+  | 'TABLE_LIMIT_EXCEEDED'
+  | 'TABLES_NOT_DELETABLE'
+  | 'TABLE_HAS_ACTIVE_SESSION'
+  | 'TABLE_HAS_RESERVATIONS'
   | 'SESSION_NOT_FOUND'
   | 'SESSION_EXPIRED'
   | 'INVALID_SESSION_STATE'
   | 'TABLE_RESERVED'
   | 'ZONE_NOT_FOUND'
   | 'ZONE_HAS_TABLES'
-  | 'TABLE_HAS_ACTIVE_SESSION'
   | 'TABLE_HAS_ACTIVE_RESERVATION'
   | 'RESERVATION_NOT_FOUND'
   | 'QR_DISABLED'
   | 'ORDERS_NOT_DELIVERED';
 
 export class DomainError extends Error {
-  constructor(public readonly code: DomainErrorCode, message: string) {
+  constructor(
+    public readonly code: DomainErrorCode,
+    message: string,
+    public readonly details?: unknown
+  ) {
     super(message);
     this.name = 'DomainError';
   }

@@ -40,6 +40,10 @@ export function errorHandler(
       case 'ZONE_HAS_TABLES':
       case 'TABLE_HAS_ACTIVE_SESSION':
       case 'TABLE_HAS_ACTIVE_RESERVATION':
+      case 'TABLE_HAS_RESERVATIONS':
+      case 'TABLE_LABEL_TAKEN':
+      case 'TABLE_LIMIT_EXCEEDED':
+      case 'TABLES_NOT_DELETABLE':
       case 'CONFLICT':
         status = 409;
         break;
@@ -49,10 +53,13 @@ export function errorHandler(
     }
   }
 
+  const details = err instanceof DomainError ? err.details : undefined;
+
   res.status(status).json({
     error: {
       code,
       message,
+      ...(details !== undefined ? { details } : {}),
     },
   });
 }

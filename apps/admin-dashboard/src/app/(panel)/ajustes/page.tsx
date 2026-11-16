@@ -8,8 +8,11 @@ import {
   Skeleton,
   BentoCard,
   StatusChip,
+  ModalConfirm,
+  Toast,
 } from '@packages/ui-components';
 import { ApiClient } from '../../../lib/api';
+import { getUserRole } from '../../../lib/auth';
 
 export interface AjustesViewProps {
   initialLoading?: boolean;
@@ -25,9 +28,100 @@ interface Employee {
   monitorKind?: string | null;
 }
 
+type OperativeRole = 'ADMIN' | 'MANAGER' | 'STAFF' | 'WAITER' | 'CASHIER' | 'MONITOR';
+
+const ROLE_OPTIONS: { value: OperativeRole; label: string }[] = [
+  { value: 'ADMIN', label: 'Administrador' },
+  { value: 'MANAGER', label: 'Encargado' },
+  { value: 'STAFF', label: 'Personal' },
+  { value: 'WAITER', label: 'Mesero' },
+  { value: 'CASHIER', label: 'Caja' },
+  { value: 'MONITOR', label: 'Monitor KDS' },
+];
+
+const roleLabel = (role: string) =>
+  ROLE_OPTIONS.find((r) => r.value === role)?.label ?? (role === 'CUSTOMER' ? 'Cliente' : role);
+
+const generatePassword = () => {
+  const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
+  let pass = 'Resto!';
+  for (let i = 0; i < 6; i++) {
+    pass += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return pass;
+};
+
+const modalOverlayStyle: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  backgroundColor: 'rgba(0,0,0,0.5)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 999,
+  padding: '16px',
+};
+
+const modalPanelStyle: React.CSSProperties = {
+  backgroundColor: 'var(--bento-card-bg-solid)',
+  borderRadius: '12px',
+  padding: '24px',
+  maxWidth: '440px',
+  width: '100%',
+  boxSizing: 'border-box',
+};
+
+const ghostButtonStyle: React.CSSProperties = {
+  padding: '8px 16px',
+  borderRadius: 'var(--bento-inner-radius)',
+  border: '1px solid var(--bento-border)',
+  backgroundColor: 'transparent',
+  color: 'var(--bento-text-strong)',
+  cursor: 'pointer',
+};
+
+const primaryButtonStyle: React.CSSProperties = {
+  ...ghostButtonStyle,
+  backgroundColor: 'var(--bento-accent)',
+  color: 'var(--bento-card-bg-solid)',
+  fontWeight: 600,
+};
+
+const rowActionStyle: React.CSSProperties = {
+  ...ghostButtonStyle,
+  padding: '4px 10px',
+  fontSize: '0.75rem',
+};
+
+const fieldInputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '8px 12px',
+  borderRadius: 'var(--bento-inner-radius)',
+  border: '1px solid var(--bento-field-border)',
+  backgroundColor: 'var(--bento-field-bg)',
+  color: 'var(--bento-text-strong)',
+  boxSizing: 'border-box',
+};
+
 export function AjustesView({ initialLoading = false, initialError = null }: AjustesViewProps) {
   const [loading, setLoading] = useState(initialLoading);
   const [error, setError] = useState<string | null>(initialError);
+
+  // Roles: ADMIN y MANAGER leen el equipo; solo ADMIN lo administra. Sin rol legible (token opaco) no se restringe la UI.
+  const role = getUserRole(ApiClient.token);
+  const canReadTeam = role !== 'STAFF';
+  const canManageTeam = role === 'ADMIN' || role === null;
+
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{ user: Employee; action: 'disable' | 'enable' } | null>(null);
+  const [roleModal, setRoleModal] = useState<{ user: Employee; selectedRole: OperativeRole } | null>(null);
+  const [resetModal, setResetModal] = useState<{ user: Employee; customPassword: string } | null>(null);
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [changeNewPassword, setChangeNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [submittingPassword, setSubmittingPassword] = useState(false);
 
   // Equipo
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -35,7 +129,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
   const [showNewForm, setShowNewForm] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
-  const [newRole, setNewRole] = useState<'WAITER' | 'CASHIER' | 'MONITOR' | 'MANAGER' | 'ADMIN'>('WAITER');
+  const [newRole, setNewRole] = useState<OperativeRole>('WAITER');
   const [newMonitorKind, setNewMonitorKind] = useState<'kitchen' | 'bar'>('kitchen');
   const [newPassword, setNewPassword] = useState('');
   const [submittingUser, setSubmittingUser] = useState(false);
@@ -51,7 +145,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
     try {
       setLoadingEmployees(true);
       const [usersRes, settingsRes] = await Promise.allSettled([
-        ApiClient.request('/v1/identity/users'),
+        canReadTeam ? ApiClient.listTeam() : Promise.resolve(null),
         ApiClient.request('/v1/tenant/settings'),
       ]);
 
@@ -68,7 +162,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
       setLoadingEmployees(false);
       setLoading(false);
     }
-  }, []);
+  }, [canReadTeam]);
 
   useEffect(() => {
     loadData();
@@ -96,8 +190,8 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
       return;
     }
 
-    if ((newRole === 'WAITER' || newRole === 'CASHIER') && newPassword.length < 8) {
-      setUserFormError('La contraseña debe tener al menos 8 caracteres para mesero y caja');
+    if (newRole !== 'MONITOR' && newPassword.length < 8) {
+      setUserFormError('La contraseña debe tener al menos 8 caracteres');
       return;
     }
 
@@ -134,6 +228,77 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
       setUserFormError(err?.message || 'Error al crear empleado');
     } finally {
       setSubmittingUser(false);
+    }
+  };
+
+  const handleToggleActive = async () => {
+    if (!confirmModal) return;
+    const makeActive = confirmModal.action === 'enable';
+    try {
+      await ApiClient.setTeamMemberActive(confirmModal.user.id, makeActive);
+      setToastMessage(makeActive ? 'Usuario reactivado' : 'Usuario desactivado');
+      setConfirmModal(null);
+      await loadData();
+    } catch (err: any) {
+      setConfirmModal(null);
+      setToastMessage(err?.message || 'Error al cambiar estado');
+    }
+  };
+
+  const handleUpdateRole = async () => {
+    if (!roleModal) return;
+    try {
+      await ApiClient.updateTeamMember(roleModal.user.id, { role: roleModal.selectedRole as 'MANAGER' | 'STAFF' });
+      setToastMessage('Rol actualizado exitosamente');
+      setRoleModal(null);
+      await loadData();
+    } catch (err: any) {
+      setRoleModal(null);
+      setToastMessage(err?.message || 'Error al actualizar rol');
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetModal) return;
+    try {
+      const res = await ApiClient.resetTeamMemberPassword(
+        resetModal.user.id,
+        resetModal.customPassword || undefined,
+      );
+      setToastMessage(`Contraseña restablecida. Nueva: ${res?.data?.password || resetModal.customPassword}`);
+      setResetModal(null);
+    } catch (err: any) {
+      setResetModal(null);
+      setToastMessage(err?.message || 'Error al restablecer contraseña');
+    }
+  };
+
+  const handleChangeOwnPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    if (!currentPassword || !changeNewPassword) {
+      setPasswordError('Ingresa la contraseña actual y la nueva');
+      return;
+    }
+    if (changeNewPassword.length < 8) {
+      setPasswordError('La nueva contraseña debe tener al menos 8 caracteres');
+      return;
+    }
+    if (changeNewPassword !== confirmNewPassword) {
+      setPasswordError('Las nuevas contraseñas no coinciden');
+      return;
+    }
+    setSubmittingPassword(true);
+    try {
+      await ApiClient.changePassword({ currentPassword, newPassword: changeNewPassword });
+      setToastMessage('Tu contraseña ha sido actualizada exitosamente');
+      setCurrentPassword('');
+      setChangeNewPassword('');
+      setConfirmNewPassword('');
+    } catch (err: any) {
+      setPasswordError(err?.message || 'Error al cambiar la contraseña');
+    } finally {
+      setSubmittingPassword(false);
     }
   };
 
@@ -181,7 +346,14 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {toastMessage && (
+        <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 1000 }}>
+          <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} duration={4000} />
+        </div>
+      )}
+
       {/* Sección 1: Equipo de Trabajo (U4 R2) */}
+      {canReadTeam && (
       <BentoCard
         style={{
           backgroundColor: 'var(--bento-card-bg-solid)',
@@ -205,6 +377,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
               Gestiona el personal del restaurante y sus perfiles de acceso (Meseros, Caja, Monitores de Cocina/Bar).
             </p>
           </div>
+          {canManageTeam && (
           <button
             type="button"
             data-testid="toggle-new-employee-button"
@@ -216,7 +389,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
             }}
             style={{
               padding: '8px 16px',
-              borderRadius: 'var(--bento-radius-md, 8px)',
+              borderRadius: 'var(--bento-inner-radius)',
               border: '1px solid var(--bento-border)',
               backgroundColor: 'var(--bento-accent)',
               color: 'var(--bento-card-bg-solid)',
@@ -227,6 +400,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
           >
             {showNewForm ? 'Cancelar' : '+ Nuevo Empleado'}
           </button>
+          )}
         </div>
 
         {userFormSuccess && (
@@ -234,8 +408,8 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
             data-testid="employee-success-alert"
             style={{
               padding: '12px 16px',
-              borderRadius: 'var(--bento-radius-md, 8px)',
-              backgroundColor: 'var(--bento-surface)',
+              borderRadius: 'var(--bento-inner-radius)',
+              backgroundColor: 'var(--bento-panel-bg)',
               border: '1px solid var(--bento-border)',
               color: 'var(--bento-text-strong)',
               marginBottom: '16px',
@@ -246,7 +420,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
           </div>
         )}
 
-        {showNewForm && (
+        {canManageTeam && showNewForm && (
           <form
             data-testid="new-employee-form"
             onSubmit={handleCreateEmployee}
@@ -256,7 +430,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
               gap: '16px',
               padding: '20px',
               backgroundColor: 'var(--bento-page-bg)',
-              borderRadius: 'var(--bento-radius-md, 8px)',
+              borderRadius: 'var(--bento-inner-radius)',
               border: '1px solid var(--bento-border)',
               marginBottom: '20px',
             }}
@@ -270,8 +444,8 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
                 data-testid="employee-error-alert"
                 style={{
                   padding: '8px 12px',
-                  borderRadius: 'var(--bento-radius-sm, 6px)',
-                  backgroundColor: 'var(--bento-surface)',
+                  borderRadius: 'var(--bento-inner-radius)',
+                  backgroundColor: 'var(--bento-panel-bg)',
                   border: '1px solid var(--bento-border)',
                   color: 'var(--bento-text-strong)',
                   fontSize: '0.8125rem',
@@ -296,9 +470,9 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
                   style={{
                     width: '100%',
                     padding: '8px 12px',
-                    borderRadius: 'var(--bento-radius-sm, 6px)',
-                    border: '1px solid var(--bento-border)',
-                    backgroundColor: 'var(--bento-card-bg-solid)',
+                    borderRadius: 'var(--bento-inner-radius)',
+                    border: '1px solid var(--bento-field-border)',
+                    backgroundColor: 'var(--bento-field-bg)',
                     color: 'var(--bento-text-strong)',
                     boxSizing: 'border-box',
                   }}
@@ -319,9 +493,9 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
                   style={{
                     width: '100%',
                     padding: '8px 12px',
-                    borderRadius: 'var(--bento-radius-sm, 6px)',
-                    border: '1px solid var(--bento-border)',
-                    backgroundColor: 'var(--bento-card-bg-solid)',
+                    borderRadius: 'var(--bento-inner-radius)',
+                    border: '1px solid var(--bento-field-border)',
+                    backgroundColor: 'var(--bento-field-bg)',
                     color: 'var(--bento-text-strong)',
                     boxSizing: 'border-box',
                   }}
@@ -341,9 +515,9 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
                   style={{
                     width: '100%',
                     padding: '8px 12px',
-                    borderRadius: 'var(--bento-radius-sm, 6px)',
-                    border: '1px solid var(--bento-border)',
-                    backgroundColor: 'var(--bento-card-bg-solid)',
+                    borderRadius: 'var(--bento-inner-radius)',
+                    border: '1px solid var(--bento-field-border)',
+                    backgroundColor: 'var(--bento-field-bg)',
                     color: 'var(--bento-text-strong)',
                     boxSizing: 'border-box',
                   }}
@@ -351,6 +525,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
                   <option value="WAITER">Mesero (Terminal Móvil)</option>
                   <option value="CASHIER">Caja (Terminal de Cobro)</option>
                   <option value="MONITOR">Monitor KDS (Cocina / Bar)</option>
+                  <option value="STAFF">Personal</option>
                   <option value="MANAGER">Encargado</option>
                   <option value="ADMIN">Administrador</option>
                 </select>
@@ -368,9 +543,9 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
                     style={{
                       width: '100%',
                       padding: '8px 12px',
-                      borderRadius: 'var(--bento-radius-sm, 6px)',
-                      border: '1px solid var(--bento-border)',
-                      backgroundColor: 'var(--bento-card-bg-solid)',
+                      borderRadius: 'var(--bento-inner-radius)',
+                      border: '1px solid var(--bento-field-border)',
+                      backgroundColor: 'var(--bento-field-bg)',
                       color: 'var(--bento-text-strong)',
                       boxSizing: 'border-box',
                     }}
@@ -392,20 +567,20 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
                 required
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder={newRole === 'WAITER' || newRole === 'CASHIER' ? 'Mínimo 8 caracteres' : 'Contraseña de acceso'}
+                placeholder={newRole !== 'MONITOR' ? 'Mínimo 8 caracteres' : 'Contraseña de acceso'}
                 style={{
                   width: '100%',
                   padding: '8px 12px',
-                  borderRadius: 'var(--bento-radius-sm, 6px)',
-                  border: '1px solid var(--bento-border)',
-                  backgroundColor: 'var(--bento-card-bg-solid)',
+                  borderRadius: 'var(--bento-inner-radius)',
+                  border: '1px solid var(--bento-field-border)',
+                  backgroundColor: 'var(--bento-field-bg)',
                   color: 'var(--bento-text-strong)',
                   boxSizing: 'border-box',
                 }}
               />
               <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--bento-text-muted)', marginTop: '4px' }}>
-                {newRole === 'WAITER' || newRole === 'CASHIER'
-                  ? 'Política: mínimo 8 caracteres (requerido para Mesero y Caja).'
+                {newRole !== 'MONITOR'
+                  ? 'Política: mínimo 8 caracteres.'
                   : 'Contraseña requerida para inicio de sesión en terminal.'}
               </span>
             </div>
@@ -420,7 +595,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
                 }}
                 style={{
                   padding: '8px 16px',
-                  borderRadius: 'var(--bento-radius-sm, 6px)',
+                  borderRadius: 'var(--bento-inner-radius)',
                   border: '1px solid var(--bento-border)',
                   backgroundColor: 'transparent',
                   color: 'var(--bento-text-strong)',
@@ -435,7 +610,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
                 disabled={submittingUser}
                 style={{
                   padding: '8px 16px',
-                  borderRadius: 'var(--bento-radius-sm, 6px)',
+                  borderRadius: 'var(--bento-inner-radius)',
                   border: '1px solid var(--bento-border)',
                   backgroundColor: 'var(--bento-accent)',
                   color: 'var(--bento-card-bg-solid)',
@@ -468,6 +643,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
                   <th style={{ padding: '8px 12px' }}>Rol</th>
                   <th style={{ padding: '8px 12px' }}>Detalle</th>
                   <th style={{ padding: '8px 12px' }}>Estado</th>
+                  {canManageTeam && <th style={{ padding: '8px 12px' }}>Acciones</th>}
                 </tr>
               </thead>
               <tbody>
@@ -483,19 +659,14 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
                       <span
                         style={{
                           padding: '2px 8px',
-                          borderRadius: 'var(--bento-radius-sm, 4px)',
-                          backgroundColor: 'var(--bento-surface)',
+                          borderRadius: 'var(--bento-inner-radius)',
+                          backgroundColor: 'var(--bento-panel-bg)',
                           border: '1px solid var(--bento-border)',
                           fontSize: '0.75rem',
                           fontWeight: 600,
                         }}
                       >
-                        {emp.role === 'WAITER' ? 'Mesero'
-                          : emp.role === 'CASHIER' ? 'Caja'
-                          : emp.role === 'MONITOR' ? 'Monitor KDS'
-                          : emp.role === 'MANAGER' ? 'Encargado'
-                          : emp.role === 'ADMIN' ? 'Administrador'
-                          : emp.role}
+                        {roleLabel(emp.role)}
                       </span>
                     </td>
                     <td style={{ padding: '10px 12px', fontSize: '0.8125rem', color: 'var(--bento-text-muted)' }}>
@@ -507,6 +678,42 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
                         tone={emp.status === 'ACTIVE' ? 'ok' : 'neutral'}
                       />
                     </td>
+                    {canManageTeam && (
+                      <td style={{ padding: '10px 12px' }}>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            style={rowActionStyle}
+                            onClick={() =>
+                              setRoleModal({
+                                user: emp,
+                                selectedRole: ROLE_OPTIONS.some((r) => r.value === emp.role)
+                                  ? (emp.role as OperativeRole)
+                                  : 'STAFF',
+                              })
+                            }
+                          >
+                            Rol
+                          </button>
+                          <button
+                            type="button"
+                            style={rowActionStyle}
+                            onClick={() =>
+                              setConfirmModal({ user: emp, action: emp.status === 'ACTIVE' ? 'disable' : 'enable' })
+                            }
+                          >
+                            {emp.status === 'ACTIVE' ? 'Desactivar' : 'Activar'}
+                          </button>
+                          <button
+                            type="button"
+                            style={rowActionStyle}
+                            onClick={() => setResetModal({ user: emp, customPassword: '' })}
+                          >
+                            Clave
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -514,6 +721,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
           </div>
         )}
       </BentoCard>
+      )}
 
       {/* Sección 2: Facturación Electrónica (U12 R2) */}
       <BentoCard
@@ -543,8 +751,8 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
           <div
             style={{
               padding: '10px 16px',
-              borderRadius: 'var(--bento-radius-md, 8px)',
-              backgroundColor: 'var(--bento-surface)',
+              borderRadius: 'var(--bento-inner-radius)',
+              backgroundColor: 'var(--bento-panel-bg)',
               border: '1px solid var(--bento-border)',
               color: 'var(--bento-text-strong)',
               marginBottom: '16px',
@@ -563,9 +771,9 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
               alignItems: 'center',
               gap: '12px',
               padding: '14px 16px',
-              borderRadius: 'var(--bento-radius-md, 8px)',
+              borderRadius: 'var(--bento-inner-radius)',
               border: `1px solid ${invoiceMode === 'simple' ? 'var(--bento-accent)' : 'var(--bento-border)'}`,
-              backgroundColor: invoiceMode === 'simple' ? 'var(--bento-surface)' : 'transparent',
+              backgroundColor: invoiceMode === 'simple' ? 'var(--bento-panel-bg)' : 'transparent',
               cursor: 'pointer',
             }}
           >
@@ -593,9 +801,9 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
               alignItems: 'center',
               gap: '12px',
               padding: '14px 16px',
-              borderRadius: 'var(--bento-radius-md, 8px)',
+              borderRadius: 'var(--bento-inner-radius)',
               border: `1px solid ${invoiceMode === 'dian' ? 'var(--bento-accent)' : 'var(--bento-border)'}`,
-              backgroundColor: invoiceMode === 'dian' ? 'var(--bento-surface)' : 'transparent',
+              backgroundColor: invoiceMode === 'dian' ? 'var(--bento-panel-bg)' : 'transparent',
               cursor: 'pointer',
             }}
           >
@@ -645,6 +853,171 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
           description="Ajustes de idioma, perfil de restaurante y preferencias operativas."
         />
       </BentoCard>
+
+      {/* Sección 4: Mi contraseña (todos los roles) */}
+      <BentoCard style={{ backgroundColor: 'var(--bento-card-bg-solid)', padding: '24px', maxWidth: '560px' }}>
+        <h2
+          style={{
+            margin: '0 0 8px 0',
+            fontSize: '1.25rem',
+            fontWeight: 600,
+            color: 'var(--bento-text-strong)',
+            fontFamily: 'var(--bento-font-heading)',
+          }}
+        >
+          Cambiar mi Contraseña
+        </h2>
+        <p style={{ margin: '0 0 20px 0', fontSize: '0.875rem', color: 'var(--bento-text-muted)' }}>
+          Actualiza tu contraseña de acceso para mantener la seguridad de tu cuenta.
+        </p>
+        {passwordError && (
+          <div
+            role="alert"
+            style={{
+              padding: '8px 12px',
+              marginBottom: '16px',
+              borderRadius: 'var(--bento-inner-radius)',
+              backgroundColor: 'var(--bento-panel-bg)',
+              border: '1px solid var(--bento-border)',
+              color: 'var(--bento-text-strong)',
+              fontSize: '0.8125rem',
+            }}
+          >
+            {passwordError}
+          </div>
+        )}
+        <form onSubmit={handleChangeOwnPassword} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {[
+            { id: 'currentPassword', label: 'Contraseña actual', value: currentPassword, set: setCurrentPassword },
+            {
+              id: 'newPassword',
+              label: 'Nueva contraseña (mínimo 8 caracteres)',
+              value: changeNewPassword,
+              set: setChangeNewPassword,
+            },
+            { id: 'confirmPassword', label: 'Confirmar nueva contraseña', value: confirmNewPassword, set: setConfirmNewPassword },
+          ].map((f) => (
+            <div key={f.id}>
+              <label
+                htmlFor={f.id}
+                style={{ display: 'block', marginBottom: '4px', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--bento-text-strong)' }}
+              >
+                {f.label}
+              </label>
+              <input
+                id={f.id}
+                type="password"
+                value={f.value}
+                onChange={(e) => f.set(e.target.value)}
+                style={fieldInputStyle}
+              />
+            </div>
+          ))}
+          <button
+            type="submit"
+            disabled={submittingPassword}
+            style={{
+              ...primaryButtonStyle,
+              alignSelf: 'flex-start',
+              cursor: submittingPassword ? 'not-allowed' : 'pointer',
+              opacity: submittingPassword ? 0.7 : 1,
+            }}
+          >
+            {submittingPassword ? 'Actualizando...' : 'Actualizar contraseña'}
+          </button>
+        </form>
+      </BentoCard>
+
+      {confirmModal && (
+        <ModalConfirm
+          open
+          title={confirmModal.action === 'disable' ? '¿Desactivar usuario?' : '¿Reactivar usuario?'}
+          current={{ label: 'Estado actual', value: confirmModal.user.status }}
+          proposed={{ label: 'Nuevo estado', value: confirmModal.action === 'disable' ? 'DISABLED' : 'ACTIVE' }}
+          impacts={[
+            {
+              label: 'Acceso',
+              value:
+                confirmModal.action === 'disable'
+                  ? 'El usuario no podrá iniciar sesión y sus tokens se revocarán.'
+                  : 'El usuario podrá volver a ingresar al sistema de inmediato.',
+            },
+          ]}
+          approveLabel={confirmModal.action === 'disable' ? 'Desactivar' : 'Reactivar'}
+          rejectLabel="Cancelar"
+          onApprove={handleToggleActive}
+          onReject={() => setConfirmModal(null)}
+        />
+      )}
+
+      {roleModal && (
+        <div role="dialog" aria-modal="true" style={modalOverlayStyle}>
+          <div style={modalPanelStyle}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.25rem' }}>Cambiar rol</h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--bento-text-muted)' }}>
+              Modificar rol de {roleModal.user.displayName} ({roleModal.user.email}).
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {ROLE_OPTIONS.map((opt) => (
+                <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="roleSelect"
+                    value={opt.value}
+                    checked={roleModal.selectedRole === opt.value}
+                    onChange={() => setRoleModal({ ...roleModal, selectedRole: opt.value })}
+                  />
+                  <span>{`${opt.label} (${opt.value})`}</span>
+                </label>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+              <button type="button" style={ghostButtonStyle} onClick={() => setRoleModal(null)}>
+                Cancelar
+              </button>
+              <button type="button" style={primaryButtonStyle} onClick={handleUpdateRole}>
+                Guardar rol
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {resetModal && (
+        <div role="dialog" aria-modal="true" style={modalOverlayStyle}>
+          <div style={modalPanelStyle}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.25rem' }}>Restablecer contraseña</h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--bento-text-muted)' }}>
+              Asigna una nueva contraseña temporal para {resetModal.user.displayName}.
+            </p>
+            <label htmlFor="reset-password-input" style={{ fontSize: '0.875rem', fontWeight: 600 }}>
+              Nueva contraseña
+            </label>
+            <input
+              id="reset-password-input"
+              type="text"
+              value={resetModal.customPassword}
+              onChange={(e) => setResetModal({ ...resetModal, customPassword: e.target.value })}
+              style={{ ...fieldInputStyle, marginTop: '4px' }}
+            />
+            <button
+              type="button"
+              onClick={() => setResetModal({ ...resetModal, customPassword: generatePassword() })}
+              style={{ background: 'none', border: 'none', padding: 0, marginTop: '8px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', color: 'var(--bento-accent)' }}
+            >
+              Regenerar contraseña
+            </button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+              <button type="button" style={ghostButtonStyle} onClick={() => setResetModal(null)}>
+                Cancelar
+              </button>
+              <button type="button" style={primaryButtonStyle} onClick={handleResetPassword}>
+                Restablecer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

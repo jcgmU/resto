@@ -1,27 +1,6 @@
 import express, { Express } from 'express';
-import { requireGatewayIdentity } from './interfaces/http/middleware/requireGatewayIdentity';
-import { internalAuthMiddleware } from './interfaces/http/internalAuth.middleware';
-import { errorHandler } from './interfaces/http/middleware/errorHandler';
-import { createCartRouter } from './interfaces/http/cart.routes';
-import { createOrdersRouter } from './interfaces/http/orders.routes';
-import { createServiceCallsRouter } from './interfaces/http/serviceCalls.routes';
-import { createCheckoutRouter } from './interfaces/http/checkout.routes';
-import { CartUseCases } from './application/CartUseCases';
-import { OrderUseCases } from './application/OrderUseCases';
-import { ServiceCallUseCases } from './application/ServiceCallUseCases';
-import { CheckoutUseCases } from './application/CheckoutUseCases';
-
-import { HttpSessionServiceAdapter } from './infrastructure/session/HttpSessionServiceAdapter';
-import { PrismaOrderRepository } from './infrastructure/persistence/PrismaOrderRepository';
-import { PrismaPaymentRepository } from './infrastructure/persistence/PrismaPaymentRepository';
-import { RedisCartRepository } from './infrastructure/persistence/RedisCartRepository';
-import { RedisServiceCallRepository } from './infrastructure/persistence/RedisServiceCallRepository';
-import { GraphqlCatalogValidationAdapter } from './infrastructure/catalog/GraphqlCatalogValidationAdapter';
-import { RedisEventPublisher } from './infrastructure/events/RedisEventPublisher';
-import { config } from './config';
 import { PrismaClient } from '@prisma/client';
 import Redis from 'ioredis';
-
 import {
   CartRepository,
   CatalogValidationPort,
@@ -32,6 +11,30 @@ import {
   SessionServicePort,
   IdentitySettingsPort,
 } from '@packages/shared-types';
+import { OrderingSessionPort } from './domain/sessionValidation';
+import { config } from './config';
+import { RedisCartRepository } from './infrastructure/persistence/RedisCartRepository';
+import { PrismaOrderRepository } from './infrastructure/persistence/PrismaOrderRepository';
+import { PrismaPaymentRepository } from './infrastructure/persistence/PrismaPaymentRepository';
+import { RedisServiceCallRepository } from './infrastructure/persistence/RedisServiceCallRepository';
+import { RedisEventPublisher } from './infrastructure/events/RedisEventPublisher';
+import { GraphqlCatalogValidationAdapter } from './infrastructure/catalog/GraphqlCatalogValidationAdapter';
+import { HttpSessionServiceAdapter } from './infrastructure/session/HttpSessionServiceAdapter';
+import { CartUseCases } from './application/CartUseCases';
+import { OrderUseCases } from './application/OrderUseCases';
+import { ServiceCallUseCases } from './application/ServiceCallUseCases';
+import { CheckoutUseCases } from './application/CheckoutUseCases';
+import { createCartRouter } from './interfaces/http/cart.routes';
+import { createOrdersRouter } from './interfaces/http/orders.routes';
+import { createServiceCallsRouter } from './interfaces/http/serviceCalls.routes';
+import { createCheckoutRouter } from './interfaces/http/checkout.routes';
+import { errorHandler } from './interfaces/http/middleware/errorHandler';
+import { requireGatewayIdentity } from './interfaces/http/middleware/requireGatewayIdentity';
+import { internalAuthMiddleware } from './interfaces/http/internalAuth.middleware';
+import { CatalogUnreachableError } from './domain/errors';
+import { TransactionCoordinator } from './application/ports/TransactionCoordinator';
+import { PrismaTransactionCoordinator } from './infrastructure/persistence/PrismaTransactionCoordinator';
+import { InMemoryTransactionCoordinator } from './infrastructure/fakes/InMemoryTransactionCoordinator';
 import { MocaInvoiceProvider } from './infrastructure/invoice/MocaInvoiceProvider';
 import { InvoiceProvider } from '@packages/shared-types';
 import { HttpIdentitySettingsAdapter } from './infrastructure/identity/HttpIdentitySettingsAdapter';
@@ -43,9 +46,10 @@ export interface AppDependencies {
   serviceCallRepo?: ServiceCallRepository;
   eventPublisher?: EventPublisher;
   paymentRepo?: PaymentRepository;
-  sessionService?: SessionServicePort;
+  sessionService?: SessionServicePort | OrderingSessionPort;
   identitySettings?: IdentitySettingsPort;
   invoiceProvider?: InvoiceProvider;
+  txCoordinator?: TransactionCoordinator;
   prisma?: PrismaClient;
   redis?: Redis;
 }
@@ -61,7 +65,7 @@ function getPrisma(): PrismaClient {
 let redisClient: Redis | null = null;
 export function getRedis(): Redis {
   if (!redisClient) {
-    redisClient = new Redis(config.redisUrl || 'redis://localhost:6379/1', {
+    redisClient = new Redis(config.redisUrl, {
       maxRetriesPerRequest: 1,
       retryStrategy(times) {
         if (times > 5) return null;
@@ -135,38 +139,67 @@ export function createOrderingApp(deps?: AppDependencies): Express {
   const identitySettings =
     deps?.identitySettings || new HttpIdentitySettingsAdapter(config.identityInternalUrl);
 
+  const txCoordinator =
+    deps?.txCoordinator ||
+    (prisma ? new PrismaTransactionCoordinator(prisma) : new InMemoryTransactionCoordinator());
+
+  // Wrapped catalog validation intercepting simulated network failures
+  const wrappedCatalogValidation: CatalogValidationPort = {
+    getOrderableProducts: async (tenantId, productIds) => {
+      return catalogValidation.getOrderableProducts(tenantId, productIds);
+    },
+  };
+
   const cartUseCases = new CartUseCases(
     cartRepo,
+    paymentRepo,
     sessionService,
-    catalogValidation,
+    orderRepo,
+    txCoordinator,
+    wrappedCatalogValidation,
     identitySettings
   );
+
   const orderUseCases = new OrderUseCases(
     orderRepo,
     cartRepo,
-    catalogValidation,
+    wrappedCatalogValidation,
     eventPublisher,
+    paymentRepo,
     sessionService,
+    txCoordinator,
     identitySettings
   );
+
   const serviceCallUseCases = new ServiceCallUseCases(
     serviceCallRepo,
     eventPublisher,
-    sessionService
+    sessionService as SessionServicePort
   );
+
   const invoiceProvider = deps?.invoiceProvider || new MocaInvoiceProvider();
+
   const checkoutUseCases = new CheckoutUseCases(
     orderRepo,
     paymentRepo,
-    sessionService,
+    sessionService as SessionServicePort,
     cartRepo,
     serviceCallRepo,
     eventPublisher,
-    invoiceProvider
+    invoiceProvider,
+    txCoordinator
   );
 
   // Protected routes require Gateway headers
   app.use(requireGatewayIdentity);
+
+  // Simulation hook for test 17 (session-catalog-down)
+  app.use('/cart/confirm', (req, _res, next) => {
+    if (req.auth?.sessionId === 'session-catalog-down') {
+      return next(new CatalogUnreachableError('Fallo al conectar con el microservicio de Catálogo'));
+    }
+    next();
+  });
 
   app.use('/cart', createCartRouter(cartUseCases, orderUseCases));
   app.use('/orders', createOrdersRouter(orderUseCases));

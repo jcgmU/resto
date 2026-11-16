@@ -161,11 +161,11 @@ describe('R05 - Concurrencia Atómica en Carrito (Contract Tests)', () => {
     ]);
 
     const statuses = [resA.status, resB.status].sort();
-    // Una debe ser 201 (éxito) y la otra 400 (CART_EMPTY)
-    expect(statuses).toEqual([201, 400]);
+    // Una debe ser 201 (éxito) y la otra 400 (CART_EMPTY) o 409 (CART_BUSY)
+    expect([[201, 400], [201, 409]]).toContainEqual(statuses);
 
-    const failedRes = resA.status === 400 ? resA : resB;
-    expect(failedRes.body.error?.code).toBe('CART_EMPTY');
+    const failedRes = resA.status !== 201 ? resA : resB;
+    expect(['CART_EMPTY', 'CART_BUSY']).toContain(failedRes.body.error?.code);
 
     // 3. Verificar en PostgreSQL que se guardó exactamente 1 orden
     const prisma = getTestPrisma();

@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { SessionEventPublisherPort } from '../domain/events';
 import {
   OpenSessionRequest,
@@ -31,7 +32,7 @@ export class OpenTableSessionUseCaseImpl {
     }
 
     const table = await this.tableRepo.findById(input.tenantId, input.tableId);
-    if (!table) {
+    if (!table || table.status === 'deleted') {
       throw new DomainError('TABLE_NOT_FOUND', `TABLE_NOT_FOUND: Mesa ${input.tableId} no encontrada`);
     }
 
@@ -64,7 +65,7 @@ export class OpenTableSessionUseCaseImpl {
     }
 
     const now = new Date();
-    const sessionId = `session-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const sessionId = `session-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
     const candidateSession: TableSessionDTO = {
       sessionId,
       tenantId: input.tenantId,
@@ -74,22 +75,13 @@ export class OpenTableSessionUseCaseImpl {
       expiresAt: new Date(now.getTime() + this.ttlSeconds * 1000).toISOString(),
     };
 
+    const existing = await this.sessionRepo.findActiveByTable(input.tenantId, input.tableId);
     let session: TableSessionDTO;
-    if (typeof this.sessionRepo.getOrCreateActive === 'function') {
-      session = await this.sessionRepo.getOrCreateActive(
-        input.tenantId,
-        input.tableId,
-        candidateSession,
-        this.ttlSeconds
-      );
+    if (existing) {
+      await this.sessionRepo.touch(input.tenantId, existing.sessionId, this.ttlSeconds);
+      session = existing;
     } else {
-      const existing = await this.sessionRepo.findActiveByTable(input.tenantId, input.tableId);
-      if (existing) {
-        await this.sessionRepo.touch(input.tenantId, existing.sessionId, this.ttlSeconds);
-        session = existing;
-      } else {
-        session = await this.sessionRepo.save(input.tenantId, candidateSession, this.ttlSeconds);
-      }
+      session = await this.sessionRepo.save(input.tenantId, candidateSession, this.ttlSeconds);
     }
 
     const guestToken = this.tokenIssuer.issue(
@@ -304,22 +296,13 @@ export class StaffOpenSessionUseCaseImpl {
       expiresAt: new Date(now.getTime() + this.ttlSeconds * 1000).toISOString(),
     };
 
+    const existing = await this.sessionRepo.findActiveByTable(input.tenantId, input.tableId);
     let session: TableSessionDTO;
-    if (typeof this.sessionRepo.getOrCreateActive === 'function') {
-      session = await this.sessionRepo.getOrCreateActive(
-        input.tenantId,
-        input.tableId,
-        candidateSession,
-        this.ttlSeconds
-      );
+    if (existing) {
+      await this.sessionRepo.touch(input.tenantId, existing.sessionId, this.ttlSeconds);
+      session = existing;
     } else {
-      const existing = await this.sessionRepo.findActiveByTable(input.tenantId, input.tableId);
-      if (existing) {
-        await this.sessionRepo.touch(input.tenantId, existing.sessionId, this.ttlSeconds);
-        session = existing;
-      } else {
-        session = await this.sessionRepo.save(input.tenantId, candidateSession, this.ttlSeconds);
-      }
+      session = await this.sessionRepo.save(input.tenantId, candidateSession, this.ttlSeconds);
     }
 
     if (this.eventPublisher) {

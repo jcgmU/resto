@@ -7,7 +7,7 @@ export const TEST_ORDERING_DATABASE_URL =
   'postgresql://postgres:postgres@localhost:5432/resto_ordering_test?schema=public';
 
 export const TEST_ORDERING_REDIS_URL =
-  process.env.REDIS_URL || 'redis://localhost:6379/3';
+  process.env.REDIS_ORDERING_TEST_URL || process.env.REDIS_URL || 'redis://localhost:6379/3';
 
 process.env.ORDERING_DATABASE_URL = TEST_ORDERING_DATABASE_URL;
 process.env.REDIS_URL = TEST_ORDERING_REDIS_URL;

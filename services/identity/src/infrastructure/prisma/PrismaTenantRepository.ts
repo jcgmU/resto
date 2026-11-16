@@ -102,4 +102,8 @@ export class PrismaTenantRepository implements TenantRepository {
       updatedAt: t.updatedAt,
     };
   }
+
+  async delete(id: string): Promise<void> {
+    await this.prisma.tenant.delete({ where: { id } }).catch(() => {});
+  }
 }

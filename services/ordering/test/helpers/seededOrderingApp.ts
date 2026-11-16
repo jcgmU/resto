@@ -1,3 +1,4 @@
+import { TableSessionDTO } from '@packages/shared-types';
 import { createOrderingApp } from '../../src/app';
 import {
   InMemoryCartRepository,
@@ -11,16 +12,49 @@ import {
 import { HttpSessionServiceAdapter } from '../../src/infrastructure/session/HttpSessionServiceAdapter';
 import { config } from '../../src/config';
 
+export class SeededSessionServiceAdapter extends HttpSessionServiceAdapter {
+  async getSession(tenantId: string, sessionId: string): Promise<TableSessionDTO | null> {
+    const now = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + 3600000).toISOString();
+    if (sessionId === 's-smoke-e2e') {
+      return {
+        sessionId,
+        tenantId,
+        tableId: 'M-1',
+        status: 'active' as const,
+        createdAt: now,
+        expiresAt,
+      };
+    }
+    return {
+      sessionId,
+      tenantId,
+      tableId: '*',
+      status: 'active' as const,
+      createdAt: now,
+      expiresAt,
+    };
+  }
+
+  async closeSession(
+    tenantId: string,
+    sessionId: string,
+    requester: { userId: string; role: string }
+  ): Promise<void> {
+    if (sessionId === 's-smoke-e2e') {
+      return;
+    }
+    return super.closeSession(tenantId, sessionId, requester);
+  }
+}
+
 export const sharedCartRepo = new InMemoryCartRepository();
 export const sharedOrderRepo = new InMemoryOrderRepository();
 export const sharedCatalogValidation = new InMemoryCatalogValidationAdapter();
 export const sharedServiceCallRepo = new InMemoryServiceCallRepository();
 export const sharedEventPublisher = new InMemoryEventPublisher();
 export const sharedPaymentRepo = new InMemoryPaymentRepository();
-export const sharedSessionService = new InMemorySessionServiceAdapter({
-  autoCreateActive: true,
-  httpDelegate: new HttpSessionServiceAdapter(config.sessionInternalUrl),
-});
+export const sharedSessionService = new SeededSessionServiceAdapter(config.sessionInternalUrl);
 
 export function createSeededOrderingTestApp() {
 

@@ -128,6 +128,20 @@ export class OrdersNotDeliveredError extends DomainError {
   }
 }
 
+export class SessionNotActiveError extends DomainError {
+  constructor(message = 'La sesión no está activa o ya ha sido pagada') {
+    super('SESSION_NOT_ACTIVE', message);
+  }
+}
 
+export class SessionUnreachableError extends DomainError {
+  constructor(message = 'Servicio de sesiones no disponible') {
+    super('SESSION_UNREACHABLE', message);
+  }
+}
 
-
+export class CartBusyError extends DomainError {
+  constructor(message = 'El carrito tiene una confirmación en curso sobre esta línea') {
+    super('CART_BUSY', message);
+  }
+}

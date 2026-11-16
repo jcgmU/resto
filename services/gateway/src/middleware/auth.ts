@@ -27,6 +27,9 @@ export function authMiddleware(requiredRoles?: string[]) {
       if (!decoded.userId && (decoded as any).sub) {
         decoded.userId = (decoded as any).sub;
       }
+      if (decoded.sessionId && (!decoded.role || decoded.role.toLowerCase() === 'guest')) {
+        decoded.role = 'GUEST';
+      }
       (req as any).user = decoded;
 
       if (requiredRoles && requiredRoles.length > 0) {

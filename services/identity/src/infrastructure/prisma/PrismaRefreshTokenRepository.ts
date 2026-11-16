@@ -42,38 +42,47 @@ export class PrismaRefreshTokenRepository implements RefreshTokenRepository {
   ): Promise<{ userId: string }> {
     const now = new Date();
 
-    const updateResult = await this.prisma.refreshToken.updateMany({
-      where: {
-        tokenHash: oldTokenHash,
-        revokedAt: null,
-        expiresAt: { gt: now },
-      },
-      data: {
-        revokedAt: now,
-      },
+    return await this.prisma.$transaction(async (tx) => {
+      const updateResult = await tx.refreshToken.updateMany({
+        where: {
+          tokenHash: oldTokenHash,
+          revokedAt: null,
+          expiresAt: { gt: now },
+        },
+        data: {
+          revokedAt: now,
+        },
+      });
+
+      if (updateResult.count === 0) {
+        throw new DomainError('INVALID_CREDENTIALS', 'Token de refresco inválido o expirado');
+      }
+
+      const oldToken = await tx.refreshToken.findUnique({
+        where: { tokenHash: oldTokenHash },
+        select: { userId: true },
+      });
+
+      if (!oldToken) {
+        throw new DomainError('INVALID_CREDENTIALS', 'Token de refresco inválido o expirado');
+      }
+
+      await tx.refreshToken.create({
+        data: {
+          userId: oldToken.userId,
+          tokenHash: newToken.tokenHash,
+          expiresAt: newToken.expiresAt,
+        },
+      });
+
+      return { userId: oldToken.userId };
     });
+  }
 
-    if (updateResult.count === 0) {
-      throw new DomainError('INVALID_CREDENTIALS', 'Token de refresco inválido o expirado');
-    }
-
-    const oldToken = await this.prisma.refreshToken.findUnique({
-      where: { tokenHash: oldTokenHash },
-      select: { userId: true },
+  async revokeAllForUser(userId: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
     });
-
-    if (!oldToken) {
-      throw new DomainError('INVALID_CREDENTIALS', 'Token de refresco inválido o expirado');
-    }
-
-    await this.prisma.refreshToken.create({
-      data: {
-        userId: oldToken.userId,
-        tokenHash: newToken.tokenHash,
-        expiresAt: newToken.expiresAt,
-      },
-    });
-
-    return { userId: oldToken.userId };
   }
 }

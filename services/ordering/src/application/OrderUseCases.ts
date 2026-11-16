@@ -1,6 +1,9 @@
+import { randomUUID } from 'crypto';
 import {
   CancelOrderUseCase,
   CatalogValidationPort,
+  CartDTO,
+  CartItemDTO,
   CartRepository,
   ConfirmOrderUseCase,
   EventPublisher,
@@ -10,12 +13,15 @@ import {
   ListTenantOrdersUseCase,
   OrderDTO,
   OrderRepository,
+  OrderStatus,
+  PaymentRepository,
   SessionServicePort,
   UpdateOrderDelayUseCase,
   UpdateOrderStatusUseCase,
   IdentitySettingsPort,
 } from '@packages/shared-types';
 import {
+  CartBusyError,
   CartEmptyError,
   ForbiddenError,
   OrderNotFoundError,
@@ -24,23 +30,79 @@ import {
   TableMismatchError,
   ValidationError,
   OrderAlreadyTerminalError,
+  SessionNotActiveError,
+  SessionUnreachableError,
+  DomainError,
 } from '../domain/errors';
 import { canTransition } from '../domain/orderStatusMachine';
 import { validateAndPriceCart } from '../domain/pricing';
+import { OrderingSessionPort } from '../domain/sessionValidation';
+import { TransactionCoordinator } from './ports/TransactionCoordinator';
 import { config } from '../config';
+import { ORDER_HISTORY_ROLES, hasRole } from '../interfaces/http/authzRoles';
+import {
+  isOperationInFlight,
+  markOperationInFlight,
+  markOperationFinished,
+} from './ports/CartReservationPort';
 
 export class OrderUseCases {
+  private readonly paymentRepo?: PaymentRepository;
+  private readonly sessionService?: SessionServicePort | OrderingSessionPort;
+  private readonly identitySettings?: IdentitySettingsPort;
+  private readonly txCoordinator?: TransactionCoordinator;
+
   constructor(
     private readonly orderRepo: OrderRepository,
     private readonly cartRepo: CartRepository,
     private readonly catalogValidation: CatalogValidationPort,
     private readonly eventPublisher?: EventPublisher,
-    private readonly sessionService?: SessionServicePort,
-    private readonly identitySettings?: IdentitySettingsPort
-  ) {}
+    arg5?: PaymentRepository | SessionServicePort | OrderingSessionPort,
+    arg6?: OrderingSessionPort | SessionServicePort | IdentitySettingsPort,
+    arg7?: TransactionCoordinator | IdentitySettingsPort,
+    arg8?: IdentitySettingsPort
+  ) {
+    if (arg5) {
+      if ('findBySession' in arg5) {
+        this.paymentRepo = arg5 as PaymentRepository;
+      } else if ('getSession' in arg5 || 'closeSession' in arg5) {
+        this.sessionService = arg5 as any;
+      }
+    }
 
-  updateOrderStatus: UpdateOrderStatusUseCase = {
-    execute: async (input) => {
+    if (arg6) {
+      if ('getSession' in arg6 || 'closeSession' in arg6) {
+        this.sessionService = arg6 as any;
+      } else if ('getOperatingMode' in arg6 || 'getEstimatedPrepMinutes' in arg6) {
+        this.identitySettings = arg6 as IdentitySettingsPort;
+      }
+    }
+
+    if (arg7) {
+      if ('runInSessionLock' in arg7) {
+        this.txCoordinator = arg7 as TransactionCoordinator;
+      } else if ('getOperatingMode' in arg7 || 'getEstimatedPrepMinutes' in arg7) {
+        this.identitySettings = arg7 as IdentitySettingsPort;
+      }
+    }
+
+    if (arg8 && ('getOperatingMode' in arg8 || 'getEstimatedPrepMinutes' in arg8)) {
+      this.identitySettings = arg8 as IdentitySettingsPort;
+    }
+  }
+
+  updateOrderStatus = {
+    execute: async (input: {
+      tenantId: string;
+      orderId: string;
+      status: OrderStatus;
+      destination?: 'kitchen' | 'bar';
+      requesterRole?: string;
+    }): Promise<OrderDTO> => {
+      if (input.status === 'CANCELLED' && input.requesterRole && input.requesterRole.toLowerCase() === 'staff') {
+        throw new ForbiddenError('Solo personal administrativo puede cancelar órdenes');
+      }
+
       const order = await this.orderRepo.findById(input.tenantId, input.orderId);
       if (!order) {
         throw new OrderNotFoundError();
@@ -96,16 +158,21 @@ export class OrderUseCases {
         }
       }
 
-      const updated = await this.orderRepo.updateStatus(
-        input.tenantId,
-        input.orderId,
-        computedGlobalStatus,
-        new Date(),
-        {
-          kitchenStatus: targetKitchenStatus,
-          barStatus: targetBarStatus,
-        }
-      );
+      let updated: OrderDTO;
+      if (input.status === 'CANCELLED') {
+        updated = await this.orderRepo.cancel(input.tenantId, input.orderId, new Date());
+      } else {
+        updated = await this.orderRepo.updateStatus(
+          input.tenantId,
+          input.orderId,
+          computedGlobalStatus,
+          new Date(),
+          {
+            kitchenStatus: targetKitchenStatus,
+            barStatus: targetBarStatus,
+          }
+        );
+      }
 
       if (this.eventPublisher) {
         await this.eventPublisher.publishOrderEvent(input.tenantId, {
@@ -123,16 +190,42 @@ export class OrderUseCases {
 
   confirmOrder: ConfirmOrderUseCase = {
     execute: async (input) => {
+      // 1. Validar sesión y derivar mesa efectiva
       let effectiveTableId = input.tableId || '';
-      if (this.sessionService) {
-        const session = await this.sessionService.getSession(input.tenantId, input.sessionId);
+
+      if (this.sessionService?.getSession) {
+        let session: any = null;
+        try {
+          session = await this.sessionService.getSession(input.tenantId, input.sessionId);
+        } catch (err: any) {
+          if (err instanceof DomainError) throw err;
+          throw new SessionUnreachableError(
+            `Fallo al conectar con el microservicio de sesión: ${err.message}`
+          );
+        }
+
         if (!session || session.status !== 'active') {
           throw new SessionNotOrderableError('La sesión no admite pedidos en su estado actual');
         }
         if (input.tableId && session.tableId && session.tableId !== '*' && input.tableId !== session.tableId) {
           throw new TableMismatchError('La mesa indicada no coincide con la mesa de la sesión');
         }
-        effectiveTableId = (session.tableId && session.tableId !== '*') ? session.tableId : (input.tableId || 'default-table');
+        effectiveTableId =
+          session.tableId && session.tableId !== '*'
+            ? session.tableId
+            : input.tableId || 'default-table';
+      } else {
+        effectiveTableId = input.tableId || 'default-table';
+      }
+
+      if (this.paymentRepo) {
+        const payment = await (this.paymentRepo as any).findBySession(
+          input.tenantId,
+          input.sessionId
+        );
+        if (payment) {
+          throw new SessionNotActiveError('La sesión ya ha sido pagada');
+        }
       }
 
       if (this.identitySettings) {
@@ -151,23 +244,182 @@ export class OrderUseCases {
         }
       }
 
-      // Snapshot atómico / vaciado del carrito para evitar doble confirmación ante solicitudes concurrentes
-      const cart = this.cartRepo.takeSnapshot
-        ? await this.cartRepo.takeSnapshot(input.tenantId, input.sessionId)
-        : await this.cartRepo.get(input.tenantId, input.sessionId, config.cartTtlSeconds);
+      // 2. Comprobar y recuperar reserva huérfana si existe y no está en vuelo
+      const reservationRepo = this.cartRepo as any;
+      const hasReservationPort =
+        'reserveCart' in this.cartRepo && typeof reservationRepo.reserveCart === 'function';
 
-      if (!cart.items || cart.items.length === 0) {
-        throw new CartEmptyError();
+      if (hasReservationPort) {
+        const pending = await reservationRepo.findReservation(input.tenantId, input.sessionId);
+        if (pending) {
+          const isLeaseActive =
+            typeof reservationRepo.isReservationLeaseActive === 'function'
+              ? await reservationRepo.isReservationLeaseActive(
+                  input.tenantId,
+                  input.sessionId,
+                  pending.operationId
+                )
+              : isOperationInFlight(pending.operationId);
+
+          if (isLeaseActive) {
+            throw new CartBusyError();
+          }
+
+          const recoverWork = async (
+            tx?: any
+          ): Promise<{
+            action: 'ACK' | 'RESTORE';
+            existingOrder?: OrderDTO | null;
+          }> => {
+            const currentPending = await reservationRepo.findReservation(input.tenantId, input.sessionId);
+            if (!currentPending || currentPending.operationId !== pending.operationId) {
+              return { action: 'RESTORE' };
+            }
+            if (typeof reservationRepo.isReservationLeaseActive === 'function') {
+              const stillActive = await reservationRepo.isReservationLeaseActive(
+                input.tenantId,
+                input.sessionId,
+                currentPending.operationId
+              );
+              if (stillActive) {
+                throw new CartBusyError();
+              }
+            }
+
+            const fenceRepo = this.orderRepo as any;
+            let fenceStatus: 'COMMITTED' | 'ABORTED' = 'ABORTED';
+            if (typeof fenceRepo.abortReservationFence === 'function') {
+              fenceStatus = await fenceRepo.abortReservationFence(
+                input.tenantId,
+                input.sessionId,
+                currentPending.operationId,
+                currentPending.orderId,
+                tx
+              );
+            }
+
+            if (fenceStatus === 'COMMITTED') {
+              const existing = await (this.orderRepo as any).findById(
+                input.tenantId,
+                currentPending.orderId,
+                tx
+              );
+              return { action: 'ACK', existingOrder: existing };
+            }
+
+            return { action: 'RESTORE' };
+          };
+
+          const recoveryDecision = this.txCoordinator
+            ? await this.txCoordinator.runInSessionLock(
+                input.tenantId,
+                input.sessionId,
+                recoverWork
+              )
+            : await recoverWork();
+
+          if (recoveryDecision?.action === 'ACK') {
+            await reservationRepo.ackReservation(
+              input.tenantId,
+              input.sessionId,
+              pending.operationId
+            );
+            if (recoveryDecision.existingOrder) {
+              const liveCart = await this.cartRepo.get(
+                input.tenantId,
+                input.sessionId,
+                config.cartTtlSeconds
+              );
+              if (!liveCart.items || liveCart.items.length === 0) {
+                return recoveryDecision.existingOrder;
+              }
+            }
+          } else if (recoveryDecision?.action === 'RESTORE') {
+            const restored = await reservationRepo.restoreReservation(
+              input.tenantId,
+              input.sessionId,
+              pending.operationId,
+              config.cartTtlSeconds,
+              { requireExpiredLease: true }
+            );
+            if (restored && (restored.status === 'CONFLICT' || restored.status === 'ACTIVE')) {
+              throw new CartBusyError();
+            }
+          }
+        }
       }
 
+      // 3. Generar operationId y orderId para el nuevo snapshot
+      const operationId = randomUUID();
+      const orderId = `ord-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+      markOperationInFlight(operationId);
+      let heartbeatTimer: NodeJS.Timeout | null = null;
+      let leaseLost = false;
+
       try {
-        const productIds = Array.from(new Set(cart.items.map((i) => i.productId)));
+        let reservedItems: CartItemDTO[];
+
+        if (hasReservationPort) {
+          const reserveResult = await reservationRepo.reserveCart(
+            input.tenantId,
+            input.sessionId,
+            operationId,
+            orderId,
+            config.cartTtlSeconds
+          );
+
+          if (reserveResult.status === 'EXISTING_RESERVATION') {
+            throw new CartBusyError();
+          }
+          if (reserveResult.status === 'EMPTY') {
+            throw new CartEmptyError();
+          }
+          reservedItems = reserveResult.reservation.items;
+
+          if (typeof reservationRepo.refreshReservationLease === 'function') {
+            const leaseTtlMs =
+              typeof reservationRepo.leaseTtlMs === 'number' ? reservationRepo.leaseTtlMs : 30000;
+            const heartbeatIntervalMs = Math.max(50, Math.floor(leaseTtlMs / 3));
+            heartbeatTimer = setInterval(() => {
+              reservationRepo
+                .refreshReservationLease(input.tenantId, input.sessionId, operationId)
+                .then((ok: boolean) => {
+                  if (!ok) {
+                    leaseLost = true;
+                  }
+                })
+                .catch(() => {
+                  leaseLost = true;
+                });
+            }, heartbeatIntervalMs);
+            if (heartbeatTimer.unref) {
+              heartbeatTimer.unref();
+            }
+          }
+        } else {
+          const cart = this.cartRepo.takeSnapshot
+            ? await this.cartRepo.takeSnapshot(input.tenantId, input.sessionId)
+            : await this.cartRepo.get(input.tenantId, input.sessionId, config.cartTtlSeconds);
+
+          if (!cart.items || cart.items.length === 0) {
+            throw new CartEmptyError();
+          }
+          reservedItems = cart.items;
+        }
+
+        // Operaciones de catálogo y validación de precios FUERA del advisory lock
+        const productIds = Array.from(new Set(reservedItems.map((i) => i.productId)));
         const validatedProducts = await this.catalogValidation.getOrderableProducts(
           input.tenantId,
           productIds
         );
 
-        const priced = validateAndPriceCart(cart.items, validatedProducts);
+        const priced = validateAndPriceCart(reservedItems, validatedProducts);
+
+        if (leaseLost) {
+          throw new CartBusyError(input.sessionId);
+        }
 
         const isStaff = ['ADMIN', 'MANAGER', 'STAFF', 'WAITER'].includes((input.userRole || '').toUpperCase());
 
@@ -187,7 +439,6 @@ export class OrderUseCases {
           effectiveEstimatedMinutes = Math.min(120, Math.max(5, input.estimatedMinutes));
         }
 
-        const orderId = `ord-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
         const hasKitchen = priced.items.some((i) => (i.destination || 'kitchen') === 'kitchen');
         const hasBar = priced.items.some((i) => i.destination === 'bar');
 
@@ -212,15 +463,89 @@ export class OrderUseCases {
           createdAt: new Date().toISOString(),
         };
 
-        // Guardar orden (atómico)
-        const savedOrder = await this.orderRepo.save(input.tenantId, order);
+        // Persistencia atómica protegida por pg_advisory_xact_lock (SOLO Postgres dentro del lock)
+        let persisted = false;
+        let savedOrder: OrderDTO;
 
-        // Si el repositorio no implementa takeSnapshot atómico, limpiar explícitamente
-        if (!this.cartRepo.takeSnapshot) {
+        try {
+          const persistOrderWork = async (tx?: any): Promise<OrderDTO> => {
+            if (this.paymentRepo) {
+              const payment = await (this.paymentRepo as any).findBySession(
+                input.tenantId,
+                input.sessionId,
+                tx
+              );
+              if (payment) {
+                throw new SessionNotActiveError('La sesión ya ha sido pagada');
+              }
+            }
+
+            // Fencing transaccional en Postgres dentro del lock (cero I/O externo)
+            if (hasReservationPort) {
+              const fenceRepo = this.orderRepo as any;
+              if (typeof fenceRepo.claimReservationFence === 'function') {
+                const fenceStatus = await fenceRepo.claimReservationFence(
+                  input.tenantId,
+                  input.sessionId,
+                  operationId,
+                  orderId,
+                  tx
+                );
+                if (fenceStatus !== 'COMMITTED') {
+                  leaseLost = true;
+                  throw new CartBusyError(input.sessionId);
+                }
+              }
+            }
+
+            return (this.orderRepo as any).save(input.tenantId, order, tx);
+          };
+
+          savedOrder = this.txCoordinator
+            ? await this.txCoordinator.runInSessionLock(
+                input.tenantId,
+                input.sessionId,
+                persistOrderWork
+              )
+            : await persistOrderWork();
+
+          persisted = true;
+        } catch (err) {
+          if (!persisted && hasReservationPort && !leaseLost) {
+            try {
+              if (typeof reservationRepo.releaseReservationLease === 'function') {
+                await reservationRepo.releaseReservationLease(
+                  input.tenantId,
+                  input.sessionId,
+                  operationId
+                );
+              }
+              await reservationRepo.restoreReservation(
+                input.tenantId,
+                input.sessionId,
+                operationId,
+                config.cartTtlSeconds
+              );
+            } catch {
+              // Silently ignore secondary restore failure
+            }
+          } else if (!persisted && !hasReservationPort) {
+            if (this.cartRepo.takeSnapshot && this.cartRepo.restoreCart) {
+              await this.cartRepo
+                .restoreCart(input.tenantId, input.sessionId, { tenantId: input.tenantId, sessionId: input.sessionId, items: reservedItems, total: 0 }, config.cartTtlSeconds)
+                .catch(() => {});
+            }
+          }
+          throw err;
+        }
+
+        // Limpiar reserva y emitir eventos solo TRAS el commit exitoso
+        if (hasReservationPort) {
+          await reservationRepo.ackReservation(input.tenantId, input.sessionId, operationId);
+        } else {
           await this.cartRepo.clear(input.tenantId, input.sessionId);
         }
 
-        // Publicar evento solo tras commit exitoso
         if (this.eventPublisher) {
           await this.eventPublisher.publishOrderEvent(input.tenantId, {
             type: 'order.created',
@@ -230,14 +555,17 @@ export class OrderUseCases {
         }
 
         return savedOrder;
-      } catch (err) {
-        // En caso de fallo antes de persistir la orden, restaurar el carrito
-        if (this.cartRepo.takeSnapshot && this.cartRepo.restoreCart) {
-          await this.cartRepo
-            .restoreCart(input.tenantId, input.sessionId, cart, config.cartTtlSeconds)
+      } finally {
+        if (heartbeatTimer) {
+          clearInterval(heartbeatTimer);
+          heartbeatTimer = null;
+        }
+        if (!leaseLost && hasReservationPort && typeof reservationRepo.releaseReservationLease === 'function') {
+          await reservationRepo
+            .releaseReservationLease(input.tenantId, input.sessionId, operationId)
             .catch(() => {});
         }
-        throw err;
+        markOperationFinished(operationId);
       }
     },
   };
@@ -265,7 +593,7 @@ export class OrderUseCases {
       }
 
       const role = input.requester.role?.toLowerCase();
-      const isStaff = role && ['staff', 'manager', 'admin', 'monitor', 'waiter'].includes(role);
+      const isStaff = hasRole(role, ORDER_HISTORY_ROLES);
       if (!isStaff && order.sessionId !== input.requester.sessionId) {
         throw new ForbiddenError('No puedes ver el historial de órdenes de otra mesa');
       }

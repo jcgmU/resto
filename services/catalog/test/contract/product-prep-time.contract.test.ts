@@ -5,6 +5,7 @@ import {
   getTestPrisma,
   truncateCatalogDb,
   disconnectTestPrisma,
+  getContractAuthHeaders,
 } from './contract-helper';
 import { PrismaCategoryRepository } from '../../src/infrastructure/persistence/PrismaCategoryRepository';
 import { PrismaProductRepository } from '../../src/infrastructure/persistence/PrismaProductRepository';
@@ -13,10 +14,7 @@ import { PrismaModifierGroupRepository } from '../../src/infrastructure/persiste
 describe('Product prepTimeMinutes, sortOrder & imageUrl Contract Tests (Postgres Real)', () => {
   let app: any;
   const tenantId = 'tenant-preptime-test';
-  const headers = {
-    'x-tenant-id': tenantId,
-    'x-user-role': 'ADMIN',
-  };
+  const headers = getContractAuthHeaders(tenantId, 'ADMIN');
 
   beforeAll(async () => {
     await ensureContractEnv();

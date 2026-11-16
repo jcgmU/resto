@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: resto_postgres
+    container_name: ${COMPOSE_PROJECT_NAME:-resto}_postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -19,7 +19,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: resto_redis
+    container_name: ${COMPOSE_PROJECT_NAME:-resto}_redis
     restart: unless-stopped
     command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
     volumes:
@@ -38,10 +38,10 @@ services:
     build:
       context: .
       dockerfile: services/identity/Dockerfile
-    container_name: resto_identity
+    container_name: ${COMPOSE_PROJECT_NAME:-resto}_identity
     restart: unless-stopped
     ports:
-      - "127.0.0.1:4001:4001"
+      - "127.0.0.1:${IDENTITY_PORT:-4001}:4001"
     environment:
       NODE_ENV: production
       PORT: 4001
@@ -58,10 +58,12 @@ services:
     build:
       context: .
       dockerfile: services/catalog/Dockerfile
-    container_name: resto_catalog
+    container_name: ${COMPOSE_PROJECT_NAME:-resto}_catalog
     restart: unless-stopped
     ports:
-      - "127.0.0.1:4002:4002"
+      - "127.0.0.1:${CATALOG_PORT:-4002}:4002"
+    expose:
+      - "4002"
     environment:
       NODE_ENV: production
       PORT: 4002
@@ -79,10 +81,10 @@ services:
     build:
       context: .
       dockerfile: services/session/Dockerfile
-    container_name: resto_session
+    container_name: ${COMPOSE_PROJECT_NAME:-resto}_session
     restart: unless-stopped
     ports:
-      - "127.0.0.1:4003:4003"
+      - "127.0.0.1:${SESSION_PORT:-4003}:4003"
     environment:
       NODE_ENV: production
       PORT: 4003
@@ -102,10 +104,10 @@ services:
     build:
       context: .
       dockerfile: services/ordering/Dockerfile
-    container_name: resto_ordering
+    container_name: ${COMPOSE_PROJECT_NAME:-resto}_ordering
     restart: unless-stopped
     ports:
-      - "127.0.0.1:4004:4004"
+      - "127.0.0.1:${ORDERING_PORT:-4004}:4004"
     environment:
       NODE_ENV: production
       ORDERING_PORT: 4004
@@ -127,7 +129,7 @@ services:
     build:
       context: .
       dockerfile: services/gateway/Dockerfile
-    container_name: resto_gateway
+    container_name: ${COMPOSE_PROJECT_NAME:-resto}_gateway
     restart: unless-stopped
     ports:
       - "${GATEWAY_PORT:-4000}:4000"

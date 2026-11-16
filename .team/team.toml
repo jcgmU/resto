@@ -12,10 +12,11 @@ version = "2.1.296"
 # 2026-10-21: kimi sin credito de nuevo (429 "credit balance running low"). Planificador TEMPORAL = claude por decision del usuario (via Hermes). Devolver el rol a kimi cuando recupere credito.
 # 2026-11-09: planificador TEMPORAL = agente Herdr "planner" (claude 2.1.319, pane w3:p1B, --dangerously-skip-permissions) por decision del usuario. Devolver el rol a kimi cuando recupere credito.
 [roles.planner]
-agent_name = "kimi"
-kind = "kimi"
-version = "2.1.1"
-last_session_id = "session_1fd392dc-2898-4304-9065-d6547ba24d2a"
+# Planificador titular (cuando recupere credito): agent_name = "kimi", kind = "kimi", version = "2.1.1", last_session_id = "session_1fd392dc-2898-4304-9065-d6547ba24d2a"
+agent_name = "planner"
+kind = "claude"
+version = "2.1.296"
+last_session_id = ""
 
 [roles.executor]
 agent_name = "agy"

@@ -1,7 +1,12 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import { requireStaffRole } from './middleware/requireStaffRole';
 import {
   CreateTableUseCaseImpl,
+  CreateTablesBatchUseCaseImpl,
+  UpdateTablesBatchUseCaseImpl,
+  UpdateSingleTableUseCaseImpl,
+  DeleteTablesBatchUseCaseImpl,
   GenerateTableQrUseCaseImpl,
   RotateTableQrKeyUseCaseImpl,
   parseAndValidateTableStatus,
@@ -13,6 +18,7 @@ import {
   ReservationRepository,
   TableStatus,
 } from '@packages/shared-types';
+import { SessionEventPublisherPort } from '../../domain/events';
 
 function isToday(isoDateString: string): boolean {
   try {
@@ -36,11 +42,16 @@ function isToday(isoDateString: string): boolean {
 export function createTablesRouter(deps: {
   tableRepo: TableRepository;
   createTableUseCase: CreateTableUseCaseImpl;
+  createTablesBatchUseCase?: CreateTablesBatchUseCaseImpl;
+  updateTablesBatchUseCase?: UpdateTablesBatchUseCaseImpl;
+  updateSingleTableUseCase?: UpdateSingleTableUseCaseImpl;
+  deleteTablesBatchUseCase?: DeleteTablesBatchUseCaseImpl;
   generateTableQrUseCase: GenerateTableQrUseCaseImpl;
   rotateTableQrKeyUseCase: RotateTableQrKeyUseCaseImpl;
   sessionRepo?: TableSessionRepository;
   zoneRepo?: ZoneRepository;
   reservationRepo?: ReservationRepository;
+  eventPublisher?: SessionEventPublisherPort;
 }): Router {
   const router = Router();
   const {
@@ -51,7 +62,71 @@ export function createTablesRouter(deps: {
     sessionRepo,
     zoneRepo,
     reservationRepo,
+    eventPublisher,
   } = deps;
+
+  const createTablesBatchUseCase =
+    deps.createTablesBatchUseCase ?? new CreateTablesBatchUseCaseImpl(tableRepo, zoneRepo, eventPublisher);
+  const updateTablesBatchUseCase =
+    deps.updateTablesBatchUseCase ?? new UpdateTablesBatchUseCaseImpl(tableRepo, zoneRepo, eventPublisher);
+  const updateSingleTableUseCase =
+    deps.updateSingleTableUseCase ?? new UpdateSingleTableUseCaseImpl(tableRepo, zoneRepo, eventPublisher);
+  const deleteTablesBatchUseCase =
+    deps.deleteTablesBatchUseCase ?? new DeleteTablesBatchUseCaseImpl(tableRepo, reservationRepo, sessionRepo, eventPublisher);
+
+  // POST /tables/batch/delete -> admin/manager (declarada ANTES de /:tableId)
+  router.post(
+    '/batch/delete',
+    requireStaffRole(['admin', 'manager']),
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const tenantId = req.headers['x-tenant-id'] as string;
+        const result = await deleteTablesBatchUseCase.execute({
+          tenantId,
+          body: req.body,
+        });
+        res.status(200).json(result);
+      } catch (err) {
+        next(err);
+      }
+    }
+  );
+
+  // POST /tables/batch -> admin/manager (declarada ANTES de /:tableId)
+  router.post(
+    '/batch',
+    requireStaffRole(['admin', 'manager']),
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const tenantId = req.headers['x-tenant-id'] as string;
+        const result = await createTablesBatchUseCase.execute({
+          tenantId,
+          body: req.body,
+        });
+        res.status(201).json(result);
+      } catch (err) {
+        next(err);
+      }
+    }
+  );
+
+  // PATCH /tables/batch -> admin/manager (declarada ANTES de /:tableId)
+  router.patch(
+    '/batch',
+    requireStaffRole(['admin', 'manager']),
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const tenantId = req.headers['x-tenant-id'] as string;
+        const result = await updateTablesBatchUseCase.execute({
+          tenantId,
+          body: req.body,
+        });
+        res.status(200).json(result);
+      } catch (err) {
+        next(err);
+      }
+    }
+  );
 
   // POST /tables -> staff (admin/manager)
   router.post(
@@ -178,54 +253,10 @@ export function createTablesRouter(deps: {
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const tenantId = req.headers['x-tenant-id'] as string;
-        const table = await tableRepo.findById(tenantId, req.params.tableId);
-        if (!table) {
-          return res.status(404).json({ error: { code: 'TABLE_NOT_FOUND', message: 'Mesa no encontrada' } });
-        }
-
-        if (req.body.status !== undefined) {
-          const parsed = parseAndValidateTableStatus(req.body.status);
-          if (!parsed) {
-            return res.status(400).json({
-              error: { code: 'VALIDATION_ERROR', message: 'Estado de mesa inválido' },
-            });
-          }
-          req.body.status = parsed;
-        }
-
-        if (req.body.capacity !== undefined) {
-          if (!Number.isInteger(req.body.capacity) || req.body.capacity <= 0) {
-            return res.status(400).json({
-              error: { code: 'VALIDATION_ERROR', message: 'La capacidad debe ser un entero positivo' },
-            });
-          }
-        }
-
-        if (req.body.zoneId !== undefined && req.body.zoneId !== null && req.body.zoneId !== '') {
-          if (zoneRepo) {
-            const zone = await zoneRepo.findById(tenantId, req.body.zoneId);
-            if (!zone) {
-              return res.status(400).json({
-                error: { code: 'VALIDATION_ERROR', message: `Zona ${req.body.zoneId} no encontrada` },
-              });
-            }
-          }
-        }
-
-        if (req.body.label !== undefined) {
-          if (typeof req.body.label !== 'string' || req.body.label.trim() === '') {
-            return res.status(400).json({
-              error: { code: 'VALIDATION_ERROR', message: 'El label de la mesa es requerido' },
-            });
-          }
-        }
-
-        const updated = await tableRepo.save(tenantId, {
-          ...table,
-          ...(req.body.label ? { label: req.body.label.trim() } : {}),
-          ...(req.body.status !== undefined ? { status: req.body.status } : {}),
-          ...(req.body.zoneId !== undefined ? { zoneId: req.body.zoneId } : {}),
-          ...(req.body.capacity !== undefined ? { capacity: req.body.capacity } : {}),
+        const updated = await updateSingleTableUseCase.execute({
+          tenantId,
+          tableId: req.params.tableId,
+          body: req.body,
         });
         res.status(200).json(updated);
       } catch (err) {
@@ -242,7 +273,7 @@ export function createTablesRouter(deps: {
       try {
         const tenantId = req.headers['x-tenant-id'] as string;
         const table = await tableRepo.findById(tenantId, req.params.tableId);
-        if (!table) {
+        if (!table || table.status === 'deleted') {
           return res.status(404).json({ error: { code: 'TABLE_NOT_FOUND', message: 'Mesa no encontrada' } });
         }
 
@@ -257,15 +288,41 @@ export function createTablesRouter(deps: {
 
         if (reservationRepo) {
           const reservations = await reservationRepo.listByTable(tenantId, req.params.tableId);
-          const hasActiveReservation = reservations.some((r) => r.status === 'active');
+          const now = Date.now();
+          const twoHoursAgo = now - 2 * 60 * 60 * 1000;
+          const hasActiveReservation = reservations.some((r) => {
+            const s = (r.status || '').toLowerCase();
+            if (s === 'cancelled' || s === 'seated') return false;
+            const resTime = new Date(r.reservedFor).getTime();
+            if (!isNaN(resTime)) {
+              return resTime >= twoHoursAgo;
+            }
+            return true;
+          });
           if (hasActiveReservation) {
             return res.status(409).json({
-              error: { code: 'TABLE_HAS_ACTIVE_RESERVATION', message: 'No se puede eliminar una mesa con reservas activas' },
+              error: { code: 'TABLE_HAS_RESERVATIONS', message: 'No se puede eliminar una mesa con reservas activas' },
             });
           }
         }
 
-        await tableRepo.delete(tenantId, req.params.tableId);
+        const nowIso = new Date().toISOString();
+        const newQrKey = crypto.randomBytes(16).toString('hex');
+        await tableRepo.softDeleteMany(tenantId, [
+          { tableId: req.params.tableId, deletedAt: nowIso, newQrKey },
+        ]);
+
+        if (eventPublisher) {
+          await eventPublisher.publishSessionEvent(tenantId, {
+            event: 'table:status-changed',
+            tenantId,
+            tableId: req.params.tableId,
+            status: 'AVAILABLE',
+            action: 'session_closed',
+            timestamp: nowIso,
+          } as any);
+        }
+
         res.status(200).json({ success: true, message: 'Mesa eliminada' });
       } catch (err) {
         next(err);

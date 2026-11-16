@@ -9,3 +9,4 @@ export * from './session/dtos';
 export * from './session/ports';
 export * from './ordering/dtos';
 export * from './ordering/ports';
+export * as floorplan from './floorplan';

@@ -30,8 +30,8 @@ export class RefreshSessionUseCaseImpl implements RefreshSessionUseCase {
     });
 
     const user = await this.userRepo.findById(userId);
-    if (!user) {
-      throw new DomainError('INVALID_CREDENTIALS', 'Usuario no encontrado');
+    if (!user || user.status !== 'ACTIVE') {
+      throw new DomainError('INVALID_CREDENTIALS', 'Sesión inválida o usuario inactivo');
     }
 
     const accessToken = this.tokenIssuer.issueAccessToken({
@@ -39,6 +39,7 @@ export class RefreshSessionUseCaseImpl implements RefreshSessionUseCase {
       tenantId: user.tenantId,
       role: user.role,
       email: user.email,
+      displayName: user.displayName || user.email,
     });
 
     return {

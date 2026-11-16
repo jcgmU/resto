@@ -205,17 +205,30 @@ describe('U10: Admin Dashboard, Pagos y Ajustes', () => {
   });
 
   describe('/ajustes', () => {
-    test('1. Con flag OFF (por defecto): muestra Proximamente via FeatureGuard', () => {
-      renderWithFlags(<AjustesPage />, { 'multi-language': false });
+    test('1. Con flag OFF (por defecto si apagado): muestra Proximamente via FeatureGuard', () => {
+      renderWithFlags(<AjustesPage />, { 'table-qr': false });
       expect(screen.getByTestId('proximamente')).toBeInTheDocument();
       expect(screen.getByText(/Próximamente/i)).toBeInTheDocument();
     });
 
     test('2. Con flag ON: muestra vista de ajustes en BentoCard y sin H1 duplicado', async () => {
+      const makeJwt = (role: string) => {
+        const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64');
+        const payload = Buffer.from(JSON.stringify({ userId: 'u1', tenantId: 't1', role })).toString('base64');
+        return `${header}.${payload}.signature`;
+      };
+      ApiClient.token = makeJwt('ADMIN');
+      const originalListTeam = ApiClient.listTeam;
+      ApiClient.listTeam = jest.fn().mockResolvedValue({ status: 200, data: [] });
+
       const { container } = renderWithFlags(<AjustesPage />, { 'multi-language': true });
       expect(screen.queryByRole('heading', { name: /^Ajustes$/i, level: 1 })).not.toBeInTheDocument();
-      expect(screen.getByText(/Configuración del Sistema/i)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Equipo de Trabajo')).toBeInTheDocument();
+      });
       expect(container.querySelector('[data-component="bento-card"]')).not.toBeNull();
+      ApiClient.listTeam = originalListTeam;
+      ApiClient.token = 'test-token';
     });
 
     test('3. Con flag ON: carga y lista empleados en sección Equipo de Trabajo', async () => {

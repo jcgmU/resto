@@ -2,6 +2,7 @@
   "name": "restaurante-os",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@9.15.9",
   "scripts": {
     "build": "pnpm --filter \"@packages/*\" run build",
     "test": "pnpm -r run test",
@@ -11,7 +12,8 @@
     "check:a4": "node scripts/check-a4-tokens.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",
     "demo": "node scripts/start-demo.mjs",
-    "test:e2e": "node scripts/e2e-demo.mjs"
+    "test:e2e": "node scripts/e2e-demo.mjs",
+    "test:hardening": "node scripts/test-hardening.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

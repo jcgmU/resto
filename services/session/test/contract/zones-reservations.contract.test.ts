@@ -423,8 +423,8 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       expect(delSuccess.status).toBe(200);
       expect(delSuccess.body.success).toBe(true);
 
-      const notFound = await tableRepo.findById(tenantId, tableId);
-      expect(notFound).toBeNull();
+      const deletedRecord = await tableRepo.findById(tenantId, tableId);
+      expect(deletedRecord?.status).toBe('deleted');
     });
 
     test('DELETE /tables/:id bloqueado con 409 si la mesa tiene reserva activa', async () => {
@@ -451,13 +451,13 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       expect(resCreate.status).toBe(201);
       const reservationId = resCreate.body.id;
 
-      // Intentar eliminar la mesa -> 409 TABLE_HAS_ACTIVE_RESERVATION
+      // Intentar eliminar la mesa -> 409 TABLE_HAS_RESERVATIONS
       const delRes = await request(app)
         .delete(`/tables/${tableId}`)
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin');
       expect(delRes.status).toBe(409);
-      expect(delRes.body.error.code).toBe('TABLE_HAS_ACTIVE_RESERVATION');
+      expect(delRes.body.error.code).toBe('TABLE_HAS_RESERVATIONS');
 
       // Cancelar la reserva
       await request(app)

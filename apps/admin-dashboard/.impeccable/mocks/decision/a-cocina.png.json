@@ -1,0 +1,9 @@
+{
+  "prompt": "The attached reference image contributes only the Soft Minimalist look: off-white ground, soft rounded white cards, black and coral-orange accents, round icon buttons, pill controls. Its financial content and layout must not be copied. Desktop web app screen edge to edge, crisp readable Spanish text, no browser window or device. Product: RESTAURANTE-OS, operations dashboard for the floor manager of a restaurant (Demo Prueba), glanced at during service. Currency is Colombian pesos (COP) written like $ 2.847.500. Table states: Libre, Ocupada, Pidió la cuenta, Llamó al mesero. Slim top bar with logo, restaurant name, date, search, user avatar; compact icon navigation. Layout concept: order-flow-led. A wide card across the top shows live orders in three stages: Pedido nuevo 1 (Mesa 8, $ 61.800), En cocina 4 (Mesas 1, 3, 5, 11, $ 428.500), Listo para servir 2 (Mesas 7, 11, $ 142.000). Below, one row of three cards: a table map of 12 numbered tables (8 of 12 ocupadas, Mesa 4 in coral for Pidió la cuenta, Mesa 9 pale coral for Llamó al mesero), an alerts list (Mesa 4 Pidió la cuenta hace 3 min; Mesa 9 Llamó al mesero hace 1 min, each with an Atender button), and a Ingresos de hoy card $ 2.847.500 with a small 7-day bar chart and label Datos de ejemplo, ticket promedio $ 48.300.",
+  "createdAt": "2026-10-29T08:44:14.945Z",
+  "tool": "impeccable generate-image",
+  "model": "gpt-image-2.5-flare",
+  "refs": [
+    "/Users/jcgm/Downloads/8526c0e15c445489de69d2e3fb48e69e.jpg"
+  ]
+}

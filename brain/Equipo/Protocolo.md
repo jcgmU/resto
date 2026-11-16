@@ -7,7 +7,7 @@
 | Rol | Agente (nombre en Herdr) | Tipo |
 |---|---|---|
 | Orquestador | claude | claude |
-| Planificador | kimi | kimi |
+| Planificador | planner | claude |
 | Ejecutor | agy | agy |
 
 - **Orquestador:** recibe los objetivos del usuario, coordina, verifica de verdad y reporta al usuario. **No corrige código:** devuelve hallazgos al planificador.
@@ -120,3 +120,7 @@ Antes de cerrar sesión, y el orquestador cada vez que cambia el turno:
 - **Proyecto sin stack definido:** el primer hilo es `stack`. El planificador propone 3 opciones reales por capa (frontend, backend, base de datos, colas, despliegue, IA). El orquestador las presenta al usuario, y nadie escribe código hasta que el usuario confirma. El stack elegido queda en un ADR.
 - **Diálogos de aprobación o preguntas de un agente** (estado `blocked` en Herdr): solo los responde el usuario.
 - **Desde Git Bash:** antepone `MSYS_NO_PATHCONV=1` si un argumento empieza con `/`.
+
+## Estilo de reportes (ahorro de tokens, orden del usuario)
+
+Reportes al usuario y handoffs: una linea por tarea con ✅; si hay problema, una frase corta (⚠️). Sin rutas de archivos, sin tablas largas ni narrativa. Detalles solo en el handoff si el destinatario los necesita para actuar. Instrucciones entre agentes: breves, sin repetir contexto ya escrito.

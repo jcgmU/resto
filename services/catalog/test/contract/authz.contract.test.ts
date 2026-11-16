@@ -5,6 +5,7 @@ import {
   getTestPrisma,
   truncateCatalogDb,
   disconnectTestPrisma,
+  getContractAuthHeaders,
 } from './contract-helper';
 import { PrismaCategoryRepository } from '../../src/infrastructure/persistence/PrismaCategoryRepository';
 import { PrismaProductRepository } from '../../src/infrastructure/persistence/PrismaProductRepository';
@@ -102,11 +103,11 @@ describe('Catalog Authorization Contract (R01 - Postgres Real)', () => {
   }
 
   async function executeFullMutationLifecycle(role: 'ADMIN' | 'MANAGER', prefix: string) {
+    const authHeaders = getContractAuthHeaders(tenantId, role);
     // 1. createCategory
     const resCat = await request(app)
       .post('/graphql')
-      .set('x-tenant-id', tenantId)
-      .set('x-user-role', role)
+      .set(authHeaders)
       .send({
         query: `mutation { createCategory(input: { name: "${prefix} Bebidas", sortOrder: 1 }) { id name } }`,
       });
@@ -117,8 +118,7 @@ describe('Catalog Authorization Contract (R01 - Postgres Real)', () => {
     // 2. updateCategory
     const resUpCat = await request(app)
       .post('/graphql')
-      .set('x-tenant-id', tenantId)
-      .set('x-user-role', role)
+      .set(authHeaders)
       .send({
         query: `mutation { updateCategory(id: "${catId}", input: { name: "${prefix} Bebidas Frías" }) { id name } }`,
       });
@@ -128,8 +128,7 @@ describe('Catalog Authorization Contract (R01 - Postgres Real)', () => {
     // 3. createProduct
     const resProd = await request(app)
       .post('/graphql')
-      .set('x-tenant-id', tenantId)
-      .set('x-user-role', role)
+      .set(authHeaders)
       .send({
         query: `mutation { createProduct(input: { categoryId: "${catId}", name: "${prefix} Limonada", price: 12000 }) { id name price } }`,
       });
@@ -140,8 +139,7 @@ describe('Catalog Authorization Contract (R01 - Postgres Real)', () => {
     // 4. updateProduct
     const resUpProd = await request(app)
       .post('/graphql')
-      .set('x-tenant-id', tenantId)
-      .set('x-user-role', role)
+      .set(authHeaders)
       .send({
         query: `mutation { updateProduct(id: "${prodId}", input: { name: "${prefix} Limonada Coco", price: 15000 }) { id name price } }`,
       });
@@ -151,8 +149,7 @@ describe('Catalog Authorization Contract (R01 - Postgres Real)', () => {
     // 5. setProductAvailability
     const resAvail = await request(app)
       .post('/graphql')
-      .set('x-tenant-id', tenantId)
-      .set('x-user-role', role)
+      .set(authHeaders)
       .send({
         query: `mutation { setProductAvailability(id: "${prodId}", isAvailable: false) { id isAvailable } }`,
       });
@@ -162,8 +159,7 @@ describe('Catalog Authorization Contract (R01 - Postgres Real)', () => {
     // 6. createModifierGroup
     const resGrp = await request(app)
       .post('/graphql')
-      .set('x-tenant-id', tenantId)
-      .set('x-user-role', role)
+      .set(authHeaders)
       .send({
         query: `mutation { createModifierGroup(input: { name: "${prefix} Endulzantes", minSelections: 0, maxSelections: 1 }) { id name } }`,
       });
@@ -174,8 +170,7 @@ describe('Catalog Authorization Contract (R01 - Postgres Real)', () => {
     // 7. updateModifierGroup
     const resUpGrp = await request(app)
       .post('/graphql')
-      .set('x-tenant-id', tenantId)
-      .set('x-user-role', role)
+      .set(authHeaders)
       .send({
         query: `mutation { updateModifierGroup(id: "${grpId}", input: { name: "${prefix} Opciones Endulzante" }) { id name } }`,
       });
@@ -185,8 +180,7 @@ describe('Catalog Authorization Contract (R01 - Postgres Real)', () => {
     // 8. addModifierOption
     const resOpt = await request(app)
       .post('/graphql')
-      .set('x-tenant-id', tenantId)
-      .set('x-user-role', role)
+      .set(authHeaders)
       .send({
         query: `mutation { addModifierOption(groupId: "${grpId}", input: { name: "${prefix} Miel", priceDelta: 1500 }) { id name priceDelta } }`,
       });
@@ -197,8 +191,7 @@ describe('Catalog Authorization Contract (R01 - Postgres Real)', () => {
     // 9. attachModifierGroup
     const resAttach = await request(app)
       .post('/graphql')
-      .set('x-tenant-id', tenantId)
-      .set('x-user-role', role)
+      .set(authHeaders)
       .send({
         query: `mutation { attachModifierGroup(productId: "${prodId}", groupId: "${grpId}") { id } }`,
       });
@@ -207,8 +200,7 @@ describe('Catalog Authorization Contract (R01 - Postgres Real)', () => {
     // 10. detachModifierGroup
     const resDetach = await request(app)
       .post('/graphql')
-      .set('x-tenant-id', tenantId)
-      .set('x-user-role', role)
+      .set(authHeaders)
       .send({
         query: `mutation { detachModifierGroup(productId: "${prodId}", groupId: "${grpId}") { id } }`,
       });
@@ -217,8 +209,7 @@ describe('Catalog Authorization Contract (R01 - Postgres Real)', () => {
     // 11. removeModifierOption
     const resRemOpt = await request(app)
       .post('/graphql')
-      .set('x-tenant-id', tenantId)
-      .set('x-user-role', role)
+      .set(authHeaders)
       .send({
         query: `mutation { removeModifierOption(id: "${optId}") }`,
       });
@@ -228,8 +219,7 @@ describe('Catalog Authorization Contract (R01 - Postgres Real)', () => {
     // 12. deleteModifierGroup
     const resDelGrp = await request(app)
       .post('/graphql')
-      .set('x-tenant-id', tenantId)
-      .set('x-user-role', role)
+      .set(authHeaders)
       .send({
         query: `mutation { deleteModifierGroup(id: "${grpId}") }`,
       });
@@ -239,8 +229,7 @@ describe('Catalog Authorization Contract (R01 - Postgres Real)', () => {
     // 13. deleteProduct
     const resDelProd = await request(app)
       .post('/graphql')
-      .set('x-tenant-id', tenantId)
-      .set('x-user-role', role)
+      .set(authHeaders)
       .send({
         query: `mutation { deleteProduct(id: "${prodId}") }`,
       });
@@ -250,8 +239,7 @@ describe('Catalog Authorization Contract (R01 - Postgres Real)', () => {
     // 14. deleteCategory
     const resDelCat = await request(app)
       .post('/graphql')
-      .set('x-tenant-id', tenantId)
-      .set('x-user-role', role)
+      .set(authHeaders)
       .send({
         query: `mutation { deleteCategory(id: "${catId}") }`,
       });
@@ -320,10 +308,10 @@ describe('Catalog Authorization Contract (R01 - Postgres Real)', () => {
 
     it('Guest y Staff pueden consultar Query (categories, products) sin error de autorización', async () => {
       // Crear datos previos con ADMIN
+      const adminHeaders = getContractAuthHeaders(tenantId, 'ADMIN');
       await request(app)
         .post('/graphql')
-        .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'ADMIN')
+        .set(adminHeaders)
         .send({
           query: `mutation { createCategory(input: { name: "Bebidas Query", sortOrder: 1 }) { id } }`,
         });
