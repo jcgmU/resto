@@ -132,10 +132,10 @@ describe('U10: Admin Dashboard, Pagos y Ajustes', () => {
         expect(screen.getByText('3')).toBeInTheDocument();
       });
 
-      // H2: Los KPIs están envueltos en BentoCard con fondo var(--bento-card-bg-solid)
+      // El KPI de mesas activas usa la tarjeta de estado compartida.
       const kpis = container.querySelectorAll('[data-component="kpi-delta"]');
       expect(kpis.length).toBeGreaterThanOrEqual(2);
-      expect(kpis[0].closest('[data-component="bento-card"]')).not.toBeNull();
+      expect(kpis[0].closest('[data-component="status-card"]')).toHaveAttribute('data-status', 'occupied');
 
       // KPI sin endpoint real (analytics) está protegido tras FeatureGuard mostrando Próximamente
       expect(screen.getAllByTestId('proximamente').length).toBeGreaterThanOrEqual(1);

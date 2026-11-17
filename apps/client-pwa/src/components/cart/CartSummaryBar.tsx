@@ -1,3 +1,4 @@
+import { Button } from '@packages/ui-components';
 import React from 'react';
 import { KpiValue } from '@packages/ui-components';
 import { formatCOP } from '@packages/shared-types';
@@ -33,7 +34,7 @@ export function CartSummaryBar({
         tone="accent"
       />
 
-      <button
+      <Button
         type="button"
         disabled={disabled || isConfirming}
         aria-busy={isConfirming}
@@ -51,7 +52,7 @@ export function CartSummaryBar({
         }}
       >
         {isConfirming ? 'Enviando...' : `Enviar Pedido • ${formatCOP(total)}`}
-      </button>
+      </Button>
     </div>
   );
 }

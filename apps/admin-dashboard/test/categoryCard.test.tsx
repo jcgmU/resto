@@ -32,6 +32,10 @@ describe('CategoryCard Component (Ronda 6 - Refined Layout & A11y)', () => {
     const downBtn = screen.getByRole('button', { name: /bajar categoría platos fuertes/i });
     expect(upBtn).toBeInTheDocument();
     expect(downBtn).toBeInTheDocument();
+    for (const button of screen.getAllByRole('button')) {
+      expect(button).toHaveAttribute('data-component', 'button');
+      expect(button.style.border).not.toContain('solid');
+    }
 
     // No debe tener texto "Subir" o "Bajar" plano que desborde
     expect(screen.queryByText(/^subir$/i)).not.toBeInTheDocument();

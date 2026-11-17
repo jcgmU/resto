@@ -36,7 +36,7 @@ describe('Contraste de campos de formulario (Ronda 5)', () => {
       lines.forEach((line, i) => {
         if (!/<(input|select|textarea)\b/.test(line)) return;
         const block = elementBlock(lines, i);
-        if (/type="(checkbox|radio)"/.test(block)) return;
+        if (/type="(checkbox|radio|file)"/.test(block)) return;
 
         const named = block.match(/style=\{\s*(?:\{\s*\.\.\.)?(\w+)\s*[,}]/);
         const styleText = named ? `${block}\n${namedStyleBody(source, named[1])}` : block;

@@ -314,7 +314,7 @@ export default function KdsPage({ title: customTitle }: { title?: string } = {})
     ordersError ? (
       <StatusChip label="Desconectado" tone="error" />
     ) : connectionStatus === 'connected' ? (
-      <StatusChip label="En vivo" tone="ok" />
+      null
     ) : connectionStatus === 'reconnecting' ? (
       <StatusChip label="Desconectado - Reconectando..." tone="error" />
     ) : connectionStatus === 'connecting' ? (

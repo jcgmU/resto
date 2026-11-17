@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Button, Modal } from '@packages/ui-components';
 import { ProductDTO, formatCOP } from '@packages/shared-types';
 import { ModifierGroupPicker } from './ModifierGroupPicker';
 import { QuantityStepper } from './cart/QuantityStepper';
@@ -12,9 +13,6 @@ export interface ProductDetailSheetProps {
   orderBlockReason?: 'bill_requested' | 'waiter_only';
 }
 
-const FOCUSABLE_SELECTOR =
-  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
 export function ProductDetailSheet({
   product,
   isOpen,
@@ -23,59 +21,17 @@ export function ProductDetailSheet({
   isOrderable = true,
   orderBlockReason,
 }: ProductDetailSheetProps) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
   const [selectedModifiers, setSelectedModifiers] = useState<Record<string, string[]>>({});
   const [quantity, setQuantity] = useState(1);
   const [itemNotes, setItemNotes] = useState('');
 
   useEffect(() => {
     if (isOpen) {
-      previousFocusRef.current = document.activeElement as HTMLElement;
-      dialogRef.current?.focus();
       setSelectedModifiers({});
       setQuantity(1);
       setItemNotes('');
-    } else {
-      if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
-        previousFocusRef.current.focus();
-      }
     }
   }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
-        return;
-      }
-      if (e.key === 'Tab') {
-        if (!dialogRef.current) return;
-        const nodes = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-        if (nodes.length === 0) {
-          e.preventDefault();
-          return;
-        }
-        const first = nodes[0];
-        const last = nodes[nodes.length - 1];
-        const active = document.activeElement;
-        if (e.shiftKey && (active === first || active === dialogRef.current)) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && active === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
 
   const isModifierValid = useMemo(() => {
     if (!product || !product.modifierGroups || product.modifierGroups.length === 0) {
@@ -133,63 +89,7 @@ export function ProductDetailSheet({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      ref={dialogRef}
-      tabIndex={-1}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          e.stopPropagation();
-          onClose();
-          return;
-        }
-        if (e.key === 'Tab') {
-          if (!dialogRef.current) return;
-          const nodes = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-          if (nodes.length === 0) {
-            e.preventDefault();
-            return;
-          }
-          const first = nodes[0];
-          const last = nodes[nodes.length - 1];
-          const active = document.activeElement;
-          if (e.shiftKey && (active === first || active === dialogRef.current)) {
-            e.preventDefault();
-            last.focus();
-          } else if (!e.shiftKey && active === last) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
-      }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.4)',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'flex-end',
-        zIndex: 50,
-      }}
-    >
-      <div
-        data-component="bento-card"
-        style={{
-          background: 'var(--bento-card-bg)',
-          borderRadius: 'var(--bento-card-radius) var(--bento-card-radius) 0 0',
-          padding: 'var(--bento-spacing-md)',
-          maxHeight: '85vh',
-          overflowY: 'auto',
-          boxShadow: 'var(--bento-card-shadow)',
-        }}
-      >
+    <Modal open={isOpen} title={product.name} onClose={onClose} footer={<></>}>
         {product.imageUrl ? (
           <div style={{ marginBottom: 'var(--bento-spacing-sm)', overflow: 'hidden', borderRadius: 'var(--bento-card-radius)' }}>
             <img
@@ -248,8 +148,8 @@ export function ProductDetailSheet({
             marginBottom: 'var(--bento-spacing-sm)',
           }}
         >
-          <h2 style={{ margin: 0, color: 'var(--bento-text)' }}>{product.name}</h2>
-          <button
+
+          <Button variant="secondary"
             type="button"
             onClick={onClose}
             aria-label="Cerrar"
@@ -276,7 +176,7 @@ export function ProductDetailSheet({
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
-          </button>
+          </Button>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--bento-spacing-md)' }}>
@@ -411,7 +311,7 @@ export function ProductDetailSheet({
         ) : null}
 
         <div style={{ marginTop: 'var(--bento-spacing-md)', display: 'flex', gap: 'var(--bento-spacing-sm)' }}>
-          <button
+          <Button
             type="button"
             onClick={handleAdd}
             disabled={!isModifierValid || !isOrderable || !isAvailable}
@@ -435,9 +335,8 @@ export function ProductDetailSheet({
                 ? 'Desactivado (Solo meseros)'
                 : 'Cuenta solicitada'
               : 'Añadir al carrito'}
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

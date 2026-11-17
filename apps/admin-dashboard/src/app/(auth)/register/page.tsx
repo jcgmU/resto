@@ -262,6 +262,7 @@ export default function RegisterPage() {
                 <input
                   id="adminPassword"
                   type="password"
+                  autoComplete="new-password"
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
                   placeholder="••••••••"

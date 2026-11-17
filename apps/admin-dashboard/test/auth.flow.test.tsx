@@ -26,6 +26,16 @@ describe('Bloque 2: Auth Admin Real (Tests Rojo)', () => {
     mockReplace.mockClear();
   });
 
+  test('login permite autocompletar la contraseña existente', () => {
+    render(<LoginPage />);
+    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('autocomplete', 'current-password');
+  });
+
+  test('registro solicita una contraseña nueva al gestor', () => {
+    render(<RegisterPage />);
+    expect(screen.getByLabelText('Contraseña (Admin)')).toHaveAttribute('autocomplete', 'new-password');
+  });
+
   test('Login envía credenciales tipeadas, guarda tokens en localStorage y navega con router.push', async () => {
     const originalFetch = global.fetch;
     const fetchMock = jest.fn(async (url: any, opts: any) => {

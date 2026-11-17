@@ -54,6 +54,16 @@ describe('U7 & U9: Ajustes - Gestión de Equipo y Cambio de Contraseña', () => 
   const actionBtn = (row: HTMLElement, label: string) =>
     Array.from(row.querySelectorAll('button')).find((b) => b.textContent === label);
 
+  test('distingue la contraseña inicial del empleado y el cambio de contraseña propio', async () => {
+    render(<AjustesView />);
+    await screen.findByText('Mesero Pedro');
+    fireEvent.click(screen.getByTestId('toggle-new-employee-button'));
+    expect(screen.getByTestId('employee-password-input')).toHaveAttribute('autocomplete', 'new-password');
+    expect(screen.getByLabelText('Contraseña actual')).toHaveAttribute('autocomplete', 'current-password');
+    expect(screen.getByLabelText('Nueva contraseña (mínimo 8 caracteres)')).toHaveAttribute('autocomplete', 'new-password');
+    expect(screen.getByLabelText('Confirmar nueva contraseña')).toHaveAttribute('autocomplete', 'new-password');
+  });
+
   describe('ADMIN: sección Equipo de Trabajo con acciones', () => {
     test('1. Lista los miembros con nombre, email, rol y StatusChip', async () => {
       render(<AjustesView />);

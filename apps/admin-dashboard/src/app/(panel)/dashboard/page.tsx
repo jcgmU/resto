@@ -3,6 +3,10 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation';
 import {
   BentoCard,
+  StatusCard,
+  Modal,
+  Avatar,
+  Button,
   BentoGrid,
   StatusChip,
   TabsPill,
@@ -27,6 +31,7 @@ import {
   computeOrderOverdue,
 } from '@packages/shared-types';
 import { ApiClient } from '../../../lib/api';
+import { resolveMediaUrl } from '../../../lib/media';
 import {
   fetchTables,
   createTable,
@@ -51,9 +56,6 @@ import {
   updateTenantSettings,
 } from '../../../lib/api/settings';
 import * as realtime from '../../../lib/realtime';
-
-const FOCUSABLE_SELECTOR =
-  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 interface SessionItem {
   id?: string;
@@ -119,6 +121,7 @@ export default function DashboardPage() {
   // Filtros
   const [tableFilter, setTableFilter] = useState<'TODAS' | 'LIBRES' | 'OCUPADAS' | 'RESERVADAS'>('TODAS');
   const [zoneFilter, setZoneFilter] = useState<string>('TODAS');
+  const [inspectedTableId, setInspectedTableId] = useState<string | null>(null);
 
   // Notificaciones / Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -155,7 +158,7 @@ export default function DashboardPage() {
   const [editZoneStaffIds, setEditZoneStaffIds] = useState<string[]>([]);
   const [zoneActionError, setZoneActionError] = useState<string | null>(null);
   const [submittingZone, setSubmittingZone] = useState(false);
-  const [availableWaiters, setAvailableWaiters] = useState<Array<{ id: string; displayName?: string; email: string }>>([]);
+  const [availableWaiters, setAvailableWaiters] = useState<Array<{ id: string; displayName?: string; email: string; avatarUrl?: string | null }>>([]);
 
   // Modal Reservas
   const [showReservationModal, setShowReservationModal] = useState(false);
@@ -183,14 +186,6 @@ export default function DashboardPage() {
   const [targetMoveTableId, setTargetMoveTableId] = useState('');
   const [submittingMove, setSubmittingMove] = useState(false);
   const [moveError, setMoveError] = useState<string | null>(null);
-
-  const createTableModalRef = useRef<HTMLDivElement>(null);
-  const editTableModalRef = useRef<HTMLDivElement>(null);
-  const deleteTableModalRef = useRef<HTMLDivElement>(null);
-  const zonesModalRef = useRef<HTMLDivElement>(null);
-  const reservationModalRef = useRef<HTMLDivElement>(null);
-  const qrModalRef = useRef<HTMLDivElement>(null);
-  const moveTableModalRef = useRef<HTMLDivElement>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -333,83 +328,6 @@ export default function DashboardPage() {
     };
   }, [loadAllData]);
 
-  // Manejo de foco y Escape en modales
-  const attachModalKeyHandler = (
-    ref: React.RefObject<HTMLDivElement | null>,
-    onClose: () => void
-  ) => {
-    return (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
-        return;
-      }
-      if (e.key === 'Tab' && ref.current) {
-        const nodes = Array.from(ref.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-        if (nodes.length === 0) return;
-        const first = nodes[0];
-        const last = nodes[nodes.length - 1];
-        if (e.shiftKey && (document.activeElement === first || document.activeElement === ref.current)) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-  };
-
-  useEffect(() => {
-    if (!showCreateTableModal) return;
-    const handler = attachModalKeyHandler(createTableModalRef, () => setShowCreateTableModal(false));
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [showCreateTableModal]);
-
-  useEffect(() => {
-    if (!editingTable) return;
-    const handler = attachModalKeyHandler(editTableModalRef, () => setEditingTable(null));
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [editingTable]);
-
-  useEffect(() => {
-    if (!deletingTable) return;
-    const handler = attachModalKeyHandler(deleteTableModalRef, () => setDeletingTable(null));
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [deletingTable]);
-
-  useEffect(() => {
-    if (!showZonesModal) return;
-    const handler = attachModalKeyHandler(zonesModalRef, () => setShowZonesModal(false));
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [showZonesModal]);
-
-  useEffect(() => {
-    if (!showReservationModal) return;
-    const handler = attachModalKeyHandler(reservationModalRef, () => setShowReservationModal(false));
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [showReservationModal]);
-
-  useEffect(() => {
-    if (!activeTableQr) return;
-    const handler = attachModalKeyHandler(qrModalRef, () => setActiveTableQr(null));
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [activeTableQr]);
-
-  useEffect(() => {
-    if (!movingTableData) return;
-    const handler = attachModalKeyHandler(moveTableModalRef, () => setMovingTableData(null));
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [movingTableData]);
-
   // Sesiones activas y Reservas activas de hoy
   const activeSessionTableIds = useMemo(() => {
     const s = new Set<string>();
@@ -459,6 +377,7 @@ export default function DashboardPage() {
       };
     });
   }, [tables, activeSessionTableIds, todayReservedTableIds, zones, orders]);
+  const inspectedTable = enrichedTables.find((table) => table.tableId === inspectedTableId);
 
   // Métricas para las 3 tarjetas superiores
   const metrics = useMemo(() => {
@@ -991,7 +910,7 @@ export default function DashboardPage() {
           }}
         >
           {/* Tarjeta 1: Mesas Ocupadas */}
-          <BentoCard
+          <StatusCard status="occupied"
             style={{
               backgroundColor: 'rgba(255, 255, 255, 0.65)',
               padding: '24px',
@@ -1003,16 +922,6 @@ export default function DashboardPage() {
               justifyContent: 'space-between',
             }}
           >
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '6px',
-                height: '100%',
-                backgroundColor: 'var(--bento-status-occupied)',
-              }}
-            />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--bento-text-muted)' }}>
@@ -1046,10 +955,10 @@ export default function DashboardPage() {
                 }
               />
             </div>
-          </BentoCard>
+          </StatusCard>
 
           {/* Tarjeta 2: Mesas Libres y Reservadas (Disponibilidad) */}
-          <BentoCard
+          <StatusCard status="available"
             style={{
               backgroundColor: 'rgba(255, 255, 255, 0.65)',
               padding: '24px',
@@ -1061,16 +970,6 @@ export default function DashboardPage() {
               justifyContent: 'space-between',
             }}
           >
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '6px',
-                height: '100%',
-                backgroundColor: 'var(--bento-status-available)',
-              }}
-            />
             <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--bento-text-muted)' }}>
               Disponibilidad
             </p>
@@ -1094,7 +993,7 @@ export default function DashboardPage() {
               trend={activeOrdersCount > 0 ? 'up' : 'neutral'}
               context="en preparación y sala"
             />
-          </BentoCard>
+          </StatusCard>
 
           {/* Tarjeta 3: Tiempo Límite Estimado (SLA) interactivo */}
           <BentoCard
@@ -1159,7 +1058,7 @@ export default function DashboardPage() {
           </BentoCard>
 
           {/* Tarjeta 4: Pedidos Demorados (N20) */}
-          <BentoCard
+          <StatusCard status={overdueOrders.length > 0 ? 'occupied' : 'available'}
             data-testid="overdue-orders-card"
             style={{
               backgroundColor: 'rgba(255, 255, 255, 0.65)',
@@ -1172,16 +1071,6 @@ export default function DashboardPage() {
               justifyContent: 'space-between',
             }}
           >
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '6px',
-                height: '100%',
-                backgroundColor: overdueOrders.length > 0 ? 'var(--bento-status-occupied)' : 'var(--bento-status-available)',
-              }}
-            />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--bento-text-muted)' }}>
@@ -1255,7 +1144,7 @@ export default function DashboardPage() {
                 </ul>
               )}
             </div>
-          </BentoCard>
+          </StatusCard>
         </div>
 
         {/* FeatureGuard opcional para analíticas */}
@@ -1418,15 +1307,6 @@ export default function DashboardPage() {
               }}
             >
               {filteredTables.map((t) => {
-                const statusDotColor =
-                  t.effectiveStatus === 'LIBRE'
-                    ? 'var(--bento-status-available)'
-                    : t.effectiveStatus === 'OCUPADA'
-                    ? 'var(--bento-status-occupied)'
-                    : t.effectiveStatus === 'RESERVADA'
-                    ? 'var(--bento-status-reserved)'
-                    : 'var(--bento-status-disabled)';
-
                 const statusLabel =
                   t.effectiveStatus === 'LIBRE'
                     ? 'Libre'
@@ -1436,26 +1316,17 @@ export default function DashboardPage() {
                     ? 'Reservada'
                     : 'Deshabilitada';
 
-                const chipTone =
-                  t.effectiveStatus === 'LIBRE'
-                    ? ('ok' as const)
-                    : t.effectiveStatus === 'OCUPADA'
-                    ? ('error' as const)
-                    : t.effectiveStatus === 'RESERVADA'
-                    ? ('warning' as const)
-                    : ('neutral' as const);
-
                 const tableTitle = tableDisplayName(t.label);
 
                 return (
-                  <div
+                  <StatusCard
+                    status={t.effectiveStatus === 'LIBRE' ? 'available' : t.effectiveStatus === 'OCUPADA' ? 'occupied' : t.effectiveStatus === 'RESERVADA' ? 'reserved' : 'neutral'}
                     key={t.tableId}
                     data-testid={`table-card-${t.tableId}`}
                     style={{
                       backgroundColor: 'rgba(255, 255, 255, 0.75)',
                       borderRadius: 'var(--bento-card-radius)',
                       padding: '16px',
-                      border: '1px solid rgba(255, 255, 255, 0.9)',
                       boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
                       display: 'flex',
                       flexDirection: 'column',
@@ -1466,22 +1337,10 @@ export default function DashboardPage() {
                     <div>
                       {/* Cabecera tarjeta */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                        <span style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--bento-text)' }}>
+                        <Button variant="link" aria-label={`Consultar ${tableTitle}`} onClick={() => setInspectedTableId(t.tableId)} style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--bento-text)' }}>
                           {tableTitle}
-                        </span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span
-                            aria-hidden="true"
-                            style={{
-                              width: '10px',
-                              height: '10px',
-                              borderRadius: '50%',
-                              backgroundColor: statusDotColor,
-                              boxShadow: '0 0 4px rgba(0,0,0,0.1)',
-                            }}
-                          />
-                          <StatusChip label={statusLabel} tone={chipTone} />
-                        </div>
+                        </Button>
+                        <span>{statusLabel}</span>
                       </div>
 
                       {/* Subtítulo: N Puestos • Zona */}
@@ -1511,7 +1370,7 @@ export default function DashboardPage() {
                       <div style={{ display: 'flex', gap: '8px' }}>
                         {t.effectiveStatus === 'LIBRE' && (
                           <>
-                            <button
+                            <Button variant="secondary"
                               type="button"
                               onClick={() => handleOcuparMesa(t.tableId, t.label)}
                               style={{
@@ -1519,7 +1378,6 @@ export default function DashboardPage() {
                                 padding: '6px 10px',
                                 backgroundColor: 'rgba(255,255,255,0.9)',
                                 color: 'var(--bento-text)',
-                                border: '1px solid var(--bento-border)',
                                 borderRadius: 'var(--bento-inner-radius)',
                                 fontSize: '0.75rem',
                                 fontWeight: 600,
@@ -1527,8 +1385,8 @@ export default function DashboardPage() {
                               }}
                             >
                               Ocupar
-                            </button>
-                            <button
+                            </Button>
+                            <Button variant="secondary"
                               type="button"
                               onClick={() => handleOpenReservation(t.tableId)}
                               style={{
@@ -1536,7 +1394,6 @@ export default function DashboardPage() {
                                 padding: '6px 10px',
                                 backgroundColor: 'rgba(220, 201, 138, 0.25)',
                                 color: 'var(--bento-status-reserved-text)',
-                                border: '1px solid rgba(220, 201, 138, 0.5)',
                                 borderRadius: 'var(--bento-inner-radius)',
                                 fontSize: '0.75rem',
                                 fontWeight: 600,
@@ -1544,13 +1401,13 @@ export default function DashboardPage() {
                               }}
                             >
                               Reservar
-                            </button>
+                            </Button>
                           </>
                         )}
 
                         {t.effectiveStatus === 'OCUPADA' && (
                           <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                            <button
+                            <Button variant="secondary"
                               type="button"
                               onClick={() => handleCobrarMesa(t.tableId)}
                               style={{
@@ -1566,15 +1423,14 @@ export default function DashboardPage() {
                               }}
                             >
                               Cobrar y liberar
-                            </button>
-                            <button
+                            </Button>
+                            <Button variant="secondary"
                               type="button"
                               onClick={() => handleOpenMoveTable(t.tableId, t.label)}
                               style={{
                                 padding: '8px 12px',
                                 backgroundColor: 'rgba(255,255,255,0.9)',
                                 color: 'var(--bento-text)',
-                                border: '1px solid var(--bento-border)',
                                 borderRadius: 'var(--bento-inner-radius)',
                                 fontSize: '0.75rem',
                                 fontWeight: 600,
@@ -1582,13 +1438,13 @@ export default function DashboardPage() {
                               }}
                             >
                               Cambiar
-                            </button>
+                            </Button>
                           </div>
                         )}
 
                         {t.effectiveStatus === 'RESERVADA' && (
                           <>
-                            <button
+                            <Button variant="secondary"
                               type="button"
                               onClick={() => handleClienteLlego(t.tableId, t.label)}
                               style={{
@@ -1596,7 +1452,6 @@ export default function DashboardPage() {
                                 padding: '6px 10px',
                                 backgroundColor: 'rgba(255,255,255,0.9)',
                                 color: 'var(--bento-text)',
-                                border: '1px solid var(--bento-border)',
                                 borderRadius: 'var(--bento-inner-radius)',
                                 fontSize: '0.75rem',
                                 fontWeight: 600,
@@ -1604,8 +1459,8 @@ export default function DashboardPage() {
                               }}
                             >
                               Cliente Llegó
-                            </button>
-                            <button
+                            </Button>
+                            <Button variant="secondary"
                               type="button"
                               onClick={() => handleCancelarReserva(t.tableId)}
                               style={{
@@ -1613,7 +1468,6 @@ export default function DashboardPage() {
                                 padding: '6px 10px',
                                 backgroundColor: 'rgba(255,255,255,0.7)',
                                 color: 'var(--bento-text-muted)',
-                                border: '1px solid var(--bento-border)',
                                 borderRadius: 'var(--bento-inner-radius)',
                                 fontSize: '0.75rem',
                                 fontWeight: 600,
@@ -1621,17 +1475,18 @@ export default function DashboardPage() {
                               }}
                             >
                               Cancelar
-                            </button>
+                            </Button>
                           </>
                         )}
                       </div>
 
                       {/* Acciones de gestión secundaria (Ver QR / Editar / Eliminar) */}
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                        <button
+                      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: '8px' }}>
+                        <Button variant="secondary"
                           type="button"
                           onClick={() => handleViewQr(t)}
                           style={{
+                            flexShrink: 0,
                             background: 'none',
                             border: 'none',
                             fontSize: '0.6875rem',
@@ -1641,11 +1496,12 @@ export default function DashboardPage() {
                           }}
                         >
                           Ver QR
-                        </button>
-                        <button
+                        </Button>
+                        <Button variant="secondary"
                           type="button"
                           onClick={() => handleOpenEditTable(t)}
                           style={{
+                            flexShrink: 0,
                             background: 'none',
                             border: 'none',
                             fontSize: '0.6875rem',
@@ -1655,11 +1511,12 @@ export default function DashboardPage() {
                           }}
                         >
                           Editar
-                        </button>
-                        <button
+                        </Button>
+                        <Button variant="secondary"
                           type="button"
                           onClick={() => setDeletingTable(t)}
                           style={{
+                            flexShrink: 0,
                             background: 'none',
                             border: 'none',
                             fontSize: '0.6875rem',
@@ -1669,16 +1526,24 @@ export default function DashboardPage() {
                           }}
                         >
                           Eliminar
-                        </button>
+                        </Button>
                       </div>
                     </div>
-                  </div>
+                  </StatusCard>
                 );
               })}
             </div>
           )}
         </BentoCard>
       </section>
+
+      {inspectedTable && (
+        <Modal open title={tableDisplayName(inspectedTable.label)} scrim={false} onClose={() => setInspectedTableId(null)}>
+          <p>{inspectedTable.capacity} Puestos • {inspectedTable.zoneName}</p>
+          <p>Estado: {inspectedTable.effectiveStatus === 'LIBRE' ? 'Libre' : inspectedTable.effectiveStatus === 'OCUPADA' ? 'Ocupada' : inspectedTable.effectiveStatus === 'RESERVADA' ? 'Reservada' : 'Deshabilitada'}</p>
+          {inspectedTable.effectiveStatus === 'OCUPADA' && <p>Consumo: {formatCOP(inspectedTable.currentBillCop)}</p>}
+        </Modal>
+      )}
 
       {/* 3. Lista de Reservas del Día */}
       <section aria-label="Reservas del día">
@@ -1893,41 +1758,8 @@ export default function DashboardPage() {
 
       {/* MODAL: Crear Mesa */}
       {showCreateTableModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-create-table-title"
-          ref={createTableModalRef}
-          tabIndex={-1}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.3)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '16px',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowCreateTableModal(false);
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: 'var(--bento-panel-bg)',
-              borderRadius: '2rem',
-              width: '100%',
-              maxWidth: '420px',
-              padding: '28px',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-              border: '1px solid rgba(255,255,255,0.7)',
-            }}
-          >
-            <h3 id="modal-create-table-title" style={{ margin: '0 0 16px 0', fontSize: '1.25rem', fontWeight: 300, color: 'var(--bento-text-strong)' }}>
-              Nueva Mesa
-            </h3>
+        <Modal open title={'Nueva Mesa'} onClose={() => setShowCreateTableModal(false)} footer={<></>}>
+
 
             {createTableError && (
               <div role="alert" style={{ color: 'var(--bento-danger-text)', fontSize: '0.8125rem', marginBottom: '12px' }}>
@@ -2048,47 +1880,13 @@ export default function DashboardPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* MODAL: Editar Mesa */}
       {editingTable && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-edit-table-title"
-          ref={editTableModalRef}
-          tabIndex={-1}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.3)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '16px',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setEditingTable(null);
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: 'var(--bento-panel-bg)',
-              borderRadius: '2rem',
-              width: '100%',
-              maxWidth: '420px',
-              padding: '28px',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-              border: '1px solid rgba(255,255,255,0.7)',
-            }}
-          >
-            <h3 id="modal-edit-table-title" style={{ margin: '0 0 16px 0', fontSize: '1.25rem', fontWeight: 300, color: 'var(--bento-text-strong)' }}>
-              Editar {tableDisplayName(editingTable.label)}
-            </h3>
+        <Modal open title={`Editar ${tableDisplayName(editingTable.label)}`} onClose={() => setEditingTable(null)} footer={<></>}>
+
 
             {editTableError && (
               <div role="alert" style={{ color: 'var(--bento-danger-text)', fontSize: '0.8125rem', marginBottom: '12px' }}>
@@ -2232,47 +2030,13 @@ export default function DashboardPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* MODAL: Eliminar Mesa Confirmación */}
       {deletingTable && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-delete-table-title"
-          ref={deleteTableModalRef}
-          tabIndex={-1}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.3)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '16px',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setDeletingTable(null);
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: 'var(--bento-panel-bg)',
-              borderRadius: '2rem',
-              width: '100%',
-              maxWidth: '400px',
-              padding: '28px',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-              border: '1px solid rgba(255,255,255,0.7)',
-            }}
-          >
-            <h3 id="modal-delete-table-title" style={{ margin: '0 0 12px 0', fontSize: '1.25rem', fontWeight: 400, color: 'var(--bento-text-strong)' }}>
-              ¿Eliminar {tableDisplayName(deletingTable.label)}?
-            </h3>
+        <Modal open title={`¿Eliminar ${tableDisplayName(deletingTable.label)}?`} onClose={() => setDeletingTable(null)} footer={<></>}>
+
             <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--bento-text-secondary)' }}>
               Esta acción no se puede deshacer. Las mesas con sesión activa no pueden eliminarse.
             </p>
@@ -2320,48 +2084,13 @@ export default function DashboardPage() {
                 Eliminar
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* MODAL: Ver QR */}
       {activeTableQr && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-qr-title"
-          ref={qrModalRef}
-          tabIndex={-1}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.3)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '16px',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setActiveTableQr(null);
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: 'var(--bento-panel-bg)',
-              borderRadius: '2rem',
-              width: '100%',
-              maxWidth: '400px',
-              padding: '28px',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-              border: '1px solid rgba(255,255,255,0.7)',
-              textAlign: 'center',
-            }}
-          >
-            <h3 id="modal-qr-title" style={{ margin: '0 0 16px 0', fontSize: '1.25rem', fontWeight: 300, color: 'var(--bento-text-strong)' }}>
-              QR {tableDisplayName(activeTableQr.label)}
-            </h3>
+        <Modal open title={`QR ${tableDisplayName(activeTableQr.label)}`} onClose={() => setActiveTableQr(null)} footer={<></>}>
+
 
             {qrError && (
               <div role="alert" style={{ color: 'var(--bento-danger-text)', fontSize: '0.8125rem', marginBottom: '12px' }}>
@@ -2421,59 +2150,12 @@ export default function DashboardPage() {
             >
               Cerrar
             </button>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* MODAL: Gestionar Zonas */}
       {showZonesModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-zones-title"
-          ref={zonesModalRef}
-          tabIndex={-1}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.3)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '16px',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowZonesModal(false);
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: 'var(--bento-panel-bg)',
-              borderRadius: '2rem',
-              width: '100%',
-              maxWidth: '500px',
-              padding: '28px',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-              border: '1px solid rgba(255,255,255,0.7)',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 id="modal-zones-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 300, color: 'var(--bento-text-strong)' }}>
-                Gestión de Zonas
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowZonesModal(false)}
-                style={{ background: 'none', border: 'none', fontSize: '1.25rem', cursor: 'pointer', color: 'var(--bento-text-secondary)' }}
-              >
-                ✕
-              </button>
-            </div>
-
+        <Modal open title={'Gestión de Zonas'} onClose={() => setShowZonesModal(false)} footer={<></>}>
             {zoneActionError && (
               <div role="alert" style={{ color: 'var(--bento-danger-text)', fontSize: '0.8125rem', marginBottom: '12px' }}>
                 {zoneActionError}
@@ -2698,7 +2380,7 @@ export default function DashboardPage() {
                                       fontWeight: 500,
                                     }}
                                   >
-                                    👤 {w?.displayName || w?.email || sid}
+                                    <Avatar name={w?.displayName || w?.email || sid} src={resolveMediaUrl(w?.avatarUrl)} size={24} /> {w?.displayName || w?.email || sid}
                                   </span>
                                 );
                               })
@@ -2747,47 +2429,13 @@ export default function DashboardPage() {
                 );
               })}
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* MODAL: Nueva Reserva */}
       {showReservationModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-reservation-title"
-          ref={reservationModalRef}
-          tabIndex={-1}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.3)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '16px',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowReservationModal(false);
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: 'var(--bento-panel-bg)',
-              borderRadius: '2rem',
-              width: '100%',
-              maxWidth: '420px',
-              padding: '28px',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-              border: '1px solid rgba(255,255,255,0.7)',
-            }}
-          >
-            <h3 id="modal-reservation-title" style={{ margin: '0 0 16px 0', fontSize: '1.25rem', fontWeight: 300, color: 'var(--bento-text-strong)' }}>
-              Nueva Reserva
-            </h3>
+        <Modal open title={'Nueva Reserva'} onClose={() => setShowReservationModal(false)} footer={<></>}>
+
 
             {reservationError && (
               <div role="alert" style={{ color: 'var(--bento-danger-text)', fontSize: '0.8125rem', marginBottom: '12px' }}>
@@ -2977,53 +2625,15 @@ export default function DashboardPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Modal Cambiar Mesa (R12) */}
       {movingTableData && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.4)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '16px',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setMovingTableData(null);
-          }}
-        >
-          <div
-            ref={moveTableModalRef}
-            tabIndex={-1}
-            style={{
-              backgroundColor: 'var(--bento-card-bg-solid)',
-              borderRadius: 'var(--bento-card-radius)',
-              padding: '24px',
-              maxWidth: '440px',
-              width: '100%',
-              boxShadow: 'var(--bento-card-shadow)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-            }}
-          >
-            <div>
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: 'var(--bento-text)' }}>
-                Cambiar {tableDisplayName(movingTableData.sourceTableLabel)}
-              </h3>
+        <Modal open title={`Cambiar ${tableDisplayName(movingTableData.sourceTableLabel)}`} onClose={() => setMovingTableData(null)} footer={<></>}>
               <p style={{ margin: '4px 0 0 0', fontSize: '0.8125rem', color: 'var(--bento-text-muted)' }}>
                 Selecciona la mesa libre a la cual trasladar la comanda y comensales.
               </p>
-            </div>
 
             {moveError && (
               <div
@@ -3117,8 +2727,7 @@ export default function DashboardPage() {
                 {submittingMove ? 'Cambiando...' : 'Confirmar Traslado'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

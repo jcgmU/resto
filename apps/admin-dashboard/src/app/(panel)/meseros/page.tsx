@@ -3,7 +3,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   BentoCard,
-  StatusChip,
   TabsPill,
   PageHeader,
   tableDisplayName,
@@ -31,7 +30,6 @@ interface EnrichedTable {
   zoneName: string;
   status: string;
   effectiveStatus: 'LIBRE' | 'OCUPADA' | 'RESERVADA' | 'DESHABILITADA';
-  chipTone: 'ok' | 'error' | 'warning' | 'neutral';
 }
 
 interface WaiterCartItem {
@@ -143,15 +141,6 @@ export default function WaiterTerminalPage() {
         else if (isOccupied) effectiveStatus = 'OCUPADA';
         else if (isReserved) effectiveStatus = 'RESERVADA';
 
-        const chipTone: 'ok' | 'error' | 'warning' | 'neutral' =
-          effectiveStatus === 'LIBRE'
-            ? 'ok'
-            : effectiveStatus === 'OCUPADA'
-            ? 'error'
-            : effectiveStatus === 'RESERVADA'
-            ? 'warning'
-            : 'neutral';
-
         const zoneObj = normalizedZones.find((z) => z.id === t.zoneId);
         const zoneName = zoneObj?.name || 'Salón Principal';
 
@@ -163,7 +152,6 @@ export default function WaiterTerminalPage() {
           zoneName,
           status: t.status || 'AVAILABLE',
           effectiveStatus,
-          chipTone,
         };
       });
 
@@ -400,17 +388,6 @@ export default function WaiterTerminalPage() {
               border: '1px solid var(--bento-border)',
             }}
           >
-            <span
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor:
-                  operatingMode === 'waiter_only'
-                    ? 'var(--bento-status-reserved)'
-                    : 'var(--bento-status-available)',
-              }}
-            />
             {operatingMode === 'waiter_only' ? 'Modo: Solo Meseros' : 'Modo: Híbrido'}
           </span>
         </div>
@@ -811,8 +788,8 @@ export default function WaiterTerminalPage() {
                             </p>
                           </div>
 
-                          <StatusChip
-                            label={
+                          <span>
+                            {
                               t.effectiveStatus === 'LIBRE'
                                 ? 'Libre'
                                 : t.effectiveStatus === 'OCUPADA'
@@ -821,8 +798,7 @@ export default function WaiterTerminalPage() {
                                 ? 'Reservada'
                                 : 'Deshabilitada'
                             }
-                            tone={t.chipTone}
-                          />
+                          </span>
                         </div>
 
                         <div

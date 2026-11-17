@@ -14,3 +14,5 @@ export * from './EmptyState';
 export * from './ErrorState';
 export * from './SlaDot';
 export * from './labels';
+export * from './Modal';
+export * from './BottomSheet';

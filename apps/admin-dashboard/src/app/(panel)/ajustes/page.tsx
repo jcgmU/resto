@@ -9,10 +9,14 @@ import {
   BentoCard,
   StatusChip,
   ModalConfirm,
+  Modal,
+  Avatar,
   Toast,
 } from '@packages/ui-components';
 import { ApiClient } from '../../../lib/api';
 import { getUserRole } from '../../../lib/auth';
+import { uploadProductImage } from '../../../lib/api/menu';
+import { resolveMediaUrl } from '../../../lib/media';
 
 export interface AjustesViewProps {
   initialLoading?: boolean;
@@ -26,6 +30,7 @@ interface Employee {
   role: string;
   status: string;
   monitorKind?: string | null;
+  avatarUrl?: string | null;
 }
 
 type OperativeRole = 'ADMIN' | 'MANAGER' | 'WAITER' | 'CASHIER' | 'MONITOR';
@@ -48,26 +53,6 @@ const generatePassword = () => {
     pass += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return pass;
-};
-
-const modalOverlayStyle: React.CSSProperties = {
-  position: 'fixed',
-  inset: 0,
-  backgroundColor: 'rgba(0,0,0,0.5)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  zIndex: 999,
-  padding: '16px',
-};
-
-const modalPanelStyle: React.CSSProperties = {
-  backgroundColor: 'var(--bento-card-bg-solid)',
-  borderRadius: '12px',
-  padding: '24px',
-  maxWidth: '440px',
-  width: '100%',
-  boxSizing: 'border-box',
 };
 
 const ghostButtonStyle: React.CSSProperties = {
@@ -113,6 +98,8 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ user: Employee; action: 'disable' | 'enable' } | null>(null);
+  const [photoModal, setPhotoModal] = useState<{ user: Employee; file: File | null } | null>(null);
+  const [savingPhoto, setSavingPhoto] = useState(false);
   const [roleModal, setRoleModal] = useState<{ user: Employee; selectedRole: OperativeRole } | null>(null);
   const [resetModal, setResetModal] = useState<{ user: Employee; customPassword: string } | null>(null);
 
@@ -254,6 +241,22 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
     } catch (err: any) {
       setRoleModal(null);
       setToastMessage(err?.message || 'Error al actualizar rol');
+    }
+  };
+
+  const handleSavePhoto = async (remove = false) => {
+    if (!photoModal || (!remove && !photoModal.file)) return;
+    setSavingPhoto(true);
+    try {
+      const avatarUrl = remove ? null : (await uploadProductImage(photoModal.file as File)).url;
+      await ApiClient.updateTeamMember(photoModal.user.id, { avatarUrl });
+      setToastMessage(remove ? 'Foto eliminada' : 'Foto actualizada');
+      setPhotoModal(null);
+      await loadData();
+    } catch (err: any) {
+      setToastMessage(err?.message || 'Error al guardar la foto');
+    } finally {
+      setSavingPhoto(false);
     }
   };
 
@@ -562,6 +565,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
               <input
                 type="password"
                 data-testid="employee-password-input"
+                autoComplete="new-password"
                 required
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
@@ -651,7 +655,12 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
                     data-testid={`employee-row-${emp.id}`}
                     style={{ borderBottom: '1px solid var(--bento-border)', color: 'var(--bento-text-strong)' }}
                   >
-                    <td style={{ padding: '10px 12px', fontWeight: 500 }}>{emp.displayName || '—'}</td>
+                    <td style={{ padding: '10px 12px', fontWeight: 500 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
+                        <Avatar name={emp.displayName || emp.email} src={resolveMediaUrl(emp.avatarUrl)} size={32} />
+                        {emp.displayName || '—'}
+                      </span>
+                    </td>
                     <td style={{ padding: '10px 12px', color: 'var(--bento-text-muted)' }}>{emp.email}</td>
                     <td style={{ padding: '10px 12px' }}>
                       <span
@@ -679,6 +688,9 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
                     {canManageTeam && (
                       <td style={{ padding: '10px 12px' }}>
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          <button type="button" style={rowActionStyle} onClick={() => setPhotoModal({ user: emp, file: null })}>
+                            Foto
+                          </button>
                           <button
                             type="button"
                             style={rowActionStyle}
@@ -905,6 +917,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
               <input
                 id={f.id}
                 type="password"
+                autoComplete={f.id === 'currentPassword' ? 'current-password' : 'new-password'}
                 value={f.value}
                 onChange={(e) => f.set(e.target.value)}
                 style={fieldInputStyle}
@@ -948,10 +961,37 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
         />
       )}
 
+      {photoModal && (
+        <Modal
+          open
+          title={`Foto de ${photoModal.user.displayName || photoModal.user.email}`}
+          onClose={() => setPhotoModal(null)}
+          primaryLabel="Guardar foto"
+          onPrimary={() => handleSavePhoto(false)}
+          primaryDisabled={!photoModal.file}
+          primaryLoading={savingPhoto}
+          primaryLoadingLabel="Guardando..."
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <Avatar name={photoModal.user.displayName || photoModal.user.email} src={resolveMediaUrl(photoModal.user.avatarUrl)} size={64} />
+            {photoModal.user.avatarUrl && (
+              <button type="button" style={rowActionStyle} onClick={() => handleSavePhoto(true)}>
+                Quitar foto
+              </button>
+            )}
+          </div>
+          <label htmlFor="avatar-file">Archivo de foto (PNG, JPEG o WebP, máx. 2 MB)</label>
+          <input
+            id="avatar-file"
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={(e) => setPhotoModal({ ...photoModal, file: e.target.files?.[0] ?? null })}
+          />
+        </Modal>
+      )}
+
       {roleModal && (
-        <div role="dialog" aria-modal="true" style={modalOverlayStyle}>
-          <div style={modalPanelStyle}>
-            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.25rem' }}>Cambiar rol</h3>
+        <Modal open title="Cambiar rol" onClose={() => setRoleModal(null)} primaryLabel="Guardar rol" onPrimary={handleUpdateRole}>
             <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--bento-text-muted)' }}>
               Modificar rol de {roleModal.user.displayName} ({roleModal.user.email}).
             </p>
@@ -969,22 +1009,11 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
                 </label>
               ))}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-              <button type="button" style={ghostButtonStyle} onClick={() => setRoleModal(null)}>
-                Cancelar
-              </button>
-              <button type="button" style={primaryButtonStyle} onClick={handleUpdateRole}>
-                Guardar rol
-              </button>
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {resetModal && (
-        <div role="dialog" aria-modal="true" style={modalOverlayStyle}>
-          <div style={modalPanelStyle}>
-            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.25rem' }}>Restablecer contraseña</h3>
+        <Modal open title="Restablecer contraseña" onClose={() => setResetModal(null)} primaryLabel="Restablecer" onPrimary={handleResetPassword}>
             <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--bento-text-muted)' }}>
               Asigna una nueva contraseña temporal para {resetModal.user.displayName}.
             </p>
@@ -1005,16 +1034,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
             >
               Regenerar contraseña
             </button>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-              <button type="button" style={ghostButtonStyle} onClick={() => setResetModal(null)}>
-                Cancelar
-              </button>
-              <button type="button" style={primaryButtonStyle} onClick={handleResetPassword}>
-                Restablecer
-              </button>
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

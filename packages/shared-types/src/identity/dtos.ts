@@ -59,6 +59,7 @@ export interface UserDTO {
   role: UserRole;
   status: UserStatus;
   monitorKind?: MonitorKind | string | null;
+  avatarUrl?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -99,11 +100,13 @@ export interface CreateTeamMemberRequest {
   role: UserRole;
   password: string;
   monitorKind?: MonitorKind | string | null;
+  avatarUrl?: string | null;
 }
 
 export interface UpdateTeamMemberRequest {
   displayName?: string;
   role?: UserRole;
+  avatarUrl?: string | null;
 }
 
 export interface SetTeamMemberStatusRequest {

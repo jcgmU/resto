@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Modal } from '@packages/ui-components';
+import React, { useEffect, useMemo, useState } from 'react';
 import { TabsPill } from '@packages/ui-components';
 import { createTablesBatch } from '../../lib/tablesApi';
-import { FOCUSABLE_SELECTOR, type TableItem } from './types';
+import { type TableItem } from './types';
 
 export interface CreateTablesBatchModalProps {
   open: boolean;
@@ -51,9 +52,6 @@ export function CreateTablesBatchModal({
   existingTables = [],
   zones = [],
 }: CreateTablesBatchModalProps) {
-  const modalRef = useRef<HTMLDivElement>(null);
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
   const [zoneId, setZoneId] = useState<string>('');
   const [capacityRaw, setCapacityRaw] = useState<string>('');
 
@@ -79,47 +77,6 @@ export function CreateTablesBatchModal({
       setServerError(null);
       setServerConflictKeys(new Set());
     }
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const prevFocus = document.activeElement as HTMLElement | null;
-    modalRef.current?.focus();
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        onCloseRef.current();
-        return;
-      }
-      if (e.key === 'Tab') {
-        if (!modalRef.current) return;
-        const nodes = Array.from(
-          modalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-        );
-        if (nodes.length === 0) {
-          e.preventDefault();
-          return;
-        }
-        const first = nodes[0];
-        const last = nodes[nodes.length - 1];
-        const active = document.activeElement;
-        if (e.shiftKey && (active === first || active === modalRef.current)) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && active === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      prevFocus?.focus?.();
-    };
   }, [open]);
 
   const existingKeySet = useMemo(() => {
@@ -305,79 +262,7 @@ export function CreateTablesBatchModal({
     serverError ?? (showClientValidationAlert ? analysis.validationError : null);
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="create-tables-batch-title"
-      ref={modalRef}
-      tabIndex={-1}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          e.stopPropagation();
-          onClose();
-          return;
-        }
-        if (e.key === 'Tab') {
-          if (!modalRef.current) return;
-          const nodes = Array.from(
-            modalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-          );
-          if (nodes.length === 0) {
-            e.preventDefault();
-            return;
-          }
-          const first = nodes[0];
-          const last = nodes[nodes.length - 1];
-          const active = document.activeElement;
-          if (e.shiftKey && (active === first || active === modalRef.current)) {
-            e.preventDefault();
-            last.focus();
-          } else if (!e.shiftKey && active === last) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'color-mix(in srgb, var(--bento-overlay-dark) 45%, transparent)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 50,
-        padding: '16px',
-      }}
-    >
-      <div
-        style={{
-          backgroundColor: 'var(--bento-card-bg-solid)',
-          color: 'var(--bento-text)',
-          padding: '24px',
-          borderRadius: 'var(--bento-card-radius)',
-          width: '100%',
-          maxWidth: '520px',
-          border: '1px solid var(--bento-border)',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-        }}
-      >
-        <h2
-          id="create-tables-batch-title"
-          style={{
-            margin: '0 0 16px 0',
-            fontSize: '1.25rem',
-            fontWeight: 700,
-            color: 'var(--bento-text)',
-          }}
-        >
-          Crear varias mesas
-        </h2>
-
+    <Modal open={true} title="Crear varias mesas" onClose={onClose} maxWidth="520px" footer={<></>}>
         <div style={{ marginBottom: '16px' }}>
           <TabsPill
             ariaLabel="Modo de creación en lote"
@@ -724,7 +609,6 @@ export function CreateTablesBatchModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

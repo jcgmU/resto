@@ -1,3 +1,4 @@
+import { Button } from '@packages/ui-components';
 import React from 'react';
 
 export interface CartFabProps {
@@ -29,7 +30,7 @@ export function CartFab({ itemCount = 0, onClick }: CartFabProps) {
   };
 
   return (
-    <button
+    <Button
       data-component="cart-fab"
       data-testid="stub-cart-fab"
       onClick={onClick}
@@ -59,6 +60,6 @@ export function CartFab({ itemCount = 0, onClick }: CartFabProps) {
       >
         {itemCount}
       </span>
-    </button>
+    </Button>
   );
 }

@@ -10,8 +10,52 @@
  *                         DEMO_ADMIN_PASSWORD (default: 'admin')
  */
 
+import { deflateSync as zlibDeflate } from 'node:zlib';
+
 const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:4000';
 const DEMO_ADMIN_PASSWORD = process.env.DEMO_ADMIN_PASSWORD || 'admin';
+
+// Fotos de ejemplo: PNG liso de 96x96 generado en memoria (sin dependencias ni archivos binarios en el repo).
+function solidPng(r, g, b, size = 96) {
+  const crcTable = Array.from({ length: 256 }, (_, n) => {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    return c >>> 0;
+  });
+  const crc32 = (buf) => {
+    let c = 0xffffffff;
+    for (const byte of buf) c = crcTable[(c ^ byte) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  };
+  const chunk = (type, data) => {
+    const body = Buffer.concat([Buffer.from(type), data]);
+    const out = Buffer.alloc(body.length + 8);
+    out.writeUInt32BE(data.length, 0);
+    body.copy(out, 4);
+    out.writeUInt32BE(crc32(body), body.length + 4);
+    return out;
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(size, 0);
+  ihdr.writeUInt32BE(size, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 2;
+  const row = Buffer.concat([Buffer.from([0]), Buffer.from(Array.from({ length: size }, () => [r, g, b]).flat())]);
+  const raw = Buffer.concat(Array.from({ length: size }, () => row));
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', zlibDeflate(raw)),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
+const DEMO_AVATAR_COLORS = {
+  'mesero@resto.com': [143, 191, 149],
+  'monitor@resto.com': [224, 166, 166],
+  'monitorbar@resto.com': [220, 201, 138],
+  'cajero@resto.com': [92, 103, 132],
+};
 
 const DESIRED_CATEGORIES = [
   { name: 'Entradas', sortOrder: 1, destination: 'bar' },
@@ -862,6 +906,42 @@ async function main() {
     ordersCreated++;
   }
 
+  // 11. Fotos de perfil de ejemplo (idempotente: solo a quien aun no tiene avatarUrl)
+  const usersForPhotosRes = await fetch(`${GATEWAY_URL}/v1/identity/users`, { headers: authHeaders });
+  const usersForPhotos = usersForPhotosRes.ok ? (await usersForPhotosRes.json()) || [] : [];
+  let photosCreated = 0;
+  let photosExisting = 0;
+  for (const user of usersForPhotos) {
+    const color = DEMO_AVATAR_COLORS[(user.email || '').toLowerCase()];
+    if (!color) continue;
+    if (user.avatarUrl) {
+      photosExisting++;
+      continue;
+    }
+    const form = new FormData();
+    form.append('file', new Blob([solidPng(...color)], { type: 'image/png' }), `${user.email.split('@')[0]}.png`);
+    const uploadRes = await fetch(`${GATEWAY_URL}/v1/uploads`, {
+      method: 'POST',
+      headers: { Authorization: authHeaders.Authorization },
+      body: form,
+    });
+    if (!uploadRes.ok) {
+      console.warn(`[Fotos] POST /v1/uploads fallo para ${user.email} (${uploadRes.status}); se omite la foto de ejemplo.`);
+      continue;
+    }
+    const { url } = await uploadRes.json();
+    const patchRes = await fetch(`${GATEWAY_URL}/v1/identity/users/${user.id}`, {
+      method: 'PATCH',
+      headers: authHeaders,
+      body: JSON.stringify({ avatarUrl: url }),
+    });
+    if (!patchRes.ok) {
+      console.warn(`[Fotos] PATCH avatarUrl fallo para ${user.email} (${patchRes.status}); se omite la foto de ejemplo.`);
+      continue;
+    }
+    photosCreated++;
+  }
+
   const totalDesiredOptions = DESIRED_MODIFIER_GROUPS.reduce((acc, g) => acc + g.options.length, 0);
   const totalDesiredRelations = DESIRED_PRODUCTS.reduce((acc, p) => acc + p.modifierGroupNames.length, 0);
 
@@ -877,6 +957,7 @@ async function main() {
   console.log(`Reservas demo:      creadas ${reservationsCreated.toString().padStart(2)} / existentes ${reservationsExisting.toString().padStart(2)} (total 1)`);
   console.log(`Empleados demo:     creados ${employeesCreated.toString().padStart(2)} / existentes ${employeesExisting.toString().padStart(2)} (total ${DESIRED_EMPLOYEES.length})`);
   console.log(`Ordenes demo:       creadas ${ordersCreated.toString().padStart(2)} / existentes ${ordersExisting.toString().padStart(2)} (total ${DEMO_ORDERS.length})`);
+  console.log(`Fotos de perfil:    creadas ${photosCreated.toString().padStart(2)} / existentes ${photosExisting.toString().padStart(2)}`);
   console.log('============================\n');
   console.log('Seed demo completado con éxito.');
   process.exit(0);

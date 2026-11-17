@@ -65,6 +65,7 @@ export interface InviteUserInput {
   role: UserRole;
   password?: string;
   monitorKind?: MonitorKind | string;
+  avatarUrl?: string | null;
 }
 
 export type RegisterTenantUseCase = UseCase<RegisterTenantRequest, RegisterTenantResult>;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BentoCard, KpiValue, AvailabilityToggle } from '@packages/ui-components';
+import { BentoCard, Button, KpiValue, AvailabilityToggle } from '@packages/ui-components';
 import { formatCOP } from '@packages/shared-types';
 
 export interface ProductCardProps {
@@ -81,21 +81,6 @@ export function ProductCard({
           ) : (
             <span />
           )}
-          <span
-            data-testid="availability-badge"
-            style={{
-              padding: '2px 8px',
-              borderRadius: 'var(--bento-pill-radius)',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              backgroundColor: isAvail
-                ? 'color-mix(in srgb, var(--bento-status-available, #8fbf95) 25%, transparent)'
-                : 'color-mix(in srgb, var(--bento-status-occupied, #e0a6a6) 25%, transparent)',
-              color: isAvail ? 'var(--bento-status-available-strong)' : 'var(--bento-status-occupied-strong)',
-            }}
-          >
-            {isAvail ? 'Disponible' : 'Agotado'}
-          </span>
         </div>
 
         <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--bento-text)' }}>
@@ -158,7 +143,7 @@ export function ProductCard({
             }}
           >
             {onEdit && (
-              <button
+              <Button variant="secondary"
                 type="button"
                 onClick={() => onEdit(product)}
                 aria-label={`Editar ${product.name}`}
@@ -177,10 +162,10 @@ export function ProductCard({
                 }}
               >
                 Editar
-              </button>
+              </Button>
             )}
             {onDelete && (
-              <button
+              <Button variant="danger"
                 type="button"
                 onClick={() => onDelete(product)}
                 aria-label={`Eliminar ${product.name}`}
@@ -190,7 +175,7 @@ export function ProductCard({
                   backgroundColor: 'transparent',
                   color: 'var(--bento-destructive)',
                   borderRadius: 'var(--bento-pill-radius)',
-                  border: '1px solid var(--bento-destructive)',
+                  border: 'none',
                   fontFamily: 'var(--bento-font-body)',
                   fontWeight: 600,
                   fontSize: '0.8rem',
@@ -199,7 +184,7 @@ export function ProductCard({
                 }}
               >
                 Eliminar
-              </button>
+              </Button>
             )}
           </div>
         )}

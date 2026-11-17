@@ -1,3 +1,4 @@
+import { parseAvatarUrl } from './avatarUrl';
 import {
   InviteUserUseCase,
   InviteUserInput,
@@ -60,6 +61,7 @@ export class InviteUserUseCaseImpl implements InviteUserUseCase {
       status: 'ACTIVE',
       passwordHash,
       monitorKind: input.role === 'MONITOR' ? (input.monitorKind as any) : null,
+      avatarUrl: parseAvatarUrl(input.avatarUrl) ?? null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

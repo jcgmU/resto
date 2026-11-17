@@ -1,3 +1,4 @@
+import { parseAvatarUrl } from './avatarUrl';
 import {
   UserRepository,
   RefreshTokenRepository,
@@ -23,7 +24,9 @@ export class ManageTeamUseCaseImpl {
     targetUserId: string;
     displayName?: string;
     role?: 'MANAGER' | 'WAITER' | 'CASHIER' | 'MONITOR';
+    avatarUrl?: string | null;
   }): Promise<UserDTO> {
+    const avatarUrl = parseAvatarUrl(input.avatarUrl);
     const userWithHash =
       (await this.userRepo.findWithPasswordById?.(input.targetUserId)) ||
       (await this.userRepo.findById(input.targetUserId) as any);
@@ -45,6 +48,7 @@ export class ManageTeamUseCaseImpl {
       ...userWithHash,
       displayName: input.displayName !== undefined ? input.displayName.trim() : userWithHash.displayName,
       role: input.role !== undefined ? input.role : userWithHash.role,
+      avatarUrl: avatarUrl !== undefined ? avatarUrl : userWithHash.avatarUrl ?? null,
       updatedAt: new Date(),
     };
 

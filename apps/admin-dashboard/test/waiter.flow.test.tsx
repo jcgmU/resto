@@ -270,6 +270,10 @@ describe('Terminal de Meseros - Flujo Guiado en 3 Pasos (V27 / REF-5 / N02c)', (
 
     // Modo de operación visible
     expect(screen.getByTestId('operating-mode-badge')).toHaveTextContent('Modo: Híbrido');
+    expect(screen.getByTestId('operating-mode-badge').querySelector('span')).toBeNull();
+    for (const id of ['tbl-1', 'tbl-2', 'tbl-3']) {
+      expect(screen.getByTestId(`table-card-${id}`).querySelector('[data-part="dot"]')).toBeNull();
+    }
   });
 
   test('2. Selección de mesa es sólo estado local: NO llama a staff-open al clickear la mesa y avanza directamente al Paso 2', async () => {

@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  BentoCard,
-  KpiValue,
+  StatusCard,
   ORDER_STATUS_LABELS,
   formatOrderNumber,
   getTableDisplayName,
@@ -46,6 +45,12 @@ export function KdsOrderCard({
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [isUpdatingDelay, setIsUpdatingDelay] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   const currentEffectiveStatus: OrderStatus = monitorKind === 'kitchen'
     ? (order.kitchenStatus || order.status)
@@ -56,7 +61,6 @@ export function KdsOrderCard({
   const nextStatus = allowedTransitions.find((s) => s !== 'CANCELLED');
 
   const createdAtTime = new Date(order.createdAt).getTime();
-  const now = Date.now();
   const elapsedMinutes = Math.max(0, Math.floor((now - createdAtTime) / 60000));
 
   // SLA efectivo: estimatedMinutes + delayMinutes (usando función compartida de shared-types)
@@ -69,15 +73,6 @@ export function KdsOrderCard({
     computeOrderOverdue(order, now, baseTenantSla) ||
     ratio >= 1;
   const isWarning = ratio >= 0.75 && !isOverdue;
-
-  // Colores dinámicos SLA (REF-2): Verde (< 75%), Ámbar (>= 75% y < 100%), Rojo (>= 100% o overdue)
-  const slaColor = isOverdue
-    ? 'var(--bento-status-occupied)'
-    : isWarning
-    ? 'var(--bento-status-reserved)'
-    : 'var(--bento-status-available)';
-  const slaTone = isOverdue ? 'destructive' : isWarning ? 'warning' : 'ok';
-  const slaColorName = isOverdue ? 'red' : isWarning ? 'amber' : 'green';
 
   const handleDelayClick = async (extraMinutes: number) => {
     const currentDelay = order.delayMinutes || 0;
@@ -117,7 +112,10 @@ export function KdsOrderCard({
   };
 
   return (
-    <BentoCard
+    <StatusCard
+      status={isOverdue ? 'occupied' : isWarning ? 'reserved' : 'available'}
+      variant="progress"
+      progress={ratio}
       style={{
         position: 'relative',
         overflow: 'hidden',
@@ -128,31 +126,6 @@ export function KdsOrderCard({
         gap: '12px',
       }}
     >
-      {/* Barra de Progreso SLA (REF-2) */}
-      <div
-        data-testid="sla-bar-track"
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '6px',
-          backgroundColor: 'rgba(0, 0, 0, 0.05)',
-        }}
-      >
-        <div
-          data-testid="sla-bar"
-          data-sla-tone={slaTone}
-          data-sla-color={slaColorName}
-          style={{
-            height: '100%',
-            width: `${Math.min(100, Math.round(ratio * 100))}%`,
-            backgroundColor: slaColor,
-            transition: 'width 0.3s ease, background-color 0.3s ease',
-          }}
-        />
-      </div>
-
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '4px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
           <div>
@@ -195,11 +168,6 @@ export function KdsOrderCard({
             >
               {elapsedMinutes}m / {effectiveSLA}m
             </span>
-            <KpiValue
-              label="Tiempo"
-              value={`${elapsedMinutes}m`}
-              tone={isOverdue ? 'destructive' : 'neutral'}
-            />
           </div>
         </div>
 
@@ -494,6 +462,6 @@ export function KdsOrderCard({
           </button>
         </div>
       )}
-    </BentoCard>
+    </StatusCard>
   );
 }

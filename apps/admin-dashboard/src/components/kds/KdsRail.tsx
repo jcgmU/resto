@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   OrderDTO,
   OrderItemDTO,
@@ -6,7 +6,7 @@ import {
   ORDER_STATUS_TRANSITIONS,
   TableDTO,
 } from '@packages/shared-types';
-import { computeSlaStatus, getTableDisplayName, tableDisplayName } from '@packages/ui-components';
+import { computeSlaStatus, getTableDisplayName, StatusCard, tableDisplayName } from '@packages/ui-components';
 
 type Destination = 'kitchen' | 'bar';
 
@@ -106,7 +106,14 @@ export function KdsRail({
   updatingOrderId,
   now,
 }: KdsRailProps) {
-  const tickets = buildRailTickets(orders, monitorKind, tenantSlaMinutes, now ?? Date.now());
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => {
+    if (now !== undefined) return;
+    const timer = setInterval(() => setClock(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, [now]);
+  const currentTime = now ?? clock;
+  const tickets = buildRailTickets(orders, monitorKind, tenantSlaMinutes, currentTime);
   const allDay = countAllDay(tickets);
 
   const tableName = (tableId: string) => {
@@ -144,9 +151,15 @@ export function KdsRail({
             {tickets.map((ticket) => {
               const next = nextStatusOf(ticket.status);
               const busy = updatingOrderId === ticket.order.id;
+              const elapsed = Math.max(0, (currentTime - ticket.createdMs) / 60000);
+              const effectiveSla = (ticket.order.estimatedMinutes ?? tenantSlaMinutes) + (ticket.order.delayMinutes ?? 0);
+              const ratio = effectiveSla > 0 ? elapsed / effectiveSla : 1;
               return (
-                <article
+                <StatusCard
                   key={ticket.order.id}
+                  status={ticket.late ? 'occupied' : ratio >= 0.75 ? 'reserved' : 'available'}
+                  variant="progress"
+                  progress={ratio}
                   data-testid={`rail-ticket-${ticket.order.id}`}
                   data-late={ticket.late ? 'true' : 'false'}
                   style={{
@@ -158,8 +171,6 @@ export function KdsRail({
                     borderRadius: 'var(--bento-card-radius)',
                     backgroundColor: 'var(--bento-card-bg-solid)',
                     boxShadow: 'var(--bento-card-shadow)',
-                    border: `1px solid ${ticket.late ? 'var(--bento-destructive)' : 'var(--bento-border)'}`,
-                    borderTop: `4px solid ${ticket.late ? 'var(--bento-destructive)' : 'var(--bento-text-strong)'}`,
                   }}
                 >
                   <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -220,7 +231,7 @@ export function KdsRail({
                       </button>
                     )}
                   </footer>
-                </article>
+                </StatusCard>
               );
             })}
           </div>

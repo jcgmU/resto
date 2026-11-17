@@ -281,37 +281,6 @@ export default function PanelShell({
             boxSizing: 'border-box',
           }}
         >
-          {/* Tres puntos pastel de ventana */}
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.75rem' }} data-testid="pastel-dots">
-            <div
-              style={{
-                width: '0.75rem',
-                height: '0.75rem',
-                borderRadius: 'var(--bento-pill-radius)',
-                backgroundColor: 'var(--bento-status-occupied)',
-                boxShadow: 'inset 1px 1px 2px rgba(255, 255, 255, 0.6)',
-              }}
-            />
-            <div
-              style={{
-                width: '0.75rem',
-                height: '0.75rem',
-                borderRadius: 'var(--bento-pill-radius)',
-                backgroundColor: 'var(--bento-status-reserved)',
-                boxShadow: 'inset 1px 1px 2px rgba(255, 255, 255, 0.6)',
-              }}
-            />
-            <div
-              style={{
-                width: '0.75rem',
-                height: '0.75rem',
-                borderRadius: 'var(--bento-pill-radius)',
-                backgroundColor: 'var(--bento-status-available)',
-                boxShadow: 'inset 1px 1px 2px rgba(255, 255, 255, 0.6)',
-              }}
-            />
-          </div>
-
           {/* Perfil de usuario */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>

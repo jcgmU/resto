@@ -1,4 +1,5 @@
 "use client";
+import { Button } from '@packages/ui-components';
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { PwaApiClient, MenuResult } from '../../../../../lib/api';
 import { GuestSessionGuard } from '../../../../../components/GuestSessionGuard';
@@ -584,7 +585,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
             }}
           >
             <span>{billError}</span>
-            <button
+            <Button
               type="button"
               onClick={handleRequestBill}
               style={{
@@ -600,7 +601,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
               }}
             >
               Reintentar
-            </button>
+            </Button>
           </div>
         )}
 
@@ -691,7 +692,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
                   title="No hay platos en esta categoría"
                   description="Prueba seleccionando otra categoría para ver más opciones."
                   action={
-                    <button
+                    <Button
                       type="button"
                       onClick={() => setSelectedCategory(ALL_CATEGORIES_ID)}
                       style={{
@@ -707,7 +708,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
                       }}
                     >
                       Ver todos los platos
-                    </button>
+                    </Button>
                   }
                 />
               ) : (
@@ -765,7 +766,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
                 fontFamily: 'var(--bento-font-body)',
               }}
             />
-            <button
+            <Button
               type="button"
               onClick={() => handleCallWaiter(waiterCustomNote)}
               disabled={callingWaiter}
@@ -788,7 +789,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
               }}
             >
               {callingWaiter ? 'Avisando al mesero...' : 'Llamar al mesero'}
-            </button>
+            </Button>
           </section>
 
           {/* Acción Pedir la cuenta con estados visibles (R10) */}
@@ -796,7 +797,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
             {!billRequested && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}>
                 <span style={{ fontSize: '0.75rem', color: 'var(--bento-text-muted)' }}>Pagar con:</span>
-                <button
+                <Button
                   type="button"
                   onClick={() => setPreferredPaymentMethod('CASH')}
                   style={{
@@ -811,8 +812,8 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
                   }}
                 >
                   💵 Efectivo
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   onClick={() => setPreferredPaymentMethod('CARD')}
                   style={{
@@ -827,11 +828,11 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
                   }}
                 >
                   💳 Tarjeta (Datáfono)
-                </button>
+                </Button>
               </div>
             )}
             {billRequested ? (
-              <button
+              <Button
                 type="button"
                 disabled
                 aria-disabled="true"
@@ -853,9 +854,9 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
                 }}
               >
                 <span>Cuenta pedida</span>
-              </button>
+              </Button>
             ) : (
-              <button
+              <Button
                 type="button"
                 onClick={handleRequestBill}
                 disabled={requestingBill}
@@ -896,7 +897,7 @@ export default function ClientMenuPage({ params }: ClientMenuPageProps) {
                 ) : (
                   'Pedir la cuenta'
                 )}
-              </button>
+              </Button>
             )}
           </section>
         </footer>

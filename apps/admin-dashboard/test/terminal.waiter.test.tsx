@@ -156,6 +156,30 @@ describe('U8: Terminal de Mesero Móvil-First (R6 Asignación por Zona, Llamadas
     expect(screen.getByRole('button', { name: /confirmar traslado/i })).toBeDisabled();
   });
 
+  test('las tarjetas y el diálogo de cambio usan componentes compartidos', async () => {
+    render(<TerminalMeseroPage />);
+    const label = await screen.findByText('Mesa 1');
+    const card = label.closest('[data-component="status-card"]');
+    expect(card).toHaveAttribute('data-status', 'reserved');
+    expect(card?.querySelector('[data-component="status-chip"]')).toBeNull();
+    const change = screen.getByRole('button', { name: 'Cambiar' });
+    expect(change).toHaveAttribute('data-component', 'button');
+    fireEvent.click(change);
+    expect(screen.getByRole('dialog')).toHaveAttribute('data-component', 'modal');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  test('la comanda abre el modal compartido y mantiene el catálogo y cierre por Escape', async () => {
+    render(<TerminalMeseroPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Tomar Pedido' }));
+    const dialog = screen.getByRole('dialog', { name: /Tomar Pedido — Mesa 1/ });
+    expect(dialog).toHaveAttribute('data-component', 'modal');
+    expect(screen.getByText('Bruschetta')).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   test('4. Botón Atender resuelve la llamada con callId real y la remueve de la bandeja (H-A3)', async () => {
     render(<TerminalMeseroPage />);
 

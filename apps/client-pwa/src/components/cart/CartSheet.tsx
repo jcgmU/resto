@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Button, Modal } from '@packages/ui-components';
 import { CartDTO } from '@packages/shared-types';
 import { CartLineItem } from './CartLineItem';
 import { CartEmptyState } from './CartEmptyState';
@@ -17,9 +18,6 @@ export interface CartSheetProps {
   orderBlockReason?: 'bill_requested' | 'waiter_only';
 }
 
-const FOCUSABLE_SELECTOR =
-  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
 export function CartSheet({
   isOpen,
   onClose,
@@ -32,55 +30,11 @@ export function CartSheet({
   isOrderable = true,
   orderBlockReason,
 }: CartSheetProps) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
   const [generalNotes, setGeneralNotes] = useState('');
 
   useEffect(() => {
-    if (isOpen) {
-      previousFocusRef.current = document.activeElement as HTMLElement;
-      dialogRef.current?.focus();
-      setGeneralNotes('');
-    } else {
-      if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
-        previousFocusRef.current.focus();
-      }
-    }
+    if (isOpen) setGeneralNotes('');
   }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
-        return;
-      }
-      if (e.key === 'Tab') {
-        if (!dialogRef.current) return;
-        const nodes = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-        if (nodes.length === 0) {
-          e.preventDefault();
-          return;
-        }
-        const first = nodes[0];
-        const last = nodes[nodes.length - 1];
-        const active = document.activeElement;
-        if (e.shiftKey && (active === first || active === dialogRef.current)) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && active === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
 
   if (!isOpen) {
     return null;
@@ -90,103 +44,7 @@ export function CartSheet({
   const hasItems = items.length > 0;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      ref={dialogRef}
-      tabIndex={-1}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          e.stopPropagation();
-          onClose();
-          return;
-        }
-        if (e.key === 'Tab') {
-          if (!dialogRef.current) return;
-          const nodes = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-          if (nodes.length === 0) {
-            e.preventDefault();
-            return;
-          }
-          const first = nodes[0];
-          const last = nodes[nodes.length - 1];
-          const active = document.activeElement;
-          if (e.shiftKey && (active === first || active === dialogRef.current)) {
-            e.preventDefault();
-            last.focus();
-          } else if (!e.shiftKey && active === last) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
-      }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.4)',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'flex-end',
-        zIndex: 50,
-      }}
-    >
-      <div
-        data-component="bento-card"
-        style={{
-          backgroundColor: 'var(--bento-card-bg)',
-          borderRadius: 'var(--bento-card-radius) var(--bento-card-radius) 0 0',
-          maxHeight: '85vh',
-          display: 'flex',
-          flexDirection: 'column',
-          boxShadow: 'var(--bento-card-shadow)',
-        }}
-      >
-        <header
-          style={{
-            padding: 'var(--bento-spacing-md)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            borderBottom: '1px solid var(--bento-card-border, rgba(0, 0, 0, 0.1))',
-          }}
-        >
-          <h2 style={{ margin: 0, color: 'var(--bento-text)' }}>Tu Carrito</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar carrito"
-            style={{
-              minHeight: 'var(--bento-touch-target)',
-              minWidth: 'var(--bento-touch-target)',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              stroke="currentColor"
-              fill="none"
-              strokeWidth="2"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </header>
-
+    <Modal open={isOpen} title="Tu Carrito" onClose={onClose} footer={<Button variant="secondary" onClick={onClose}>Cerrar carrito</Button>}>
         {error && (
           <div
             role="alert"
@@ -287,7 +145,6 @@ export function CartSheet({
           disabled={!hasItems || !isOrderable}
           isConfirming={isConfirming}
         />
-      </div>
-    </div>
+    </Modal>
   );
 }

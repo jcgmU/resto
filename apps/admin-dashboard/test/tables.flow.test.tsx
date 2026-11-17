@@ -151,6 +151,33 @@ describe('Flujo de Mesas, Zonas y Reservas en Admin Dashboard (V23 Flow Tests)',
     });
   });
 
+  test('las acciones de gestión de cada mesa pueden ocupar varias filas sin encogerse', async () => {
+    setupDefaultFetch();
+    render(<DashboardPage />);
+    for (const id of ['tbl-1', 'tbl-2', 'tbl-3']) {
+      const card = await screen.findByTestId(`table-card-${id}`);
+      const buttons = ['Ver QR', 'Editar', 'Eliminar'].map((name) => within(card).getByRole('button', { name }));
+      expect(buttons[0].parentElement).toHaveStyle({ display: 'flex', flexWrap: 'wrap' });
+      for (const button of buttons) expect(button).toHaveStyle({ flexShrink: '0', whiteSpace: 'nowrap' });
+    }
+  });
+
+  test('el inspector de mesa deja el plano interactivo y cierra con Escape', async () => {
+    setupDefaultFetch();
+    render(<DashboardPage />);
+    const card = await screen.findByTestId('table-card-tbl-1');
+    const trigger = within(card).getByRole('button', { name: 'Consultar Mesa 1' });
+    fireEvent.click(trigger);
+    const dialog = await screen.findByRole('dialog', { name: 'Mesa 1' });
+    expect(dialog).toHaveAttribute('aria-modal', 'false');
+    expect(within(dialog).getByText('4 Puestos • Terraza')).toBeInTheDocument();
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    fireEvent.click(within(await screen.findByTestId('table-card-tbl-2')).getByRole('button', { name: 'Consultar Mesa 2' }));
+    expect(await screen.findByRole('dialog', { name: 'Mesa 2' })).toBeInTheDocument();
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Mesa 2' })).not.toBeInTheDocument());
+  });
+
   test('2. Renderiza tarjetas de mesa con "N Puestos • Zona", status chips e importe COP en mesa ocupada', async () => {
     setupDefaultFetch();
     render(<DashboardPage />);
@@ -346,6 +373,17 @@ describe('Flujo de Mesas, Zonas y Reservas en Admin Dashboard (V23 Flow Tests)',
         status: 'AVAILABLE',
       });
     });
+  });
+
+  test('Escape cierra Editar mesa desde el foco y no deja diálogos abiertos', async () => {
+    setupDefaultFetch();
+    render(<DashboardPage />);
+    const card = await screen.findByTestId('table-card-tbl-1');
+    fireEvent.click(within(card).getByRole('button', { name: /^Editar$/i }));
+    const dialog = await screen.findByRole('dialog', { name: 'Editar Mesa 1' });
+    expect(dialog).toContainElement(document.activeElement);
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryAllByRole('dialog')).toHaveLength(0));
   });
 
   test('8. CRUD Mesas: Editar mesa envía PATCH /v1/tables/:tableId', async () => {

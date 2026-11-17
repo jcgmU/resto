@@ -1,6 +1,7 @@
+import { Button } from '@packages/ui-components';
 import React, { useEffect, useState } from 'react';
 import { OrderDTO } from '@packages/shared-types';
-import { BentoCard, ProgressNodes, StatusChip, ORDER_STATUS_LABELS, formatOrderNumber } from '@packages/ui-components';
+import { StatusCard, ProgressNodes, ORDER_STATUS_LABELS, formatOrderNumber } from '@packages/ui-components';
 import { PwaApiClient } from '../../lib/api';
 
 export interface OrderConfirmationCardProps {
@@ -109,7 +110,8 @@ export function OrderConfirmationCard({
   }, [currentOrder.id, statusInfo.isTerminal, onOrderUpdate, pollIntervalMs]);
 
   return (
-    <BentoCard
+    <StatusCard
+      status={statusInfo.chipTone === 'error' ? 'occupied' : statusInfo.chipTone === 'warning' ? 'reserved' : statusInfo.chipTone === 'ok' ? 'available' : 'neutral'}
       style={{
         padding: 'var(--bento-spacing-md)',
         display: 'flex',
@@ -140,10 +142,7 @@ export function OrderConfirmationCard({
         >
           {formatOrderNumber(currentOrder.id)}
         </h3>
-        <StatusChip
-          label={ORDER_STATUS_LABELS[currentOrder.status] || currentOrder.status}
-          tone={statusInfo.chipTone}
-        />
+        <span data-testid="order-status">{ORDER_STATUS_LABELS[currentOrder.status] || currentOrder.status}</span>
       </div>
 
       <div style={{ padding: 'var(--bento-spacing-xs) 0' }}>
@@ -164,27 +163,6 @@ export function OrderConfirmationCard({
       >
         {statusInfo.description}
       </p>
-
-      {currentOrder.delayMinutes && currentOrder.delayMinutes > 0 ? (
-        <div
-          data-testid="order-delay-notice"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 12px',
-            borderRadius: 'var(--bento-inner-radius)',
-            backgroundColor: 'var(--bento-status-reserved-bg)',
-            border: '1px solid var(--bento-border)',
-            color: 'var(--bento-text-strong)',
-            fontSize: '0.8125rem',
-            fontWeight: 500,
-          }}
-        >
-          <span>⏱</span>
-          <span>Demora informada por cocina: +{currentOrder.delayMinutes} min</span>
-        </div>
-      ) : null}
 
       {/* Información de estado inmutable y opción de agregar más pedidos (U04) */}
       <div
@@ -209,7 +187,7 @@ export function OrderConfirmationCard({
           Pedido enviado; ya no puede editarse
         </p>
 
-        <button
+        <Button
           type="button"
           onClick={onAddAnotherOrder}
           data-testid="add-another-order-btn"
@@ -231,7 +209,7 @@ export function OrderConfirmationCard({
           }}
         >
           Agregar otro pedido
-        </button>
+        </Button>
       </div>
 
       {statusInfo.problemSegment !== undefined && (
@@ -252,6 +230,6 @@ export function OrderConfirmationCard({
           Pedido cancelado
         </div>
       )}
-    </BentoCard>
+    </StatusCard>
   );
 }

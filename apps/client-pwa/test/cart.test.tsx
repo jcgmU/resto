@@ -75,7 +75,7 @@ describe('C. Client PWA — Carrito Bento Box (Tests 18-26)', () => {
       addedAt: new Date().toISOString(),
     };
 
-    const { container } = render(
+    render(
       <CartSheet
         isOpen={true}
         onClose={() => {}}
@@ -92,7 +92,7 @@ describe('C. Client PWA — Carrito Bento Box (Tests 18-26)', () => {
     expect(screen.getByText(/BBQ/)).toBeInTheDocument();
     expect(screen.getByText('Guest Carlos')).toBeInTheDocument();
 
-    const kpis = container.querySelectorAll('[data-component="kpi-value"][data-tone="accent"]');
+    const kpis = screen.getByRole('dialog').querySelectorAll('[data-component="kpi-value"][data-tone="accent"]');
     expect(kpis.length).toBeGreaterThan(0);
   });
 
@@ -140,7 +140,7 @@ describe('C. Client PWA — Carrito Bento Box (Tests 18-26)', () => {
     };
 
     const { container } = render(<OrderConfirmationCard order={mockOrder} />);
-    const chip = container.querySelector('[data-component="status-chip"]');
+    const chip = container.querySelector('[data-testid="order-status"]');
     expect(chip).toHaveTextContent('Recibido');
     expect(screen.getByText(/El personal ha recibido tu pedido/i)).toBeInTheDocument();
   });
@@ -165,7 +165,7 @@ describe('C. Client PWA — Carrito Bento Box (Tests 18-26)', () => {
   });
 
   test('25. Estructura Bento/a11y: sin hex/px hardcodeados (solo var(--bento-*)), acento solo en KpiValue, sheet con role="dialog" aria-modal, iconos aria-hidden, cero emojis, foco gestionado al abrir/cerrar el sheet', () => {
-    const { container } = render(
+    render(
       <CartSheet
         isOpen={true}
         onClose={() => {}}
@@ -178,8 +178,9 @@ describe('C. Client PWA — Carrito Bento Box (Tests 18-26)', () => {
       />
     );
 
-    const dialog = container.querySelector('[role="dialog"][aria-modal="true"]');
+    const dialog = screen.getByRole('dialog');
     expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
 
     const styleAttr = dialog?.getAttribute('style') || '';
     expect(styleAttr).not.toMatch(/#[0-9a-fA-F]{3,6}/);
@@ -419,7 +420,7 @@ describe('C. Client PWA — Carrito Bento Box (Tests 18-26)', () => {
         />
       );
 
-      const backdrop = screen.getByRole('dialog');
+      const backdrop = screen.getByTestId('modal-backdrop');
       fireEvent.click(backdrop);
       expect(onClose).toHaveBeenCalled();
     });

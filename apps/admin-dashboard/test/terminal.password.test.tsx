@@ -35,7 +35,10 @@ describe('Cambio de contraseña desde las terminales', () => {
       </TerminalShell>
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: /Cambiar contraseña/i }));
+    const changePassword = await screen.findByRole('button', { name: /Cambiar contraseña/i });
+    expect(changePassword).toHaveAttribute('data-component', 'button');
+    expect(screen.getByTestId('terminal-logout-btn')).toHaveAttribute('data-component', 'button');
+    fireEvent.click(changePassword);
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toBeInTheDocument();
 

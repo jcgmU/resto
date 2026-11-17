@@ -248,6 +248,10 @@ describe('Unidad V23 — Resumen Operativo y Modo de Operación en Dashboard', (
 
     expect(await screen.findByText('Resumen Operativo')).toBeInTheDocument();
     expect(screen.getByText('Mesas Ocupadas')).toBeInTheDocument();
+    expect(screen.getByText('Mesas Ocupadas').closest('[data-component="status-card"]')).toHaveAttribute('data-status', 'occupied');
+    expect(screen.getByTestId('table-card-t-1')).toHaveAttribute('data-status', 'occupied');
+    expect(screen.getByTestId('table-card-t-2')).toHaveAttribute('data-status', 'available');
+    expect(screen.getByTestId('table-card-t-3')).toHaveAttribute('data-status', 'reserved');
     expect(screen.getByText('Disponibilidad')).toBeInTheDocument();
     expect(screen.getByText('Tiempo Límite Estimado')).toBeInTheDocument();
     expect(screen.getByText('25 min')).toBeInTheDocument();

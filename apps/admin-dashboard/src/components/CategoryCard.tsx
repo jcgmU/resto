@@ -1,5 +1,5 @@
 import React from 'react';
-import { BentoCard } from '@packages/ui-components';
+import { BentoCard, Button } from '@packages/ui-components';
 import type { CategoryDTO } from '@packages/shared-types';
 
 export interface CategoryCardProps {
@@ -77,7 +77,7 @@ export function CategoryCard({
               }}
             >
               {onMoveUp && (
-                <button
+                <Button variant="secondary"
                   type="button"
                   disabled={!canMoveUp}
                   onClick={() => onMoveUp(category)}
@@ -93,7 +93,6 @@ export function CategoryCard({
                     backgroundColor: 'var(--bento-card-bg-solid)',
                     color: canMoveUp ? 'var(--bento-text)' : 'var(--bento-status-disabled)',
                     borderRadius: 'var(--bento-pill-radius)',
-                    border: '1px solid var(--bento-border)',
                     cursor: canMoveUp ? 'pointer' : 'not-allowed',
                     opacity: canMoveUp ? 1 : 0.35,
                     transition: 'opacity 0.15s ease, background-color 0.15s ease',
@@ -112,10 +111,10 @@ export function CategoryCard({
                   >
                     <polyline points="18 15 12 9 6 15" />
                   </svg>
-                </button>
+                </Button>
               )}
               {onMoveDown && (
-                <button
+                <Button variant="secondary"
                   type="button"
                   disabled={!canMoveDown}
                   onClick={() => onMoveDown(category)}
@@ -131,7 +130,6 @@ export function CategoryCard({
                     backgroundColor: 'var(--bento-card-bg-solid)',
                     color: canMoveDown ? 'var(--bento-text)' : 'var(--bento-status-disabled)',
                     borderRadius: 'var(--bento-pill-radius)',
-                    border: '1px solid var(--bento-border)',
                     cursor: canMoveDown ? 'pointer' : 'not-allowed',
                     opacity: canMoveDown ? 1 : 0.35,
                     transition: 'opacity 0.15s ease, background-color 0.15s ease',
@@ -150,7 +148,7 @@ export function CategoryCard({
                   >
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
-                </button>
+                </Button>
               )}
             </div>
           )}
@@ -247,7 +245,7 @@ export function CategoryCard({
             }}
           >
             {onEdit && (
-              <button
+              <Button variant="secondary"
                 type="button"
                 onClick={() => onEdit(category)}
                 aria-label={`Editar categoría ${category.name}`}
@@ -257,7 +255,6 @@ export function CategoryCard({
                   backgroundColor: 'var(--bento-card-bg-solid)',
                   color: 'var(--bento-text)',
                   borderRadius: 'var(--bento-pill-radius)',
-                  border: '1px solid var(--bento-border)',
                   fontSize: '0.8125rem',
                   fontWeight: 600,
                   cursor: 'pointer',
@@ -269,10 +266,10 @@ export function CategoryCard({
                 }}
               >
                 Editar
-              </button>
+              </Button>
             )}
             {onDelete && (
-              <button
+              <Button variant="danger"
                 type="button"
                 onClick={() => onDelete(category)}
                 aria-label={`Eliminar categoría ${category.name}`}
@@ -284,7 +281,6 @@ export function CategoryCard({
                   backgroundColor: 'var(--bento-status-occupied-bg)',
                   color: 'var(--bento-status-occupied-text)',
                   borderRadius: 'var(--bento-pill-radius)',
-                  border: '1px solid var(--bento-status-occupied)',
                   fontSize: '0.8125rem',
                   fontWeight: 600,
                   cursor: 'pointer',
@@ -296,7 +292,7 @@ export function CategoryCard({
                 }}
               >
                 Eliminar
-              </button>
+              </Button>
             )}
           </div>
         )}

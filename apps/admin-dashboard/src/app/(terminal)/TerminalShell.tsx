@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from 'react';
+import { Button } from '@packages/ui-components';
 import { useRouter, usePathname } from 'next/navigation';
 import { ApiClient } from '../../lib/api';
 import { logout } from '../../lib/auth/logout';
@@ -151,7 +152,7 @@ export default function TerminalShell({ children }: { children: React.ReactNode 
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           {canGoToPanel && (
-            <button
+            <Button variant="secondary"
               type="button"
               onClick={() => router.push('/dashboard')}
               style={{
@@ -166,7 +167,7 @@ export default function TerminalShell({ children }: { children: React.ReactNode 
               }}
             >
               ← Ir al Panel
-            </button>
+            </Button>
           )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -193,7 +194,7 @@ export default function TerminalShell({ children }: { children: React.ReactNode 
             </span>
           </div>
 
-          <button
+          <Button variant="secondary"
             type="button"
             onClick={() => setPasswordModalOpen(true)}
             style={{
@@ -208,15 +209,15 @@ export default function TerminalShell({ children }: { children: React.ReactNode 
             }}
           >
             Cambiar contraseña
-          </button>
+          </Button>
 
-          <button
+          <Button variant="danger"
             type="button"
             onClick={handleLogout}
             data-testid="terminal-logout-btn"
             style={{
               background: 'none',
-              border: '1px solid rgba(220, 53, 69, 0.3)',
+              border: 'none',
               borderRadius: 'var(--bento-inner-radius)',
               color: 'var(--bento-status-occupied)',
               padding: '0.375rem 0.75rem',
@@ -227,7 +228,7 @@ export default function TerminalShell({ children }: { children: React.ReactNode 
             }}
           >
             Cerrar Sesión
-          </button>
+          </Button>
         </div>
       </header>
 

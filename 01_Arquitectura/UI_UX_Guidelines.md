@@ -55,3 +55,10 @@ Aprobada por el usuario según ADR `brain/Decisiones/2026-10-14-linea-grafica-su
 - **Regla de Oro (A4):**
   - Cero colores hexadecimales hardcodeados en componentes (`apps/*/src/**/*.tsx` o `packages/*/src/**/*.tsx`).
   - Todos los estilos y colores se consumen estrictamente mediante `var(--bento-*)` o clases del kit.
+
+## Componentes compartidos del sistema de diseño
+
+- Usar `StatusCard` para superficies con estado: blob verde disponible, rojo ocupado y amarillo reservado, con texto accesible; la variante `progress` representa el avance en el borde superior. Respetar movimiento reducido.
+- Usar `Button`, `Avatar` (fotografía o iniciales) y `AvailabilityToggle` en vez de variantes propias por pantalla. Los botones mantienen sus etiquetas en una línea y sus contenedores permiten distribuirlos en varias filas.
+- Usar `Modal` para formularios, cobros y acciones destructivas: se monta en un portal, administra el foco y Escape cierra solo el diálogo superior. En pantallas táctiles de hasta 1024 px adopta `BottomSheet`, con scrim y cierre por arrastre desde el asa; en movimiento reducido evita el desplazamiento animado.
+- Un inspector destinado exclusivamente a consultar una mesa del plano puede mostrarse sin scrim; las acciones que modifican datos conservan scrim.

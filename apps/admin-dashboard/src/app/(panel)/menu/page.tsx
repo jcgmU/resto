@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   BentoGrid,
@@ -8,6 +8,7 @@ import {
   EmptyState,
   ErrorState,
   Toast,
+  Modal,
 } from '@packages/ui-components';
 import { ApiClient } from '../../../lib/api';
 import {
@@ -25,8 +26,6 @@ import { ProductCard } from '../../../components/ProductCard';
 import { CategoryCard } from '../../../components/CategoryCard';
 import type { CategoryDTO, ProductDTO } from '@packages/shared-types';
 
-const FOCUSABLE_SELECTOR =
-  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export default function MenuPage() {
   const router = useRouter();
@@ -59,87 +58,6 @@ export default function MenuPage() {
   const [newCatName, setNewCatName] = useState('');
   const [newCatSortOrder, setNewCatSortOrder] = useState('0');
   const [newCatDestination, setNewCatDestination] = useState<'kitchen' | 'bar'>('kitchen');
-
-  const prodModalRef = useRef<HTMLDivElement>(null);
-  const catModalRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!showModal) return;
-    const prevFocus = document.activeElement as HTMLElement | null;
-    prodModalRef.current?.focus();
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        setShowModal(false);
-        return;
-      }
-      if (e.key === 'Tab') {
-        if (!prodModalRef.current) return;
-        const nodes = Array.from(prodModalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-        if (nodes.length === 0) {
-          e.preventDefault();
-          return;
-        }
-        const first = nodes[0];
-        const last = nodes[nodes.length - 1];
-        const active = document.activeElement;
-        if (e.shiftKey && (active === first || active === prodModalRef.current)) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && active === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      prevFocus?.focus?.();
-    };
-  }, [showModal]);
-
-  useEffect(() => {
-    if (!showCatModal) return;
-    const prevFocus = document.activeElement as HTMLElement | null;
-    catModalRef.current?.focus();
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        setShowCatModal(false);
-        return;
-      }
-      if (e.key === 'Tab') {
-        if (!catModalRef.current) return;
-        const nodes = Array.from(catModalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-        if (nodes.length === 0) {
-          e.preventDefault();
-          return;
-        }
-        const first = nodes[0];
-        const last = nodes[nodes.length - 1];
-        const active = document.activeElement;
-        if (e.shiftKey && (active === first || active === catModalRef.current)) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && active === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      prevFocus?.focus?.();
-    };
-  }, [showCatModal]);
 
   const fetchMenuData = async () => {
     try {
@@ -554,53 +472,10 @@ export default function MenuPage() {
 
       {/* Modal Crear / Editar Producto */}
       {showModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-prod-title"
-          ref={prodModalRef}
-          tabIndex={-1}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'color-mix(in srgb, var(--bento-page-bg) 70%, transparent)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '16px',
-            overflowY: 'auto',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowModal(false);
-          }}
-        >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '520px',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              backgroundColor: 'var(--bento-card-bg-solid)',
-              borderRadius: 'var(--bento-card-radius)',
-              border: '1px solid var(--bento-border)',
-              boxShadow: 'var(--bento-card-shadow)',
-              padding: '24px',
-            }}
-          >
-            <h2
-              id="modal-prod-title"
-              style={{
-                margin: '0 0 16px 0',
-                fontSize: '1.25rem',
-                fontWeight: 700,
-                fontFamily: 'var(--bento-font-heading)',
-                color: 'var(--bento-text)',
-              }}
-            >
-              {editingProduct ? 'Editar Producto' : 'Crear Nuevo Producto'}
-            </h2>
-
+        <Modal open title={editingProduct ? 'Editar Producto' : 'Crear Nuevo Producto'}
+          onClose={() => setShowModal(false)} onSubmit={handleSaveProduct}
+          primaryLabel={editingProduct ? 'Guardar Cambios' : 'Crear Producto'}
+          primaryLoading={submitting} primaryLoadingLabel="Guardando..." maxWidth="520px">
             {modalError && (
               <div
                 role="alert"
@@ -619,7 +494,6 @@ export default function MenuPage() {
               </div>
             )}
 
-            <form onSubmit={handleSaveProduct} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label
                   htmlFor="prod-name"
@@ -774,77 +648,15 @@ export default function MenuPage() {
                 </label>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  style={secondaryBtnStyle}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  style={{
-                    ...primaryBtnStyle,
-                    opacity: submitting ? 0.6 : 1,
-                    cursor: submitting ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {submitting ? 'Guardando...' : editingProduct ? 'Guardar Cambios' : 'Crear Producto'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Modal Crear / Editar Categoría */}
       {showCatModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-cat-title"
-          ref={catModalRef}
-          tabIndex={-1}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'color-mix(in srgb, var(--bento-page-bg) 70%, transparent)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '16px',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowCatModal(false);
-          }}
-        >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '440px',
-              backgroundColor: 'var(--bento-card-bg-solid)',
-              borderRadius: 'var(--bento-card-radius)',
-              border: '1px solid var(--bento-border)',
-              boxShadow: 'var(--bento-card-shadow)',
-              padding: '24px',
-            }}
-          >
-            <h2
-              id="modal-cat-title"
-              style={{
-                margin: '0 0 16px 0',
-                fontSize: '1.25rem',
-                fontWeight: 700,
-                fontFamily: 'var(--bento-font-heading)',
-                color: 'var(--bento-text)',
-              }}
-            >
-              {editingCategory ? 'Editar Categoría' : 'Crear Nueva Categoría'}
-            </h2>
-
+        <Modal open title={editingCategory ? 'Editar Categoría' : 'Crear Nueva Categoría'}
+          onClose={() => setShowCatModal(false)} onSubmit={handleSaveCategory}
+          primaryLabel="Guardar Categoría" primaryLoading={submitting}
+          primaryLoadingLabel="Guardando..." maxWidth="440px">
             {catModalError && (
               <div
                 role="alert"
@@ -863,7 +675,6 @@ export default function MenuPage() {
               </div>
             )}
 
-            <form onSubmit={handleSaveCategory} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label
                   htmlFor="cat-name-input"
@@ -916,29 +727,7 @@ export default function MenuPage() {
                 </select>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowCatModal(false)}
-                  style={secondaryBtnStyle}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  style={{
-                    ...primaryBtnStyle,
-                    opacity: submitting ? 0.6 : 1,
-                    cursor: submitting ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {submitting ? 'Guardando...' : 'Guardar Categoría'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Estado de carga inicial con Skeleton */}

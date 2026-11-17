@@ -303,7 +303,7 @@ describe('CreateTablesBatchModal (U6)', () => {
     test('11. Escape llama al onClose más reciente sin re-suscribir el listener en cada render (onCloseRef)', () => {
       const first = jest.fn();
       const second = jest.fn();
-      const addSpy = jest.spyOn(window, 'addEventListener');
+      const addSpy = jest.spyOn(document, 'addEventListener');
       const { rerender } = render(
         <CreateTablesBatchModal open={true} onClose={first} onSuccess={jest.fn()} zones={zones} />
       );
@@ -313,7 +313,7 @@ describe('CreateTablesBatchModal (U6)', () => {
         <CreateTablesBatchModal open={true} onClose={second} onSuccess={jest.fn()} zones={zones} />
       );
       expect(keydownSubs()).toBe(before);
-      fireEvent.keyDown(window, { key: 'Escape' });
+      fireEvent.keyDown(document, { key: 'Escape' });
       expect(second).toHaveBeenCalledTimes(1);
       expect(first).not.toHaveBeenCalled();
       addSpy.mockRestore();

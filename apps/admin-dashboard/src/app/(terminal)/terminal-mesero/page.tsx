@@ -2,10 +2,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  BentoCard,
-  StatusChip,
+  Button,
+  Modal,
+  StatusCard,
   TabsPill,
-  SlaDot,
   tableDisplayName,
 } from '@packages/ui-components';
 import { formatCOP, TableDTO, ZoneDTO, ServiceCallDTO, OrderDTO } from '@packages/shared-types';
@@ -391,7 +391,7 @@ export default function TerminalMeseroPage() {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   {isBill && (
-                    <button
+                    <Button
                       type="button"
                       data-testid="banner-cobrar-btn"
                       onClick={() => router.push(`/terminal-caja?tableId=${call.tableId}`)}
@@ -407,9 +407,9 @@ export default function TerminalMeseroPage() {
                       }}
                     >
                       Cobrar
-                    </button>
+                    </Button>
                   )}
-                  <button
+                  <Button
                     type="button"
                     onClick={() => handleResolveCall(cId)}
                     style={{
@@ -424,7 +424,7 @@ export default function TerminalMeseroPage() {
                     }}
                   >
                     Atender
-                  </button>
+                  </Button>
                 </div>
               </div>
             );
@@ -434,59 +434,8 @@ export default function TerminalMeseroPage() {
 
       {/* 2. Modal / Drawer para Toma de Comanda */}
       {orderTargetTable && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 200,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
-          }}
-        >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '600px',
-              maxHeight: '90vh',
-              backgroundColor: 'var(--bento-page-bg)',
-              borderTopLeftRadius: 'var(--bento-card-radius)',
-              borderTopRightRadius: 'var(--bento-card-radius)',
-              padding: '1.25rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1rem',
-              overflowY: 'auto',
-              boxSizing: 'border-box',
-              boxShadow: '0 -4px 20px rgba(0,0,0,0.15)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: 'var(--bento-text-strong)' }}>
-                  Tomar Pedido — {tableDisplayName(orderTargetTable.label)}
-                </h2>
-                <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--bento-text-muted)' }}>
-                  Selecciona productos del menú
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setOrderTargetTable(null)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '1.25rem',
-                  cursor: 'pointer',
-                  color: 'var(--bento-text-muted)',
-                }}
-              >
-                ✕
-              </button>
-            </div>
+        <Modal open title={`Tomar Pedido — ${tableDisplayName(orderTargetTable.label)}`} onClose={() => setOrderTargetTable(null)} maxWidth="600px" cancelLabel="Cerrar">
+            <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--bento-text-muted)' }}>Selecciona productos del menú</p>
 
             {orderSuccessMessage && (
               <div style={{ padding: '0.75rem', backgroundColor: 'var(--bento-status-available-bg)', color: 'var(--bento-status-available-text)', borderRadius: '8px' }}>
@@ -502,7 +451,7 @@ export default function TerminalMeseroPage() {
 
             {/* Categorías */}
             <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '4px' }}>
-              <button
+              <Button
                 type="button"
                 onClick={() => setSelectedCategory('ALL')}
                 style={{
@@ -518,9 +467,9 @@ export default function TerminalMeseroPage() {
                 }}
               >
                 Todas
-              </button>
+              </Button>
               {categories.map((c) => (
-                <button
+                <Button
                   key={c.id}
                   type="button"
                   onClick={() => setSelectedCategory(c.id)}
@@ -537,7 +486,7 @@ export default function TerminalMeseroPage() {
                   }}
                 >
                   {c.name}
-                </button>
+                </Button>
               ))}
             </div>
 
@@ -564,7 +513,7 @@ export default function TerminalMeseroPage() {
                         {formatCOP(prod.price)}
                       </p>
                     </div>
-                    <button
+                    <Button
                       type="button"
                       onClick={() => handleAddProduct(prod)}
                       style={{
@@ -579,7 +528,7 @@ export default function TerminalMeseroPage() {
                       }}
                     >
                       + Agregar
-                    </button>
+                    </Button>
                   </div>
                 ))}
             </div>
@@ -621,7 +570,7 @@ export default function TerminalMeseroPage() {
                     marginBottom: '0.5rem',
                   }}
                 />
-                <button
+                <Button
                   type="button"
                   onClick={handleConfirmOrder}
                   disabled={isSubmittingOrder}
@@ -638,16 +587,15 @@ export default function TerminalMeseroPage() {
                   }}
                 >
                   {isSubmittingOrder ? 'Enviando comanda...' : `Enviar a Cocina • ${formatCOP(cartTotal)}`}
-                </button>
+                </Button>
               </div>
             )}
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* 3. Selector de Zona */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflowX: 'auto', paddingBottom: '4px' }}>
-        <button
+        <Button
           type="button"
           onClick={() => setSelectedZoneId('ALL')}
           style={{
@@ -664,9 +612,9 @@ export default function TerminalMeseroPage() {
           }}
         >
           Todas las Zonas
-        </button>
+        </Button>
         {zones.map((z) => (
-          <button
+          <Button
             key={z.id}
             type="button"
             onClick={() => setSelectedZoneId(z.id)}
@@ -684,15 +632,16 @@ export default function TerminalMeseroPage() {
             }}
           >
             {z.name}
-          </button>
+          </Button>
         ))}
       </div>
 
       {/* 4. Lista de Tarjetas de Mesa (Móvil First) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
         {enrichedTables.map((t) => (
-          <BentoCard
+          <StatusCard
             key={t.tableId}
+            status={t.statusTone === 'warning' ? 'reserved' : t.statusTone === 'error' ? 'occupied' : 'available'}
             style={{
               display: 'flex',
               flexDirection: 'column',
@@ -714,16 +663,7 @@ export default function TerminalMeseroPage() {
                   {t.zoneName} • {t.capacity} puestos
                 </p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {t.activeSession && (
-                  <SlaDot
-                    createdAt={t.activeSession.createdAt || new Date().toISOString()}
-                    estimatedPrepMinutes={18}
-                    size="10px"
-                  />
-                )}
-                <StatusChip label={t.statusLabel} tone={t.statusTone} />
-              </div>
+              <span>{t.statusLabel}</span>
             </div>
 
             {/* Consumo acumulado si está ocupada */}
@@ -751,7 +691,7 @@ export default function TerminalMeseroPage() {
 
             {/* Acciones Rápidas */}
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto', flexWrap: 'wrap' }}>
-              <button
+              <Button
                 type="button"
                 onClick={() => handleStartOrder(t)}
                 style={{
@@ -768,11 +708,11 @@ export default function TerminalMeseroPage() {
                 }}
               >
                 {t.activeSession ? 'Tomar Pedido' : 'Abrir y Pedir'}
-              </button>
+              </Button>
 
               {t.activeSession && (
                 <>
-                  <button
+                  <Button
                     type="button"
                     onClick={() => handleOpenMove(t)}
                     style={{
@@ -787,8 +727,8 @@ export default function TerminalMeseroPage() {
                     }}
                   >
                     Cambiar
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
                     onClick={() => router.push(`/terminal-caja?tableId=${t.tableId}`)}
                     style={{
@@ -803,48 +743,18 @@ export default function TerminalMeseroPage() {
                     }}
                   >
                     Cobrar
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
-          </BentoCard>
+          </StatusCard>
         ))}
       </div>
 
       {/* Modal de Cambio de Mesa (R12) */}
       {movingSession && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '1rem',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: 'var(--bento-card-bg-solid)',
-              borderRadius: 'var(--bento-card-radius)',
-              padding: '1.5rem',
-              maxWidth: '420px',
-              width: '100%',
-              boxShadow: 'var(--bento-card-shadow)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1rem',
-            }}
-          >
+        <Modal open title={`Cambiar ${tableDisplayName(movingSession.sourceTableLabel)}`} onClose={() => { if (!isSubmittingMove) setMovingSession(null); }} maxWidth="420px" footer={<></>}>
             <div>
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: 'var(--bento-text-strong)' }}>
-                Cambiar {tableDisplayName(movingSession.sourceTableLabel)}
-              </h3>
               <p style={{ margin: '4px 0 0 0', fontSize: '0.8125rem', color: 'var(--bento-text-muted)' }}>
                 Selecciona la mesa libre a la cual trasladar la comanda y comensales.
               </p>
@@ -905,7 +815,7 @@ export default function TerminalMeseroPage() {
             )}
 
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-              <button
+              <Button
                 type="button"
                 onClick={() => setMovingSession(null)}
                 style={{
@@ -920,8 +830,8 @@ export default function TerminalMeseroPage() {
                 }}
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={handleConfirmMove}
                 disabled={!targetMoveTableId || isSubmittingMove}
@@ -937,10 +847,9 @@ export default function TerminalMeseroPage() {
                 }}
               >
                 {isSubmittingMove ? 'Cambiando...' : 'Confirmar Traslado'}
-              </button>
+              </Button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

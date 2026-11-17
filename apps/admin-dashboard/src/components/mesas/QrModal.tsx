@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
-import { FOCUSABLE_SELECTOR, TableItem, TableQrData } from './types';
+import { Modal } from '@packages/ui-components';
+import React from 'react';
+import { TableItem, TableQrData } from './types';
 
 export interface QrModalProps {
   activeTableQr: TableItem | null;
@@ -20,152 +21,11 @@ export function QrModal({
   onClose,
   canMutate = true,
 }: QrModalProps) {
-  const qrModalRef = useRef<HTMLDivElement>(null);
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-
-  useEffect(() => {
-    if (!activeTableQr) return;
-    const prevFocus = document.activeElement as HTMLElement | null;
-    qrModalRef.current?.focus();
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        onCloseRef.current();
-        return;
-      }
-      if (e.key === 'Tab') {
-        if (!qrModalRef.current) return;
-        const nodes = Array.from(
-          qrModalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-        );
-        if (nodes.length === 0) {
-          e.preventDefault();
-          return;
-        }
-        const first = nodes[0];
-        const last = nodes[nodes.length - 1];
-        const active = document.activeElement;
-        if (e.shiftKey && (active === first || active === qrModalRef.current)) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && active === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      prevFocus?.focus?.();
-    };
-  }, [activeTableQr]);
 
   if (!activeTableQr) return null;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="qr-modal-title"
-      ref={qrModalRef}
-      tabIndex={-1}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          e.stopPropagation();
-          onClose();
-          return;
-        }
-        if (e.key === 'Tab') {
-          if (!qrModalRef.current) return;
-          const nodes = Array.from(
-            qrModalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-          );
-          if (nodes.length === 0) {
-            e.preventDefault();
-            return;
-          }
-          const first = nodes[0];
-          const last = nodes[nodes.length - 1];
-          const active = document.activeElement;
-          if (e.shiftKey && (active === first || active === qrModalRef.current)) {
-            e.preventDefault();
-            last.focus();
-          } else if (!e.shiftKey && active === last) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'color-mix(in srgb, var(--bento-overlay-dark) 45%, transparent)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 50,
-        padding: '16px',
-      }}
-    >
-      <div
-        style={{
-          backgroundColor: 'var(--bento-card-bg-solid)',
-          color: 'var(--bento-text)',
-          padding: '24px',
-          borderRadius: 'var(--bento-card-radius)',
-          width: '100%',
-          maxWidth: '460px',
-          boxShadow: 'var(--bento-card-shadow)',
-          border: '1px solid var(--bento-border)',
-          textAlign: 'center',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '16px',
-          }}
-        >
-          <h2
-            id="qr-modal-title"
-            style={{
-              margin: 0,
-              fontSize: '1.25rem',
-              fontWeight: 700,
-              fontFamily: 'var(--bento-font-heading)',
-              color: 'var(--bento-text)',
-            }}
-          >
-            Código QR — {activeTableQr.label}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar modal"
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '1.25rem',
-              cursor: 'pointer',
-              color: 'var(--bento-text-muted)',
-              padding: '4px',
-            }}
-          >
-            ✕
-          </button>
-        </div>
-
+    <Modal open={true} title={`Código QR — ${activeTableQr.label}`} onClose={onClose} maxWidth="460px" footer={<></>}>
         {qrError && (
           <div
             role="alert"
@@ -279,7 +139,6 @@ export function QrModal({
             </div>
           </div>
         ) : null}
-      </div>
-    </div>
+    </Modal>
   );
 }

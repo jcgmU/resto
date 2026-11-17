@@ -56,6 +56,9 @@ export const BENTO_TOKENS: Record<string, string> = {
   '--bento-panel-bg': 'rgba(224, 227, 229, 0.5)',
   '--bento-field-bg': 'var(--bento-panel-bg)',
   '--bento-field-border': 'color-mix(in srgb, var(--bento-text-muted) 40%, transparent)',
+  '--bento-modal-scrim': 'rgba(208, 211, 214, 0.55)',
+  '--bento-modal-panel-bg': 'rgba(224, 227, 229, 0.78)',
+  '--bento-modal-radius': '2.5rem',
   '--bento-overlay-dark': 'rgba(34, 34, 34, 0.95)',
   '--bento-subtle': 'rgba(0, 0, 0, 0.03)',
 
@@ -131,6 +134,9 @@ export const BENTO_STYLESHEET = `
   --bento-panel-bg: rgba(224, 227, 229, 0.5);
   --bento-field-bg: var(--bento-panel-bg);
   --bento-field-border: color-mix(in srgb, var(--bento-text-muted) 40%, transparent);
+  --bento-modal-scrim: rgba(208, 211, 214, 0.55);
+  --bento-modal-panel-bg: rgba(224, 227, 229, 0.78);
+  --bento-modal-radius: 2.5rem;
   --bento-overlay-dark: rgba(34, 34, 34, 0.95);
   --bento-subtle: rgba(0, 0, 0, 0.03);
   --bento-danger-text: #a05a5a;

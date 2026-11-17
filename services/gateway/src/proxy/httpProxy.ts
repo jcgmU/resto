@@ -45,6 +45,11 @@ export function createServiceProxy(target: string) {
           if (user.tableId) proxyReq.setHeader('x-table-id', String(user.tableId));
         }
 
+        const contentType = req.headers?.['content-type'];
+        if (typeof contentType !== 'string' || !/^application\/json(?:\s*;|\s*$)/i.test(contentType)) {
+          return;
+        }
+
         if (req.body !== undefined && req.body !== null) {
           const contentLength = req.headers?.['content-length'];
           const hasTransferEncoding = Boolean(req.headers?.['transfer-encoding']);

@@ -60,6 +60,7 @@ describe('U7: EditTableModal y BatchEditModal', () => {
 
       const dialog = screen.getByRole('dialog');
       expect(dialog).toHaveAttribute('aria-modal', 'true');
+      expect(dialog).toHaveAttribute('data-component', 'modal');
 
       const labelInput = screen.getByLabelText(/Nombre de la mesa/i) as HTMLInputElement;
       expect(labelInput.value).toBe('Mesa 1');

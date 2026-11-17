@@ -5,6 +5,7 @@ export const FEATURE_FLAG_KEYS = [
   'payments',
   'analytics',
   'multi-language',
+  'dev-components',
 ] as const;
 
 export type FeatureFlagKey = typeof FEATURE_FLAG_KEYS[number];
@@ -18,6 +19,7 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   'payments': false,
   'analytics': false,
   'multi-language': false,
+  'dev-components': false,
 };
 
 // Parsea "payments:true,analytics:false"; claves desconocidas se ignoran; valores inválidos -> false; nunca lanza.

@@ -4,6 +4,8 @@ import {
   BentoCard,
   KpiValue,
   ModalConfirm,
+  Modal,
+  Button,
   Skeleton,
   ORDER_STATUS_LABELS,
   formatOrderNumber,
@@ -746,56 +748,15 @@ export function ReleaseTableModal({
   const hasPending = pendingAmount > 0;
 
   return (
-    <div
-      data-testid="modal-backdrop"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !loading) onClose();
-      }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
-        background: 'color-mix(in srgb, var(--bento-page-bg) 70%, transparent)',
-        zIndex: 1000,
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="release-table-dialog-title"
-        data-component="modal-confirm"
-        tabIndex={-1}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape' && !loading) {
-            e.stopPropagation();
-            onClose();
-          }
-        }}
-        style={{
-          width: '100%',
-          maxWidth: '480px',
-          background: 'var(--bento-card-bg-solid)',
-          color: 'var(--bento-text)',
-          borderRadius: 'var(--bento-card-radius)',
-          border: '1px solid var(--bento-border)',
-          boxShadow: 'var(--bento-card-shadow)',
-          padding: '24px',
-          fontFamily: 'var(--bento-font-body)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-        }}
-      >
-        <h2
-          id="release-table-dialog-title"
-          style={{ margin: 0, fontSize: '20px', fontFamily: 'var(--bento-font-heading)' }}
-        >
-          Liberar mesa
-        </h2>
-
+    <Modal open={open} title="Liberar mesa" onClose={() => { if (!loading) onClose(); }}
+      maxWidth="480px"
+      footer={<>
+        <Button variant="secondary" onClick={onClose} disabled={loading}>Cancelar</Button>
+        <Button disabled={hasPending || loading} onClick={hasPending ? undefined : onConfirm}
+          title={hasPending ? 'Acción bloqueada: saldo pendiente sin cobrar' : 'Confirmar liberación'}>
+          {loading ? 'Liberando...' : 'Confirmar liberación'}
+        </Button>
+      </>}>
         {hasPending ? (
           <div
             role="alert"
@@ -893,50 +854,7 @@ export function ReleaseTableModal({
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: '8px' }}>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={loading}
-            style={{
-              minHeight: '44px',
-              padding: '0 20px',
-              borderRadius: 'var(--bento-pill-radius)',
-              fontFamily: 'var(--bento-font-body)',
-              fontSize: '14px',
-              fontWeight: 600,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              background: 'transparent',
-              color: 'var(--bento-destructive)',
-              border: '1px solid transparent',
-            }}
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            disabled={hasPending || loading}
-            onClick={hasPending ? undefined : onConfirm}
-            title={hasPending ? 'Acción bloqueada: saldo pendiente sin cobrar' : 'Confirmar liberación'}
-            style={{
-              minHeight: '44px',
-              padding: '0 20px',
-              borderRadius: 'var(--bento-pill-radius)',
-              fontFamily: 'var(--bento-font-body)',
-              fontSize: '14px',
-              fontWeight: 600,
-              cursor: (hasPending || loading) ? 'not-allowed' : 'pointer',
-              background: hasPending ? 'var(--bento-border)' : 'var(--bento-primary)',
-              color: hasPending ? 'var(--bento-text-muted)' : 'var(--bento-card-bg-solid)',
-              border: 'none',
-              opacity: hasPending ? 0.6 : 1,
-            }}
-          >
-            {loading ? 'Liberando...' : 'Confirmar liberación'}
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

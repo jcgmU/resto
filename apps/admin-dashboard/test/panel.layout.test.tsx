@@ -91,7 +91,7 @@ describe('U4: layout (panel) con SidebarRail + PageHeader (Línea Suite)', () =>
     expect(screen.queryAllByRole('navigation')).toHaveLength(0);
   });
 
-  test('renderiza los 3 puntos pastel de ventana y el modo de operación', async () => {
+  test('muestra el modo de operación sin puntos decorativos', async () => {
     ApiClient.token = 'tok';
     render(
       <PanelLayout>
@@ -99,7 +99,7 @@ describe('U4: layout (panel) con SidebarRail + PageHeader (Línea Suite)', () =>
       </PanelLayout>,
     );
     await screen.findByText('Contenido');
-    expect(screen.getByTestId('pastel-dots')).toBeInTheDocument();
+    expect(screen.queryByTestId('pastel-dots')).not.toBeInTheDocument();
     expect(screen.getByText('Híbrido (QR + Meseros)')).toBeInTheDocument();
   });
 

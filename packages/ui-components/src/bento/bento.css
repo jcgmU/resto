@@ -43,6 +43,9 @@
   --bento-panel-bg: rgba(224, 227, 229, 0.5);
   --bento-field-bg: var(--bento-panel-bg);
   --bento-field-border: color-mix(in srgb, var(--bento-text-muted) 40%, transparent);
+  --bento-modal-scrim: rgba(208, 211, 214, 0.55);
+  --bento-modal-panel-bg: rgba(224, 227, 229, 0.78);
+  --bento-modal-radius: 2.5rem;
   --bento-overlay-dark: rgba(34, 34, 34, 0.95);
   --bento-subtle: rgba(0, 0, 0, 0.03);
   --bento-danger-text: #a05a5a;
@@ -194,4 +197,184 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   opacity: 0.8;
+}
+
+/* StatusCard: card con blob de estado (una vuelta de 4 s y queda en la esquina superior izquierda) */
+.bento-status-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  box-shadow: var(--bento-card-shadow);
+  background: var(--bento-card-bg-solid);
+}
+
+.bento-status-card__blob {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: var(--bento-blob-color);
+  filter: blur(14px);
+  transform: translate(-50%, -50%);
+  animation: bento-blob-orbit 4s linear 1 forwards;
+}
+
+.bento-status-card[data-animated="false"] .bento-status-card__blob {
+  animation: none;
+}
+
+.bento-status-card__blob[data-variant="progress"] {
+  top: -20px;
+  height: 40px;
+  max-width: 100%;
+  border-radius: 999px;
+  filter: blur(14px);
+  transform: none;
+  animation: none;
+  transition: width 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+.bento-status-card__body {
+  position: relative;
+  margin: 5px;
+  padding: var(--bento-card-padding);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  outline: 2px solid var(--bento-card-bg-solid);
+}
+
+@keyframes bento-blob-orbit {
+  0% {
+    top: 0;
+    left: 0;
+  }
+  25% {
+    top: 0;
+    left: 100%;
+  }
+  50% {
+    top: 100%;
+    left: 100%;
+  }
+  75% {
+    top: 100%;
+    left: 0;
+  }
+  100% {
+    top: 0;
+    left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bento-status-card__blob {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* Modal: panel esmerilado sobre fondo desenfocado (estilo Nueva Mesa) */
+.bento-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--bento-modal-scrim);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.bento-modal__panel {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 40px 40px 36px;
+  background: var(--bento-modal-panel-bg);
+  backdrop-filter: blur(24px) saturate(1.1);
+  -webkit-backdrop-filter: blur(24px) saturate(1.1);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: var(--bento-modal-radius);
+  box-shadow: var(--bento-card-shadow);
+  color: var(--bento-text-strong);
+  font-family: var(--bento-font-body);
+}
+
+.bento-modal__backdrop--sheet {
+  align-items: flex-end;
+  padding: 0;
+}
+
+.bento-modal__backdrop--nonmodal {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  justify-content: flex-end;
+}
+
+.bento-modal__backdrop--sheet .bento-modal__panel {
+  max-width: none;
+  max-height: 90dvh;
+  border-radius: var(--bento-modal-radius) var(--bento-modal-radius) 0 0;
+  touch-action: pan-y;
+}
+
+.bento-modal__title {
+  margin: 0;
+  font-family: var(--bento-font-heading);
+  font-size: 1.875rem;
+  font-weight: 300;
+  line-height: 1.2;
+  color: var(--bento-text-strong);
+}
+
+.bento-modal__panel label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--bento-text-secondary);
+}
+
+.bento-modal__panel input:not([type="checkbox"]):not([type="radio"]),
+.bento-modal__panel textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 1px solid var(--bento-field-border);
+  border-radius: var(--bento-pill-radius);
+  background: var(--bento-field-bg);
+  color: var(--bento-text-strong);
+  font-family: var(--bento-font-body);
+  font-size: 1rem;
+}
+
+.bento-modal__panel select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 1px solid var(--bento-field-border);
+  border-radius: var(--bento-pill-radius);
+  background: var(--bento-field-bg);
+  color: var(--bento-text-strong);
+  font-family: var(--bento-font-body);
+  font-size: 1rem;
+}
+
+.bento-modal__footer {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.bento-modal__footer > * {
+  flex: 1;
 }

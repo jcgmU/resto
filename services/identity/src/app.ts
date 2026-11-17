@@ -245,6 +245,7 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
         password: req.body?.password,
         role: req.body?.role || 'WAITER',
         monitorKind: req.body?.monitorKind,
+        avatarUrl: req.body?.avatarUrl,
       });
 
       res.status(201).json(invited);
@@ -284,6 +285,7 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
         targetUserId: req.params.id,
         displayName: req.body?.displayName,
         role: req.body?.role,
+        avatarUrl: req.body?.avatarUrl,
       });
 
       res.status(200).json(updated);

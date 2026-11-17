@@ -18,6 +18,7 @@ import { OrderDTO, ServiceCallDTO } from '@packages/shared-types';
 import * as realtimeModule from '../src/lib/realtime';
 import { ApiClient } from '../src/lib/api';
 import { act } from '@testing-library/react';
+const { renderToStaticMarkup } = require('react-dom/server.node');
 
 describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
   const sampleOrder: OrderDTO = {
@@ -49,9 +50,9 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
     createdAt: new Date().toISOString(),
   };
 
-  test('14. /kds renderiza las 3 columnas con las orders del stub inicial (GET /v1/orders), cada una como data-component="bento-card"', () => {
+  test('14. /kds renderiza las 3 columnas y las órdenes como tarjetas de estado', () => {
     const { container } = render(<KdsBoard orders={[sampleOrder]} />);
-    const board = container.querySelector('[data-component="bento-card"]');
+    const board = container.querySelector('[data-component="status-card"]');
     expect(board).toBeInTheDocument();
     expect(screen.getByText('Mesa 4')).toBeInTheDocument();
   });
@@ -159,7 +160,7 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
 
   test('22. Bento/a11y: tokens var(--bento-*) sin hardcodeo, acento vibrante solo en KpiValue, iconos aria-hidden, cero emojis', () => {
     const { container } = render(<KdsOrderCard order={sampleOrder} />);
-    const card = container.querySelector('[data-component="bento-card"]');
+    const card = container.querySelector('[data-component="status-card"]');
     expect(card).toBeInTheDocument();
 
     const svgs = container.querySelectorAll('svg');
@@ -573,14 +574,14 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
 
     // 2. Ordenadas por más tiempo transcurrido primero (createdAt asc) en PLACED
     const colPlaced = screen.getByTestId('kds-column-placed');
-    const cardsPlaced = colPlaced.querySelectorAll('[data-component="bento-card"]');
+    const cardsPlaced = colPlaced.querySelectorAll('[data-component="status-card"]');
     expect(cardsPlaced).toHaveLength(2);
     expect(within(cardsPlaced[0] as HTMLElement).getByText('Mesa 10 (30m)')).toBeInTheDocument();
     expect(within(cardsPlaced[1] as HTMLElement).getByText('Mesa 11 (5m)')).toBeInTheDocument();
 
     // 3. Ordenadas por más tiempo transcurrido primero en IN_KITCHEN
     const colKitchen = screen.getByTestId('kds-column-in_kitchen');
-    const cardsKitchen = colKitchen.querySelectorAll('[data-component="bento-card"]');
+    const cardsKitchen = colKitchen.querySelectorAll('[data-component="status-card"]');
     expect(cardsKitchen).toHaveLength(2);
     expect(within(cardsKitchen[0] as HTMLElement).getByText('Mesa 20 (45m)')).toBeInTheDocument();
     expect(within(cardsKitchen[1] as HTMLElement).getByText('Mesa 21 (10m)')).toBeInTheDocument();
@@ -598,10 +599,10 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
     const { unmount: unmount1 } = render(
       <KdsOrderCard order={orderGreen} tenantSlaMinutes={20} />
     );
-    const barGreen = screen.getByTestId('sla-bar');
-    expect(barGreen).toHaveAttribute('data-sla-tone', 'ok');
-    expect(barGreen).toHaveAttribute('data-sla-color', 'green');
-    expect(barGreen).toHaveStyle({ backgroundColor: 'var(--bento-status-available)' });
+    const barGreen = document.querySelector('[data-part="blob"]') as HTMLElement;
+    expect(barGreen.closest('[data-component="status-card"]')).toHaveAttribute('data-status', 'available');
+    expect(barGreen.style.getPropertyValue('--bento-blob-color')).toBe('var(--bento-status-available)');
+    expect(barGreen).toHaveStyle({ width: '25%' });
     expect(screen.getByTestId('sla-counter')).toHaveTextContent('5m / 20m');
     unmount1();
 
@@ -614,10 +615,10 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
     const { unmount: unmount2 } = render(
       <KdsOrderCard order={orderAmber} tenantSlaMinutes={20} />
     );
-    const barAmber = screen.getByTestId('sla-bar');
-    expect(barAmber).toHaveAttribute('data-sla-tone', 'warning');
-    expect(barAmber).toHaveAttribute('data-sla-color', 'amber');
-    expect(barAmber).toHaveStyle({ backgroundColor: 'var(--bento-status-reserved)' });
+    const barAmber = document.querySelector('[data-part="blob"]') as HTMLElement;
+    expect(barAmber.closest('[data-component="status-card"]')).toHaveAttribute('data-status', 'reserved');
+    expect(barAmber.style.getPropertyValue('--bento-blob-color')).toBe('var(--bento-status-reserved)');
+    expect(barAmber).toHaveStyle({ width: '80%' });
     expect(screen.getByTestId('sla-counter')).toHaveTextContent('16m / 20m');
     unmount2();
 
@@ -630,10 +631,10 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
     const { unmount: unmount3 } = render(
       <KdsOrderCard order={orderRed} tenantSlaMinutes={20} />
     );
-    const barRed = screen.getByTestId('sla-bar');
-    expect(barRed).toHaveAttribute('data-sla-tone', 'destructive');
-    expect(barRed).toHaveAttribute('data-sla-color', 'red');
-    expect(barRed).toHaveStyle({ backgroundColor: 'var(--bento-status-occupied)' });
+    const barRed = document.querySelector('[data-part="blob"]') as HTMLElement;
+    expect(barRed.closest('[data-component="status-card"]')).toHaveAttribute('data-status', 'occupied');
+    expect(barRed.style.getPropertyValue('--bento-blob-color')).toBe('var(--bento-status-occupied)');
+    expect(barRed).toHaveStyle({ width: '100%' });
     expect(screen.getByTestId('sla-counter')).toHaveTextContent('22m / 20m');
     unmount3();
 
@@ -647,10 +648,9 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
     const { unmount: unmount4 } = render(
       <KdsOrderCard order={orderOverdue} tenantSlaMinutes={20} />
     );
-    const barOverdue = screen.getByTestId('sla-bar');
-    expect(barOverdue).toHaveAttribute('data-sla-tone', 'destructive');
-    expect(barOverdue).toHaveAttribute('data-sla-color', 'red');
-    expect(barOverdue).toHaveStyle({ backgroundColor: 'var(--bento-status-occupied)' });
+    const barOverdue = document.querySelector('[data-part="blob"]') as HTMLElement;
+    expect(barOverdue.closest('[data-component="status-card"]')).toHaveAttribute('data-status', 'occupied');
+    expect(barOverdue.style.getPropertyValue('--bento-blob-color')).toBe('var(--bento-status-occupied)');
     unmount4();
 
     // 5. Con demora asignada: 16m transcurridos, SLA tenant 20m + demora 5m = 25m SLA efectivo -> 64% (< 75% -> verde)
@@ -663,10 +663,10 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
     const { unmount: unmount5 } = render(
       <KdsOrderCard order={orderDelay} tenantSlaMinutes={20} />
     );
-    const barDelay = screen.getByTestId('sla-bar');
-    expect(barDelay).toHaveAttribute('data-sla-tone', 'ok');
-    expect(barDelay).toHaveAttribute('data-sla-color', 'green');
-    expect(barDelay).toHaveStyle({ backgroundColor: 'var(--bento-status-available)' });
+    const barDelay = document.querySelector('[data-part="blob"]') as HTMLElement;
+    expect(barDelay.closest('[data-component="status-card"]')).toHaveAttribute('data-status', 'available');
+    expect(barDelay.style.getPropertyValue('--bento-blob-color')).toBe('var(--bento-status-available)');
+    expect(barDelay).toHaveStyle({ width: '64%' });
     expect(screen.getByTestId('sla-counter')).toHaveTextContent('16m / 25m');
     unmount5();
   });
@@ -822,20 +822,16 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
     expect(itemNoteEl).toBeInTheDocument();
     expect(itemNoteEl).toHaveTextContent('Nota: Término medio, sin pepinillos');
     expect(itemNoteEl).toHaveAttribute('data-note-type', 'item');
-    expect(itemNoteEl).toHaveStyle({
-      backgroundColor: 'var(--bento-note-item-bg)',
-      color: 'var(--bento-status-occupied-text)',
-    });
 
     // Nota general con fondo ámbar pastel var(--bento-note-general-bg) y texto var(--bento-status-reserved-text)
     const generalNoteEl = screen.getByTestId('order-general-notes');
     expect(generalNoteEl).toBeInTheDocument();
     expect(generalNoteEl).toHaveTextContent('Nota general: Sin picante por favor, mesa de niños');
     expect(generalNoteEl).toHaveAttribute('data-note-type', 'general');
-    expect(generalNoteEl).toHaveStyle({
-      backgroundColor: 'var(--bento-note-general-bg)',
-      color: 'var(--bento-status-reserved-text)',
-    });
+    // JSDOM descarta valores var() en color: comprobar el HTML de React antes del parseo.
+    const markup = renderToStaticMarkup(<KdsOrderCard order={orderWithNotes} />);
+    expect(markup).toMatch(/data-note-type="item"[^>]*background-color:var\(--bento-note-item-bg\);color:var\(--bento-status-occupied-text\)/);
+    expect(markup).toMatch(/data-note-type="general"[^>]*background-color:var\(--bento-note-general-bg\);color:var\(--bento-status-reserved-text\)/);
   });
 
   test('35. N14: Llamadas de servicio muestran tipo con texto explicativo legible, notas y botón resolver', () => {
