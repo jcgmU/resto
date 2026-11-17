@@ -99,10 +99,6 @@ export class OrderUseCases {
       destination?: 'kitchen' | 'bar';
       requesterRole?: string;
     }): Promise<OrderDTO> => {
-      if (input.status === 'CANCELLED' && input.requesterRole && input.requesterRole.toLowerCase() === 'staff') {
-        throw new ForbiddenError('Solo personal administrativo puede cancelar órdenes');
-      }
-
       const order = await this.orderRepo.findById(input.tenantId, input.orderId);
       if (!order) {
         throw new OrderNotFoundError();
@@ -229,7 +225,7 @@ export class OrderUseCases {
       }
 
       if (this.identitySettings) {
-        const isStaff = ['ADMIN', 'MANAGER', 'STAFF', 'WAITER'].includes((input.userRole || '').toUpperCase());
+        const isStaff = ['ADMIN', 'MANAGER', 'WAITER'].includes((input.userRole || '').toUpperCase());
         if (!isStaff) {
           const mode = await this.identitySettings.getOperatingMode(input.tenantId);
           if (mode === 'waiter_only') {
@@ -421,7 +417,7 @@ export class OrderUseCases {
           throw new CartBusyError(input.sessionId);
         }
 
-        const isStaff = ['ADMIN', 'MANAGER', 'STAFF', 'WAITER'].includes((input.userRole || '').toUpperCase());
+        const isStaff = ['ADMIN', 'MANAGER', 'WAITER'].includes((input.userRole || '').toUpperCase());
 
         let effectiveEstimatedMinutes = 18;
         if (this.identitySettings) {

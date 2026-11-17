@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BentoCard } from '@packages/ui-components';
 import { ApiClient } from '../../../lib/api';
+import { terminalHomeForRole } from '../../../lib/auth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,11 +26,7 @@ export default function LoginPage() {
       const res = await ApiClient.login(payload);
       const user = res?.data?.user;
       const role = user?.role?.toLowerCase();
-      let targetPath = '/menu';
-      if (role === 'waiter') targetPath = '/terminal-mesero';
-      else if (role === 'cashier') targetPath = '/terminal-caja';
-      else if (role === 'monitor') targetPath = '/monitor';
-      else if (role === 'staff') targetPath = '/kds';
+      const targetPath = terminalHomeForRole(role) ?? '/menu';
 
       // Fallback for tests or non-Next environments
       if (typeof window !== 'undefined' && window.location) {

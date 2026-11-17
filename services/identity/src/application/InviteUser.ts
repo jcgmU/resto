@@ -19,9 +19,9 @@ export class InviteUserUseCaseImpl implements InviteUserUseCase {
       throw new DomainError('VALIDATION_ERROR', 'Display name is required');
     }
 
-    const validRoles = ['MANAGER', 'STAFF', 'WAITER', 'MONITOR', 'CASHIER'];
+    const validRoles = ['MANAGER', 'WAITER', 'MONITOR', 'CASHIER'];
     if (!input.role || !validRoles.includes(input.role)) {
-      throw new DomainError('VALIDATION_ERROR', 'Role must be MANAGER or STAFF');
+      throw new DomainError('VALIDATION_ERROR', 'Role must be MANAGER, WAITER, CASHIER or MONITOR');
     }
 
     if (input.role === 'MONITOR') {

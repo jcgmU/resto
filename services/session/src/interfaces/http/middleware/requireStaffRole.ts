@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../../../config';
 
-export function requireStaffRole(allowedRoles: string[] = ['staff', 'manager', 'admin', 'waiter']) {
+export function requireStaffRole(allowedRoles: string[] = ['manager', 'admin', 'waiter']) {
   return (req: Request, res: Response, next: NextFunction) => {
     let role = (req.headers['x-user-role'] as string || '').toLowerCase();
 

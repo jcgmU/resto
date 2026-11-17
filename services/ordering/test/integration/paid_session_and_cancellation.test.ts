@@ -298,7 +298,7 @@ describe('U4: Paid Session, Concurrency & Cancellation Integration', () => {
       const res = await request(app)
         .patch(`/orders/${orderId}/status`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .set('x-user-id', 'staff-1')
         .send({ status: 'CANCELLED' });
 
@@ -310,7 +310,7 @@ describe('U4: Paid Session, Concurrency & Cancellation Integration', () => {
       const res = await request(app)
         .post(`/orders/${orderId}/cancel`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .set('x-user-id', 'staff-1')
         .send();
 
@@ -322,7 +322,7 @@ describe('U4: Paid Session, Concurrency & Cancellation Integration', () => {
       const res = await request(app)
         .patch(`/orders/${orderId}/status`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .set('x-user-id', 'staff-1')
         .send({ status: 'IN_KITCHEN' });
 

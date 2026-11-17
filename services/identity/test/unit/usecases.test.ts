@@ -219,18 +219,18 @@ describe('A. Identity — unitarios de casos de uso (Tests 1-10)', () => {
   });
 
   describe('InviteUser (Tests 9-10)', () => {
-    test('9. InviteUser crea usuario MANAGER/STAFF con status ACTIVE y password hasheado', async () => {
+    test('9. InviteUser crea usuario MANAGER/WAITER con status ACTIVE y password hasheado', async () => {
       const useCase = new InviteUserUseCaseImpl(new InMemoryUserRepository(), new FakePasswordHasher());
       const user = await useCase.execute({
         tenantId: 'tenant-123',
         email: 'staff@resto.com',
         displayName: 'Mesero Juan',
         password: 'password123',
-        role: 'STAFF',
+        role: 'WAITER',
       });
 
       expect(user.tenantId).toBe('tenant-123');
-      expect(user.role).toBe('STAFF');
+      expect(user.role).toBe('WAITER');
       expect(user.status).toBe('ACTIVE');
       expect((user as any).passwordHash).toBeUndefined();
     });
@@ -263,7 +263,7 @@ describe('A. Identity — unitarios de casos de uso (Tests 1-10)', () => {
       ).rejects.toThrow(
         expect.objectContaining({
           code: 'VALIDATION_ERROR',
-          message: 'Role must be MANAGER or STAFF',
+          message: 'Role must be MANAGER, WAITER, CASHIER or MONITOR',
         } as Partial<DomainError>)
       );
 
@@ -278,7 +278,7 @@ describe('A. Identity — unitarios de casos de uso (Tests 1-10)', () => {
       ).rejects.toThrow(
         expect.objectContaining({
           code: 'VALIDATION_ERROR',
-          message: 'Role must be MANAGER or STAFF',
+          message: 'Role must be MANAGER, WAITER, CASHIER or MONITOR',
         } as Partial<DomainError>)
       );
     });
@@ -291,7 +291,7 @@ describe('A. Identity — unitarios de casos de uso (Tests 1-10)', () => {
           email: 'shortpass@resto.com',
           displayName: 'Short Pass',
           password: 'short',
-          role: 'STAFF',
+          role: 'WAITER',
         })
       ).rejects.toThrow(
         expect.objectContaining({
@@ -305,7 +305,7 @@ describe('A. Identity — unitarios de casos de uso (Tests 1-10)', () => {
           tenantId: 'tenant-123',
           email: 'nopass@resto.com',
           displayName: 'No Pass',
-          role: 'STAFF',
+          role: 'WAITER',
         })
       ).rejects.toThrow(
         expect.objectContaining({
@@ -323,7 +323,7 @@ describe('A. Identity — unitarios de casos de uso (Tests 1-10)', () => {
           email: 'noname@resto.com',
           displayName: '   ',
           password: 'password123',
-          role: 'STAFF',
+          role: 'WAITER',
         })
       ).rejects.toThrow(
         expect.objectContaining({
@@ -342,7 +342,7 @@ describe('A. Identity — unitarios de casos de uso (Tests 1-10)', () => {
           email: 'user@resto.com',
           displayName: 'Mesero Clon',
           password: 'password123',
-          role: 'STAFF',
+          role: 'WAITER',
         })
       ).rejects.toThrow(
         expect.objectContaining({

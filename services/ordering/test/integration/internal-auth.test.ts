@@ -53,7 +53,7 @@ describe('Ordering Internal Auth Middleware (R08)', () => {
       .get('/checkout/s-smoke-e2e')
       .set('x-internal-token', 'test-ordering-secret-2026')
       .set('x-tenant-id', 't-smoke-e2e')
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
     expect(res.status).toBe(200);
   });
 
@@ -91,7 +91,7 @@ describe('Ordering Internal Auth Middleware (R08)', () => {
       const res = await request(app)
         .get('/checkout/s-smoke-e2e')
         .set('x-tenant-id', 't-smoke-e2e')
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('[SECURITY WARN]'));
       expect(res.status).toBe(200);
       warnSpy.mockRestore();

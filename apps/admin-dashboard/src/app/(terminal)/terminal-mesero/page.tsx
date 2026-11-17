@@ -6,6 +6,7 @@ import {
   StatusChip,
   TabsPill,
   SlaDot,
+  tableDisplayName,
 } from '@packages/ui-components';
 import { formatCOP, TableDTO, ZoneDTO, ServiceCallDTO, OrderDTO } from '@packages/shared-types';
 import {
@@ -321,7 +322,7 @@ export default function TerminalMeseroPage() {
         notes: generalNotes,
       });
 
-      setOrderSuccessMessage(`¡Comanda enviada a cocina para Mesa ${orderTargetTable.label}!`);
+      setOrderSuccessMessage(`¡Comanda enviada a cocina para ${tableDisplayName(orderTargetTable.label)}!`);
       setTimeout(() => {
         setOrderTargetTable(null);
         setCart([]);
@@ -356,7 +357,7 @@ export default function TerminalMeseroPage() {
           {serviceCalls.map((call) => {
             const table = tables.find((t) => t.tableId === call.tableId || (t as any).id === call.tableId);
             const rawLabel = table?.label || call.tableId;
-            const tableDisplay = rawLabel.toLowerCase().startsWith('mesa') ? rawLabel : `Mesa ${rawLabel}`;
+            const tableDisplay = tableDisplayName(rawLabel);
             const isBill = call.type === 'BILL_REQUEST';
             const cId = call.callId || (call as any).id;
 
@@ -466,7 +467,7 @@ export default function TerminalMeseroPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: 'var(--bento-text-strong)' }}>
-                  Tomar Pedido — Mesa {orderTargetTable.label}
+                  Tomar Pedido — {tableDisplayName(orderTargetTable.label)}
                 </h2>
                 <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--bento-text-muted)' }}>
                   Selecciona productos del menú
@@ -707,7 +708,7 @@ export default function TerminalMeseroPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: 'var(--bento-text-strong)' }}>
-                  Mesa {t.label}
+                  {tableDisplayName(t.label)}
                 </h3>
                 <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: 'var(--bento-text-muted)' }}>
                   {t.zoneName} • {t.capacity} puestos
@@ -842,7 +843,7 @@ export default function TerminalMeseroPage() {
           >
             <div>
               <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: 'var(--bento-text-strong)' }}>
-                Cambiar Mesa {movingSession.sourceTableLabel}
+                Cambiar {tableDisplayName(movingSession.sourceTableLabel)}
               </h3>
               <p style={{ margin: '4px 0 0 0', fontSize: '0.8125rem', color: 'var(--bento-text-muted)' }}>
                 Selecciona la mesa libre a la cual trasladar la comanda y comensales.
@@ -895,7 +896,7 @@ export default function TerminalMeseroPage() {
                     const zoneObj = zones.find((z) => z.id === t.zoneId);
                     return (
                       <option key={t.tableId} value={t.tableId}>
-                        Mesa {t.label} ({t.capacity || 4} puestos{zoneObj ? ` • ${zoneObj.name}` : ''})
+                        {tableDisplayName(t.label)} ({t.capacity || 4} puestos{zoneObj ? ` • ${zoneObj.name}` : ''})
                       </option>
                     );
                   })}

@@ -205,7 +205,7 @@ export class CartUseCases {
       await this.assertSessionOrderable(input.tenantId, input.sessionId);
 
       if (this.identitySettings) {
-        const isStaff = ['ADMIN', 'MANAGER', 'STAFF', 'WAITER'].includes((input.userRole || '').toUpperCase());
+        const isStaff = ['ADMIN', 'MANAGER', 'WAITER'].includes((input.userRole || '').toUpperCase());
         if (!isStaff) {
           const mode = await this.identitySettings.getOperatingMode(input.tenantId);
           if (mode === 'waiter_only') {

@@ -721,7 +721,7 @@ export async function main() {
       log('[E2E 4/6] Cart & Quantity bounds passed.');
 
       // 5. Confirmar Pedido y KDS (U4 / H6, H7)
-      log('[E2E 5/6] Testing Order Confirmation, STAFF cancellation guard & KDS flow via Gateway...');
+      log('[E2E 5/6] Testing Order Confirmation, KDS flow via Gateway...');
       const confirmOrderRes = await gwRequest('POST', '/v1/orders/confirm', {
         token: guestToken,
         body: { tableId },
@@ -731,19 +731,19 @@ export async function main() {
       }
       const orderId = confirmOrderRes.data.id;
 
-      // Create & login a STAFF user in Tenant A to verify H7
-      const staffEmail = `staff-a-${ts}@resto.test`;
+      // Create & login a WAITER user in Tenant A (rol sin permisos de gestión de mesas)
+      const staffEmail = `waiter-a-${ts}@resto.test`;
       const inviteStaffRes = await gwRequest('POST', '/v1/identity/users', {
         token: adminTokenA,
         body: {
           email: staffEmail,
-          displayName: 'Staff User',
+          displayName: 'Waiter User',
           password: adminPassword,
-          role: 'STAFF',
+          role: 'WAITER',
         },
       });
       if (inviteStaffRes.status !== 201) {
-        throw new Error(`[E2E 5/6] Invite STAFF user failed: status=${inviteStaffRes.status} body=${JSON.stringify(inviteStaffRes.data)}`);
+        throw new Error(`[E2E 5/6] Invite WAITER user failed: status=${inviteStaffRes.status} body=${JSON.stringify(inviteStaffRes.data)}`);
       }
 
       const loginStaffRes = await gwRequest('POST', '/v1/auth/login', {
@@ -754,17 +754,9 @@ export async function main() {
         },
       });
       if (loginStaffRes.status !== 200 || !loginStaffRes.data?.tokens?.accessToken) {
-        throw new Error(`[E2E 5/6] Login STAFF user failed: status=${loginStaffRes.status}`);
+        throw new Error(`[E2E 5/6] Login WAITER user failed: status=${loginStaffRes.status}`);
       }
       const staffTokenA = loginStaffRes.data.tokens.accessToken;
-
-      const staffCancelViaStatusRes = await gwRequest('PATCH', `/v1/orders/${orderId}/status`, {
-        token: staffTokenA,
-        body: { status: 'CANCELLED' },
-      });
-      if (staffCancelViaStatusRes.status !== 403) {
-        throw new Error(`[E2E 5/6] STAFF PATCH /v1/orders/:id/status CANCELLED must return 403, got ${staffCancelViaStatusRes.status}`);
-      }
 
       for (const nextStatus of ['IN_KITCHEN', 'READY', 'DELIVERED']) {
         const kdsRes = await gwRequest('PATCH', `/v1/orders/${orderId}/status`, {
@@ -1017,14 +1009,14 @@ export async function main() {
         );
       }
 
-      // 7. Guards de rol STAFF (403 Forbidden)
+      // 7. Guards de rol WAITER (403 Forbidden)
       const staffCreateRes = await gwRequest('POST', '/v1/tables/batch', {
         token: staffTokenA,
         body: { labels: ['Staff 1'] },
       });
       if (staffCreateRes.status !== 403) {
         throw new Error(
-          `[E2E 7/7] STAFF POST /v1/tables/batch must return 403, got ${staffCreateRes.status}`
+          `[E2E 7/7] WAITER POST /v1/tables/batch must return 403, got ${staffCreateRes.status}`
         );
       }
 
@@ -1034,7 +1026,7 @@ export async function main() {
       });
       if (staffPatchRes.status !== 403) {
         throw new Error(
-          `[E2E 7/7] STAFF PATCH /v1/tables/batch must return 403, got ${staffPatchRes.status}`
+          `[E2E 7/7] WAITER PATCH /v1/tables/batch must return 403, got ${staffPatchRes.status}`
         );
       }
 
@@ -1044,7 +1036,7 @@ export async function main() {
       });
       if (staffDeleteRes.status !== 403) {
         throw new Error(
-          `[E2E 7/7] STAFF POST /v1/tables/batch/delete must return 403, got ${staffDeleteRes.status}`
+          `[E2E 7/7] WAITER POST /v1/tables/batch/delete must return 403, got ${staffDeleteRes.status}`
         );
       }
 

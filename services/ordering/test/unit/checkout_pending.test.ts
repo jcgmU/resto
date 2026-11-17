@@ -191,7 +191,7 @@ describe('Unit - ConfirmCheckout con órdenes sin entregar (ADR D2)', () => {
         tableId: 'tb-1',
         method: 'CASH',
         recordedBy: 'staff-1',
-        role: 'staff',
+        role: 'waiter',
         closePendingOrders: true,
       })
     ).rejects.toThrow(ForbiddenError);
@@ -219,7 +219,7 @@ describe('Unit - ConfirmCheckout con órdenes sin entregar (ADR D2)', () => {
       tableId: 'tb-1',
       method: 'CARD',
       recordedBy: 'staff-1',
-      role: 'staff',
+      role: 'waiter',
     });
 
     expect(res.payment.amount).toBe(50);
@@ -245,7 +245,7 @@ describe('Unit - ConfirmCheckout con órdenes sin entregar (ADR D2)', () => {
       tableId: 'tb-1',
       method: 'CASH',
       recordedBy: 'staff-1',
-      role: 'staff',
+      role: 'waiter',
     });
 
     const second = await checkoutUseCases.confirmCheckout.execute({
@@ -254,7 +254,7 @@ describe('Unit - ConfirmCheckout con órdenes sin entregar (ADR D2)', () => {
       tableId: 'tb-1',
       method: 'CASH',
       recordedBy: 'staff-1',
-      role: 'staff',
+      role: 'waiter',
     });
 
     expect((second as any).isExisting).toBe(true);

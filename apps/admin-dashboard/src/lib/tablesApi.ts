@@ -135,9 +135,6 @@ export function isMutationAllowed(
     if (normalized === 'ADMIN' || normalized === 'MANAGER') {
       return true;
     }
-    if (normalized === 'STAFF') {
-      return false;
-    }
     return false;
   }
 

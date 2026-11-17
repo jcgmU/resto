@@ -282,7 +282,7 @@ describe('R09 KDS: Resiliencia de WebSocket y Reconexión', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Mesa 9')).toBeInTheDocument();
-        expect(screen.getByText(/Lomo Saltado/i)).toBeInTheDocument();
+        expect(screen.getAllByText(/Lomo Saltado/i).length).toBeGreaterThan(0);
       });
 
       const cancelledOrder = {

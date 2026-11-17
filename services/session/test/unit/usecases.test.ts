@@ -107,7 +107,7 @@ describe('A. Session — unitarios de casos de uso (Tests 1-14)', () => {
       getSession.execute({
         tenantId: 'tenant-other',
         sessionId: open.session.sessionId,
-        requester: { role: 'staff' },
+        requester: { role: 'waiter' },
       })
     ).rejects.toThrow('SESSION_NOT_FOUND');
 

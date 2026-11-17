@@ -60,7 +60,7 @@ describe('U11 [R2]: Sesión con TTL de 1 hora (3600s) y renovación por activida
     const openRes = await request(app)
       .post('/sessions/staff-open')
       .set('x-tenant-id', tenantId)
-      .set('x-user-role', 'staff')
+      .set('x-user-role', 'waiter')
       .send({ tableId });
 
     expect(openRes.status).toBe(200);
@@ -82,7 +82,7 @@ describe('U11 [R2]: Sesión con TTL de 1 hora (3600s) y renovación por activida
     const openRes = await request(app)
       .post('/sessions/staff-open')
       .set('x-tenant-id', tenantId)
-      .set('x-user-role', 'staff')
+      .set('x-user-role', 'waiter')
       .send({ tableId });
 
     const sessionId = openRes.body.session.sessionId;
@@ -97,7 +97,7 @@ describe('U11 [R2]: Sesión con TTL de 1 hora (3600s) y renovación por activida
     const billRes = await request(app)
       .post(`/sessions/${sessionId}/bill-request`)
       .set('x-tenant-id', tenantId)
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
 
     expect(billRes.status).toBe(200);
 

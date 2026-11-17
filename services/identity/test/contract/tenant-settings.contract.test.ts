@@ -64,10 +64,10 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
   }
 
   describe('GET /tenant/settings y /v1/tenant/settings', () => {
-    it('GET con staff (ADMIN, MANAGER, STAFF, WAITER) devuelve configuración completa (operatingMode y estimatedPrepMinutes)', async () => {
+    it('GET con staff (ADMIN, MANAGER, WAITER) devuelve configuración completa (operatingMode y estimatedPrepMinutes)', async () => {
       const tenant = await createTestTenant('tenant-staff-check');
 
-      for (const role of ['ADMIN', 'MANAGER', 'STAFF', 'WAITER', 'admin', 'waiter']) {
+      for (const role of ['ADMIN', 'MANAGER', 'WAITER', 'admin', 'waiter']) {
         const res = await authRequest('get', '/tenant/settings')
           .set('x-tenant-id', tenant.id)
           .set('x-user-role', role);

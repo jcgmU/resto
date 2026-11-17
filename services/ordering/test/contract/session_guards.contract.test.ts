@@ -473,7 +473,7 @@ describe('V08 - R03b + R06 Session Guards and Table Derivation in Ordering (Cont
       const staffHeaders = {
         'x-tenant-id': tenantId,
         'x-user-id': 'staff-cajero',
-        'x-user-role': 'staff',
+        'x-user-role': 'waiter',
       };
 
       await request(app)
@@ -514,7 +514,7 @@ describe('V08 - R03b + R06 Session Guards and Table Derivation in Ordering (Cont
       const staffHeaders = {
         'x-tenant-id': tenantId,
         'x-user-id': 'staff-cajero',
-        'x-user-role': 'staff',
+        'x-user-role': 'waiter',
       };
 
       // 1. Guest pide primer plato y lo confirma
@@ -617,7 +617,7 @@ describe('V08 - R03b + R06 Session Guards and Table Derivation in Ordering (Cont
       const staffHeaders = {
         'x-tenant-id': tenantId,
         'x-user-id': 'staff-cajero',
-        'x-user-role': 'staff',
+        'x-user-role': 'waiter',
       };
 
       await request(app)
@@ -664,7 +664,7 @@ describe('V08 - R03b + R06 Session Guards and Table Derivation in Ordering (Cont
       const staffHeaders = {
         'x-tenant-id': tenantId,
         'x-user-id': 'staff-cajero',
-        'x-user-role': 'staff',
+        'x-user-role': 'waiter',
       };
 
       await request(app)
@@ -748,7 +748,7 @@ describe('V08 - R03b + R06 Session Guards and Table Derivation in Ordering (Cont
       const staffHeaders = {
         'x-tenant-id': tenantId,
         'x-user-id': 'staff-cajero',
-        'x-user-role': 'staff',
+        'x-user-role': 'waiter',
       };
 
       await request(app)

@@ -3,6 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { ApiClient } from '../../lib/api';
 import { logout } from '../../lib/auth/logout';
+import { ChangePasswordModal } from '../../components/ChangePasswordModal';
+import { isTerminalRouteAllowed, terminalHomeForRole } from '../../lib/auth';
 
 interface TerminalUser {
   id?: string;
@@ -40,6 +42,7 @@ export default function TerminalShell({ children }: { children: React.ReactNode 
   const pathname = usePathname();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [currentUser, setCurrentUser] = useState<TerminalUser | null>(null);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
   useEffect(() => {
     const token = ApiClient.token;
@@ -55,14 +58,20 @@ export default function TerminalShell({ children }: { children: React.ReactNode 
     try {
       const rawUser = typeof window !== 'undefined' ? localStorage.getItem('resto_user') : null;
       if (rawUser) {
-        setCurrentUser(JSON.parse(rawUser));
+        const user: TerminalUser = JSON.parse(rawUser);
+        setCurrentUser(user);
+        if (!isTerminalRouteAllowed(pathname || '', user.role)) {
+          setIsAuthenticated(false);
+          router.replace(terminalHomeForRole(user.role) ?? '/login');
+          return;
+        }
       }
     } catch {
       // ignore
     }
 
     setIsAuthenticated(true);
-  }, [router]);
+  }, [router, pathname]);
 
   if (!isAuthenticated) {
     return null;
@@ -186,6 +195,23 @@ export default function TerminalShell({ children }: { children: React.ReactNode 
 
           <button
             type="button"
+            onClick={() => setPasswordModalOpen(true)}
+            style={{
+              background: 'none',
+              border: '1px solid var(--bento-border)',
+              borderRadius: 'var(--bento-inner-radius)',
+              color: 'var(--bento-text)',
+              padding: '0.375rem 0.75rem',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Cambiar contraseña
+          </button>
+
+          <button
+            type="button"
             onClick={handleLogout}
             data-testid="terminal-logout-btn"
             style={{
@@ -218,6 +244,7 @@ export default function TerminalShell({ children }: { children: React.ReactNode 
       >
         {children}
       </main>
+      <ChangePasswordModal open={passwordModalOpen} onClose={() => setPasswordModalOpen(false)} />
     </div>
   );
 }

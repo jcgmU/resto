@@ -180,7 +180,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
       expect(unauthRes.status).toBe(401);
 
       // Con token STAFF -> 403 (D1: lectura solo admin y manager)
-      const staffToken = jwt.sign({ userId: 'u-stf', tenantId: 't-1', role: 'staff' }, TEST_SECRET);
+      const staffToken = jwt.sign({ userId: 'u-stf', tenantId: 't-1', role: 'waiter' }, TEST_SECRET);
       const forbiddenRes = await request(app)
         .get('/v1/identity/users')
         .set('Authorization', `Bearer ${staffToken}`);
@@ -227,12 +227,12 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
     });
 
     test('24c. U5: cabeceras x-user-role o x-tenant-id inyectadas por el cliente son sobreescritas o eliminadas por el gateway', async () => {
-      const staffToken = jwt.sign({ userId: 'u-staff', tenantId: 'real-tenant', role: 'staff' }, TEST_SECRET);
+      const staffToken = jwt.sign({ userId: 'u-staff', tenantId: 'real-tenant', role: 'waiter' }, TEST_SECRET);
       const upstream = nock('http://localhost:4003', {
         reqheaders: {
           'x-user-id': 'u-staff',
           'x-tenant-id': 'real-tenant',
-          'x-user-role': 'staff',
+          'x-user-role': 'waiter',
         },
       })
         .get('/sessions/123')
@@ -284,7 +284,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
       expect(unauthRes.status).toBe(401);
 
       // Con token -> forwardea a identity
-      const token = jwt.sign({ userId: 'u-pass', tenantId: 't-1', role: 'staff' }, TEST_SECRET);
+      const token = jwt.sign({ userId: 'u-pass', tenantId: 't-1', role: 'waiter' }, TEST_SECRET);
       const upstream = nock('http://localhost:4001', {
         reqheaders: {
           'x-user-id': 'u-pass',
@@ -637,7 +637,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
       });
 
       test('PATCH /v1/tenant/settings con rol no autorizado (STAFF, WAITER, guest) -> 403 FORBIDDEN', async () => {
-        for (const role of ['STAFF', 'WAITER', 'guest']) {
+        for (const role of ['WAITER', 'WAITER', 'guest']) {
           const token = makeToken(role);
           const res = await request(app)
             .patch('/v1/tenant/settings')
@@ -653,7 +653,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
     // 2. Zonas
     describe('Zonas', () => {
       test('GET /v1/zones permitido para ADMIN, MANAGER, STAFF, WAITER -> proxy a session:4003/zones', async () => {
-        for (const role of ['ADMIN', 'MANAGER', 'STAFF', 'WAITER']) {
+        for (const role of ['ADMIN', 'MANAGER', 'WAITER', 'WAITER']) {
           const token = makeToken(role);
           const upstream = nock('http://localhost:4003', {
             reqheaders: {
@@ -707,7 +707,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
       });
 
       test('POST /v1/zones denegado para STAFF, WAITER, guest -> 403 FORBIDDEN', async () => {
-        for (const role of ['STAFF', 'WAITER', 'guest']) {
+        for (const role of ['WAITER', 'WAITER', 'guest']) {
           const token = makeToken(role);
           const res = await request(app)
             .post('/v1/zones')
@@ -760,7 +760,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
       });
 
       test('DELETE /v1/zones/:id denegado para STAFF y guest -> 403 FORBIDDEN', async () => {
-        for (const role of ['STAFF', 'guest']) {
+        for (const role of ['WAITER', 'guest']) {
           const token = makeToken(role);
           const res = await request(app)
             .delete('/v1/zones/z1')
@@ -775,7 +775,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
     // 3. Reservas
     describe('Reservas', () => {
       test('GET /v1/reservations permitido para ADMIN, MANAGER, STAFF, WAITER -> proxy a session:4003/reservations', async () => {
-        for (const role of ['ADMIN', 'MANAGER', 'STAFF', 'WAITER']) {
+        for (const role of ['ADMIN', 'MANAGER', 'WAITER', 'WAITER']) {
           const token = makeToken(role);
           const upstream = nock('http://localhost:4003')
             .get('/reservations')
@@ -801,7 +801,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
       });
 
       test('POST /v1/reservations permitido para ADMIN, MANAGER, STAFF, WAITER -> proxy a session:4003/reservations', async () => {
-        for (const role of ['STAFF', 'WAITER']) {
+        for (const role of ['WAITER', 'WAITER']) {
           const token = makeToken(role);
           const upstream = nock('http://localhost:4003')
             .post('/reservations', { customerName: 'Laura', partySize: 4 })
@@ -832,7 +832,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
       });
 
       test('POST /v1/reservations/:id/seat permitido para ADMIN, MANAGER, STAFF, WAITER -> proxy a session', async () => {
-        const token = makeToken('STAFF');
+        const token = makeToken('WAITER');
         const upstream = nock('http://localhost:4003')
           .post('/reservations/r1/seat')
           .reply(200, { reservation: { id: 'r1', status: 'seated' }, session: { id: 'sess-1' } });
@@ -890,7 +890,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
       });
 
       test('POST /v1/uploads denegado para STAFF, WAITER y guest -> 403 FORBIDDEN', async () => {
-        for (const role of ['STAFF', 'WAITER', 'guest']) {
+        for (const role of ['WAITER', 'WAITER', 'guest']) {
           const token = makeToken(role);
           const res = await request(app)
             .post('/v1/uploads')
@@ -990,7 +990,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
         };
 
         test('staff (ADMIN, MANAGER, STAFF, WAITER) conserva el x-session-id que envía el cliente', async () => {
-          for (const role of ['ADMIN', 'MANAGER', 'STAFF', 'WAITER']) {
+          for (const role of ['ADMIN', 'MANAGER', 'WAITER', 'WAITER']) {
             const { captured, upstream } = captureCartHeaders();
             const res = await request(app)
               .post('/v1/cart/confirm')
@@ -1037,7 +1037,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
       });
 
       test('PATCH /v1/orders/:id/delay con ADMIN, MANAGER, STAFF, WAITER -> proxy a ordering:4004/orders/:id/delay', async () => {
-        for (const role of ['ADMIN', 'MANAGER', 'STAFF', 'WAITER']) {
+        for (const role of ['ADMIN', 'MANAGER', 'WAITER', 'WAITER']) {
           const token = makeToken(role);
           const upstream = nock('http://localhost:4004', {
             reqheaders: {
@@ -1074,7 +1074,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
     // 6. Sesiones: staff-open, bill-request, bill-reopen
     describe('Sesiones FASE B', () => {
       test('POST /v1/sessions/staff-open permitido para ADMIN, MANAGER, STAFF, WAITER -> proxy a session:4003/sessions/staff-open', async () => {
-        for (const role of ['ADMIN', 'MANAGER', 'STAFF', 'WAITER']) {
+        for (const role of ['ADMIN', 'MANAGER', 'WAITER', 'WAITER']) {
           const token = makeToken(role);
           const upstream = nock('http://localhost:4003', {
             reqheaders: {
@@ -1147,7 +1147,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
       });
 
       test('POST /v1/sessions/:id/bill-reopen permitido para ADMIN, MANAGER, STAFF, WAITER -> proxy a session', async () => {
-        for (const role of ['ADMIN', 'MANAGER', 'STAFF', 'WAITER']) {
+        for (const role of ['ADMIN', 'MANAGER', 'WAITER', 'WAITER']) {
           const token = makeToken(role);
           const upstream = nock('http://localhost:4003', {
             reqheaders: {
@@ -1281,7 +1281,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
     });
 
     test('31. POST y PATCH sin cuerpo (sin Content-Length ni Content-Type) no se cuelgan y responden rápido', async () => {
-      const token = jwt.sign({ userId: 'u1', tenantId: 't1', role: 'staff', sessionId: 's1' }, TEST_SECRET);
+      const token = jwt.sign({ userId: 'u1', tenantId: 't1', role: 'waiter', sessionId: 's1' }, TEST_SECRET);
 
       const postRes = await request(app)
         .post('/v1/cart/confirm')
@@ -1357,7 +1357,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
     test.each(batchRoutes)(
       '35. $method $path con token de rol staff -> 403 FORBIDDEN',
       async ({ method, path, body }) => {
-        const staffToken = jwt.sign({ userId: 'u-staff', tenantId: 't-1', role: 'staff' }, TEST_SECRET);
+        const staffToken = jwt.sign({ userId: 'u-staff', tenantId: 't-1', role: 'waiter' }, TEST_SECRET);
         const res = await request(app)[method](path)
           .set('Authorization', `Bearer ${staffToken}`)
           .send(body);
@@ -1444,7 +1444,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
   });
 
   describe('U4 Matriz completa de autorización por ruta y rol (routeTable reconciliada + D1)', () => {
-    const ALL_ROLES = ['admin', 'manager', 'staff', 'waiter', 'cashier', 'monitor', 'customer'] as const;
+    const ALL_ROLES = ['admin', 'manager', 'waiter', 'cashier', 'monitor', 'customer'] as const;
 
     const SERVICE_URLS: Record<string, string> = {
       identity: 'http://localhost:4001',
@@ -1482,7 +1482,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
         expect(res.status).toBe(200);
       }
 
-      for (const deniedRole of ['staff', 'waiter', 'cashier', 'monitor']) {
+      for (const deniedRole of ['waiter', 'waiter', 'cashier', 'monitor']) {
         const token = jwt.sign({ userId: `u-${deniedRole}`, tenantId: 't-1', role: deniedRole }, TEST_SECRET);
         const res = await request(app).get('/v1/identity/users').set('Authorization', `Bearer ${token}`);
         expect(res.status).toBe(403);
@@ -1509,7 +1509,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
         expect(okRes.status).toBe(200);
 
         // manager y demás roles rechazados con 403
-        for (const deniedRole of ['manager', 'staff', 'waiter', 'cashier', 'monitor']) {
+        for (const deniedRole of ['manager', 'waiter', 'waiter', 'cashier', 'monitor']) {
           const deniedToken = jwt.sign({ userId: `u-${deniedRole}`, tenantId: 't-1', role: deniedRole }, TEST_SECRET);
           const forbiddenRes = await request(app)[mut.method](mut.path)
             .set('Authorization', `Bearer ${deniedToken}`)
@@ -1540,7 +1540,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
           expect(res.status).toBe(200);
         }
 
-        for (const deniedRole of ['staff', 'waiter', 'cashier', 'monitor']) {
+        for (const deniedRole of ['waiter', 'waiter', 'cashier', 'monitor']) {
           const token = jwt.sign({ userId: `u-${deniedRole}`, tenantId: 't-1', role: deniedRole }, TEST_SECRET);
           const res = await request(app)[route.method](route.path)
             .set('Authorization', `Bearer ${token}`)
@@ -1565,7 +1565,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
           path: '/v1/checkout/sess-op-1',
           upstreamUrl: 'http://localhost:4004',
           upstreamPath: '/checkout/sess-op-1',
-          allowed: ['admin', 'manager', 'staff', 'waiter', 'cashier'],
+          allowed: ['admin', 'manager', 'waiter', 'cashier'],
           denied: ['monitor', 'customer'],
         },
         {
@@ -1573,7 +1573,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
           path: '/v1/checkout/confirm',
           upstreamUrl: 'http://localhost:4004',
           upstreamPath: '/checkout/confirm',
-          allowed: ['admin', 'manager', 'staff', 'waiter', 'cashier'],
+          allowed: ['admin', 'manager', 'waiter', 'cashier'],
           denied: ['monitor', 'customer'],
         },
         {
@@ -1581,7 +1581,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
           path: '/v1/sessions',
           upstreamUrl: 'http://localhost:4003',
           upstreamPath: '/sessions',
-          allowed: ['admin', 'manager', 'staff', 'waiter', 'cashier'],
+          allowed: ['admin', 'manager', 'waiter', 'cashier'],
           denied: ['monitor', 'customer'],
         },
         {
@@ -1589,7 +1589,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
           path: '/v1/sessions/sess-op-1/close',
           upstreamUrl: 'http://localhost:4003',
           upstreamPath: '/sessions/sess-op-1/close',
-          allowed: ['admin', 'manager', 'staff', 'waiter', 'cashier'],
+          allowed: ['admin', 'manager', 'waiter', 'cashier'],
           denied: ['monitor', 'customer'],
         },
         {
@@ -1597,15 +1597,15 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
           path: '/v1/tables',
           upstreamUrl: 'http://localhost:4003',
           upstreamPath: '/tables',
-          allowed: ['admin', 'manager', 'staff', 'waiter', 'cashier'],
-          denied: ['monitor', 'customer'],
+          allowed: ['admin', 'manager', 'waiter', 'cashier', 'monitor'],
+          denied: ['customer'],
         },
         {
           method: 'get',
           path: '/v1/service-calls',
           upstreamUrl: 'http://localhost:4004',
           upstreamPath: '/service-calls',
-          allowed: ['admin', 'manager', 'staff', 'waiter', 'monitor', 'cashier'],
+          allowed: ['admin', 'manager', 'waiter', 'monitor', 'cashier'],
           denied: ['customer'],
         },
         {
@@ -1613,7 +1613,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
           path: '/v1/service-calls/sc-op-1/resolve',
           upstreamUrl: 'http://localhost:4004',
           upstreamPath: '/service-calls/sc-op-1/resolve',
-          allowed: ['admin', 'manager', 'staff', 'waiter', 'monitor', 'cashier'],
+          allowed: ['admin', 'manager', 'waiter', 'monitor', 'cashier'],
           denied: ['customer'],
         },
         {
@@ -1621,7 +1621,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
           path: '/v1/orders/ord-op-1/status',
           upstreamUrl: 'http://localhost:4004',
           upstreamPath: '/orders/ord-op-1/status',
-          allowed: ['admin', 'manager', 'staff', 'waiter', 'monitor'],
+          allowed: ['admin', 'manager', 'waiter', 'monitor'],
           denied: ['cashier', 'customer'],
         },
         {
@@ -1629,7 +1629,7 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
           path: '/v1/tables/tbl-op-1/qr',
           upstreamUrl: 'http://localhost:4003',
           upstreamPath: '/tables/tbl-op-1/qr',
-          allowed: ['admin', 'manager', 'staff', 'waiter'],
+          allowed: ['admin', 'manager', 'waiter'],
           denied: ['cashier', 'monitor', 'customer'],
         },
       ];

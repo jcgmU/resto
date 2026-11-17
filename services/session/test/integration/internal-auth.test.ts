@@ -60,7 +60,7 @@ describe('Session Internal Auth Middleware (R08)', () => {
       .get('/tables')
       .set('x-internal-token', 'test-session-secret-2026')
       .set('x-tenant-id', 'test-tenant')
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
     expect(res.status).toBe(200);
   });
 
@@ -98,7 +98,7 @@ describe('Session Internal Auth Middleware (R08)', () => {
       const res = await request(app)
         .get('/tables')
         .set('x-tenant-id', 'test-tenant')
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('[SECURITY WARN]'));
       expect(res.status).toBe(200);
       warnSpy.mockRestore();

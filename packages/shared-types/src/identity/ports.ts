@@ -76,7 +76,7 @@ export type CreateTeamMemberUseCase = UseCase<
     tenantId: string;
     email: string;
     displayName: string;
-    role: 'MANAGER' | 'STAFF' | UserRole;
+    role: UserRole;
     password: string;
     monitorKind?: MonitorKind | string;
   },

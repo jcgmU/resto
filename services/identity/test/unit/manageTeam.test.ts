@@ -37,7 +37,7 @@ describe('ManageTeam Unit Tests', () => {
         tenantId: 'tenant-1',
         email: 'staff@t1.com',
         displayName: 'Staff T1',
-        role: 'STAFF',
+        role: 'WAITER',
         status: 'ACTIVE',
         passwordHash: 'hashed_staff123',
         createdAt: new Date(),
@@ -48,7 +48,7 @@ describe('ManageTeam Unit Tests', () => {
         tenantId: 'tenant-2',
         email: 'staff@t2.com',
         displayName: 'Staff T2',
-        role: 'STAFF',
+        role: 'WAITER',
         status: 'ACTIVE',
         passwordHash: 'hashed_staff456',
         createdAt: new Date(),
@@ -97,7 +97,7 @@ describe('ManageTeam Unit Tests', () => {
           tenantId: 'tenant-1',
           currentUserId: 'admin-1',
           targetUserId: 'admin-1',
-          role: 'STAFF',
+          role: 'WAITER',
         })
       ).rejects.toThrow(expect.objectContaining({ code: 'FORBIDDEN' } as Partial<DomainError>));
     });

@@ -57,3 +57,10 @@ export function getTableDisplayName(
   return `Mesa · ${shortId(tableId)}`;
 }
 
+
+/** Nombre visible de una mesa a partir de su etiqueta: evita "Mesa Mesa 3". */
+export function tableDisplayName(label: string | null | undefined): string {
+  const text = (label ?? '').trim();
+  if (!text) return '';
+  return /^mesa/i.test(text) ? text : `Mesa ${text}`;
+}

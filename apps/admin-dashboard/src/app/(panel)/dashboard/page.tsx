@@ -14,6 +14,7 @@ import {
   Proximamente,
   getTableDisplayName,
   formatOrderNumber,
+  tableDisplayName,
 } from '@packages/ui-components';
 import {
   TableDTO,
@@ -627,7 +628,7 @@ export default function DashboardPage() {
         method: 'POST',
         body: JSON.stringify({ targetTableId: targetMoveTableId }),
       });
-      showToast(`Mesa ${movingTableData.sourceTableLabel} cambiada con éxito`);
+      showToast(`${tableDisplayName(movingTableData.sourceTableLabel)} cambiada con éxito`);
       setMovingTableData(null);
       setTargetMoveTableId('');
       await loadAllData();
@@ -672,7 +673,7 @@ export default function DashboardPage() {
         status: 'AVAILABLE',
       });
       setShowCreateTableModal(false);
-      showToast(`Mesa ${newTableLabel.trim()} creada`);
+      showToast(`${tableDisplayName(newTableLabel.trim())} creada`);
       await loadAllData();
     } catch (err: any) {
       setCreateTableError(err?.message || 'Error al crear la mesa');
@@ -703,7 +704,7 @@ export default function DashboardPage() {
         status: editTableStatus,
       });
       setEditingTable(null);
-      showToast(`Mesa ${editTableLabel} actualizada`);
+      showToast(`${tableDisplayName(editTableLabel)} actualizada`);
       await loadAllData();
     } catch (err: any) {
       setEditTableError(err?.message || 'Error al actualizar mesa');
@@ -719,7 +720,7 @@ export default function DashboardPage() {
     try {
       await deleteTable(deletingTable.tableId);
       setDeletingTable(null);
-      showToast(`Mesa ${deletingTable.label} eliminada`);
+      showToast(`${tableDisplayName(deletingTable.label)} eliminada`);
       await loadAllData();
     } catch (err: any) {
       setDeleteTableError(err?.message || 'Error al eliminar mesa');
@@ -1444,7 +1445,7 @@ export default function DashboardPage() {
                     ? ('warning' as const)
                     : ('neutral' as const);
 
-                const tableTitle = t.label.toLowerCase().startsWith('mesa') ? t.label : `Mesa ${t.label}`;
+                const tableTitle = tableDisplayName(t.label);
 
                 return (
                   <div
@@ -1735,7 +1736,7 @@ export default function DashboardPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {activeReservationsToday.map((res) => {
                 const tableMatch = tables.find((t) => t.tableId === res.tableId);
-                const tableLabel = tableMatch?.label ? `Mesa ${tableMatch.label}` : `Mesa ${res.tableId}`;
+                const tableLabel = tableMatch?.label ? tableDisplayName(tableMatch.label) : getTableDisplayName(res.tableId, tables);
 
                 let timeStr = 'Hoy';
                 try {
@@ -1857,7 +1858,7 @@ export default function DashboardPage() {
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {serviceCalls.map((call) => {
                 const tableMatch = tables.find((t) => (t.tableId || (t as any).id) === call.tableId);
-                const tableLabel = tableMatch?.label ? `Mesa ${tableMatch.label}` : `Mesa ${call.tableId}`;
+                const tableLabel = tableMatch?.label ? tableDisplayName(tableMatch.label) : getTableDisplayName(call.tableId, tables);
 
                 return (
                   <li
@@ -2086,7 +2087,7 @@ export default function DashboardPage() {
             }}
           >
             <h3 id="modal-edit-table-title" style={{ margin: '0 0 16px 0', fontSize: '1.25rem', fontWeight: 300, color: 'var(--bento-text-strong)' }}>
-              Editar Mesa {editingTable.label}
+              Editar {tableDisplayName(editingTable.label)}
             </h3>
 
             {editTableError && (
@@ -2270,7 +2271,7 @@ export default function DashboardPage() {
             }}
           >
             <h3 id="modal-delete-table-title" style={{ margin: '0 0 12px 0', fontSize: '1.25rem', fontWeight: 400, color: 'var(--bento-text-strong)' }}>
-              ¿Eliminar Mesa {deletingTable.label}?
+              ¿Eliminar {tableDisplayName(deletingTable.label)}?
             </h3>
             <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--bento-text-secondary)' }}>
               Esta acción no se puede deshacer. Las mesas con sesión activa no pueden eliminarse.
@@ -2359,7 +2360,7 @@ export default function DashboardPage() {
             }}
           >
             <h3 id="modal-qr-title" style={{ margin: '0 0 16px 0', fontSize: '1.25rem', fontWeight: 300, color: 'var(--bento-text-strong)' }}>
-              QR Mesa {activeTableQr.label}
+              QR {tableDisplayName(activeTableQr.label)}
             </h3>
 
             {qrError && (
@@ -2376,7 +2377,7 @@ export default function DashboardPage() {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                 <img
                   src={qrData.pngDataUrl}
-                  alt={`QR Mesa ${activeTableQr.label}`}
+                  alt={`QR ${tableDisplayName(activeTableQr.label)}`}
                   style={{ width: '180px', height: '180px', borderRadius: '12px', border: '1px solid var(--bento-card-bg-solid)' }}
                 />
                 <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--bento-text-secondary)', wordBreak: 'break-all' }}>
@@ -2816,7 +2817,7 @@ export default function DashboardPage() {
                 >
                   {tables.map((t) => (
                     <option key={t.tableId} value={t.tableId}>
-                      Mesa {t.label} ({t.capacity || 4} puestos)
+                      {tableDisplayName(t.label)} ({t.capacity || 4} puestos)
                     </option>
                   ))}
                 </select>
@@ -3017,7 +3018,7 @@ export default function DashboardPage() {
           >
             <div>
               <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: 'var(--bento-text)' }}>
-                Cambiar Mesa {movingTableData.sourceTableLabel}
+                Cambiar {tableDisplayName(movingTableData.sourceTableLabel)}
               </h3>
               <p style={{ margin: '4px 0 0 0', fontSize: '0.8125rem', color: 'var(--bento-text-muted)' }}>
                 Selecciona la mesa libre a la cual trasladar la comanda y comensales.
@@ -3068,7 +3069,7 @@ export default function DashboardPage() {
                   <option value="">-- Seleccionar mesa libre --</option>
                   {availableMoveTables.map((t) => {
                     const zName = zones.find((z) => z.id === t.zoneId)?.name || 'Sin zona';
-                    const displayLabel = t.label.toLowerCase().startsWith('mesa') ? t.label : `Mesa ${t.label}`;
+                    const displayLabel = tableDisplayName(t.label);
                     return (
                       <option key={t.tableId} value={t.tableId}>
                         {displayLabel} ({t.capacity || 4} puestos • {zName})

@@ -330,7 +330,7 @@ export class ConfirmCheckout implements ConfirmCheckoutUseCase {
     try {
       await this.sessionService.closeSession(tenantId, sessionId, {
         userId: recordedBy,
-        role: 'staff',
+        role: 'cashier',
       });
     } catch (err) {
       throw new SessionCloseFailedError(

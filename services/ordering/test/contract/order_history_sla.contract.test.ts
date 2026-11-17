@@ -33,7 +33,7 @@ describe('V17 - Ordering Notas, SLA, Demora e Historial (Contract Tests PostgreS
   const staffHeaders = {
     'x-tenant-id': tenantId,
     'x-user-id': 'u-staff-1',
-    'x-user-role': 'staff',
+    'x-user-role': 'waiter',
   };
 
   beforeAll(async () => {
@@ -492,7 +492,7 @@ describe('V17 - Ordering Notas, SLA, Demora e Historial (Contract Tests PostgreS
         'x-tenant-id': tenantId,
         'x-session-id': sessionId,
         'x-user-id': 'u-staff-1',
-        'x-user-role': 'staff',
+        'x-user-role': 'waiter',
       };
 
       const resStaff = await request(app)

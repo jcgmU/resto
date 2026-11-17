@@ -58,7 +58,7 @@ describe('Session and Catalog Request Timeouts (Integration - X2)', () => {
     expect(durationPartial).toBeLessThan(1000);
 
     const startClose = Date.now();
-    await expect(adapter.closeSession('t-1', 's-1', { userId: 'u-1', role: 'staff' })).rejects.toThrow(
+    await expect(adapter.closeSession('t-1', 's-1', { userId: 'u-1', role: 'waiter' })).rejects.toThrow(
       SessionUnreachableError
     );
     const durationClose = Date.now() - startClose;

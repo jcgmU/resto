@@ -3,7 +3,6 @@ export type TenantStatus = 'ACTIVE' | 'SUSPENDED';
 export type UppercaseUserRole =
   | 'ADMIN'
   | 'MANAGER'
-  | 'STAFF'
   | 'CUSTOMER'
   | 'WAITER'
   | 'MONITOR'
@@ -12,7 +11,6 @@ export type UppercaseUserRole =
 export type LowercaseUserRole =
   | 'admin'
   | 'manager'
-  | 'staff'
   | 'customer'
   | 'waiter'
   | 'monitor'

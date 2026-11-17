@@ -108,7 +108,7 @@ describe('R03a Transiciones de Estado de Sesión (Contract Test con Redis Real d
     const reopenRes = await request(app)
       .post(`/sessions/${sessionId}/bill-reopen`)
       .set('x-tenant-id', tenantId)
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
 
     expect(reopenRes.status).toBe(200);
     expect(reopenRes.body.status).toBe('active');
@@ -135,7 +135,7 @@ describe('R03a Transiciones de Estado de Sesión (Contract Test con Redis Real d
     const closeRes = await request(app)
       .patch(`/sessions/${sessionId}/close`)
       .set('x-tenant-id', tenantId)
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
 
     expect(closeRes.status).toBe(200);
     expect(closeRes.body.status).toBe('closed');
@@ -181,7 +181,7 @@ describe('R03a Transiciones de Estado de Sesión (Contract Test con Redis Real d
     await request(app)
       .patch(`/sessions/${sessionId}/close`)
       .set('x-tenant-id', tenantId)
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
 
     // Intentar solicitar cuenta sobre sesión cerrada
     const invalidReq = await request(app)
@@ -206,7 +206,7 @@ describe('R03a Transiciones de Estado de Sesión (Contract Test con Redis Real d
     const invalidReopen = await request(app)
       .post(`/sessions/${sessionId}/bill-reopen`)
       .set('x-tenant-id', tenantId)
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
 
     expect(invalidReopen.status).toBe(400);
     expect(invalidReopen.body.error).toBeDefined();
@@ -224,13 +224,13 @@ describe('R03a Transiciones de Estado de Sesión (Contract Test con Redis Real d
     await request(app)
       .patch(`/sessions/${sessionId}/close`)
       .set('x-tenant-id', tenantId)
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
 
     // Intentar reabrir cuenta sobre sesión cerrada
     const invalidReopen = await request(app)
       .post(`/sessions/${sessionId}/bill-reopen`)
       .set('x-tenant-id', tenantId)
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
 
     expect(invalidReopen.status).toBe(400);
     expect(invalidReopen.body.error).toBeDefined();
@@ -310,7 +310,7 @@ describe('R03a Transiciones de Estado de Sesión (Contract Test con Redis Real d
     const staffRes = await request(app)
       .post(`/sessions/${sessionId}/bill-request`)
       .set('x-tenant-id', tenantId)
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
 
     expect(staffRes.status).toBe(200);
     expect(staffRes.body.status).toBe('billRequested');
@@ -319,7 +319,7 @@ describe('R03a Transiciones de Estado de Sesión (Contract Test con Redis Real d
     await request(app)
       .post(`/sessions/${sessionId}/bill-reopen`)
       .set('x-tenant-id', tenantId)
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
 
     // d) Con x-session-id igual a req.params.id -> debe responder 200
     const ownSessionRes = await request(app)

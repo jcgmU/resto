@@ -10,7 +10,7 @@ web
 
 Personal del restaurante en servicio operativo (meseros, cocina, bar, caja, encargados y administración) y comensales que acceden a la carta digital e interactúan directamente desde sus teléfonos móviles escaneando el código QR de su mesa (sin crear cuenta ni descargar aplicación).
 
-- **Roles operativos (`apps/admin-dashboard`)**: `ADMIN` y `MANAGER` gestionan catálogo, mesas, zonas, reservas, ajustes y cobros con override; `STAFF` opera con alcance acotado; además existen terminales dedicadas por rol para `WAITER` (`/terminal-mesero`), `CASHIER` (`/terminal-caja`) y `MONITOR` de cocina o bar (`/monitor`).
+- **Roles operativos (`apps/admin-dashboard`)**: `ADMIN` y `MANAGER` gestionan catálogo, mesas, zonas, reservas, ajustes y cobros con override; hay exactamente 5 roles: `ADMIN`, `MANAGER`, `WAITER`, `CASHIER` y `MONITOR` (cocina o bar). `STAFF` ya no se asigna (las cuentas existentes pasaron a `WAITER` por migración). Cada terminal abre solo su pantalla: `WAITER` `/terminal-mesero`, `CASHIER` `/terminal-caja`, `MONITOR` `/monitor`; `ADMIN` y `MANAGER` abren todas. Los 5 roles cambian su contraseña desde su terminal o desde `/ajustes`.
 
 ## Product Purpose
 
@@ -23,7 +23,7 @@ Sistema operativo unificado para restaurantes con sesiones ancladas a mesa físi
 ## Operating Context
 
 - **Comensal (Client PWA)**: Dispositivos móviles (375px–390px viewport), escaneo de QR en mesa, navegación ágil de categorías, selección de modificadores, carrito colaborativo con notas por ítem y generales, llamado de mesero y solicitud de cuenta.
-- **Cocina y Bar (KDS / Monitores)**: Pantalla fija o tableta en área de producción; tarjetas de comandas semaforizadas por SLA (verde/amarillo/rojo), filtrado por destino de preparación (`kitchen` / `bar`), alertas de nuevos pedidos y avance de estados.
+- **Cocina y Bar (KDS / Monitores)**: Pantalla fija o tableta en área de producción; riel de tickets por mesa (el más antiguo a la izquierda, hora de la comanda, ítems del destino `kitchen` / `bar`), ticket tardío en rojo según el SLA del tenant, botón para avanzar el estado y conteo por plato de lo pendiente; sin cifras de ventas.
 - **Meseros (`/terminal-mesero`)**: Terminal móvil/tableta con apertura asistida de mesa (`staff-open`), toma de pedidos y atención de llamadas de servicio filtradas por zona asignada.
 - **Caja y Administración (Admin Dashboard)**: Terminales de escritorio o tabletas de salón (1024px–1440px viewport); resumen operativo y plano de mesas por zonas, control de reservas, gestión de mesas individual y por lotes, terminal de cobro (checkout en efectivo o tarjeta con liberación de mesa y manejo de órdenes pendientes), catálogo, gestión de equipo y ajustes de tenant (modo de operación, SLA objetivo, facturación).
 
@@ -36,7 +36,7 @@ Sistema operativo unificado para restaurantes con sesiones ancladas a mesa físi
   - Terminal de meseros con apertura asistida de mesa (`staff-open`) y modo de operación configurable por tenant (`hybrid` | `waiter_only`).
   - KDS y monitores en vivo con tiempos estimados (`estimatedPrepMinutes` + `delayMinutes`), barra/punto SLA (`SlaDot`) y destino por categoría (Cocina / Bar).
   - Checkout centralizado en `/checkout` y `/terminal-caja` con cobro en Efectivo o Tarjeta, bloqueo `409 ORDERS_NOT_DELIVERED` con override autorizado para `ADMIN`/`MANAGER`, y facturación simple o electrónica DIAN no bloqueante.
-  - Gestión completa de equipo en `/ajustes`: invitación/alta con los 7 roles, edición de perfil/rol/zonas, activación/desactivación (`ACTIVE` / `DISABLED`), reinicio de contraseña por administrador y cambio de contraseña propio.
+  - Gestión completa de equipo en `/ajustes`: invitación/alta con los roles operativos (`MANAGER`, `WAITER`, `CASHIER`, `MONITOR`), edición de perfil/rol/zonas, activación/desactivación (`ACTIVE` / `DISABLED`), reinicio de contraseña por administrador y cambio de contraseña propio.
 - **Restricciones Técnicas y de Dominio**:
   - Formato monetario obligatorio: COP entero sin decimales (`formatCOP`).
   - Objetivos táctiles mínimos: 44px (`var(--bento-touch-target)`).

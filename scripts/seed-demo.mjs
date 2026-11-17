@@ -167,6 +167,13 @@ const DESIRED_TABLES = [
   { label: 'VIP 1', zoneName: 'VIP', capacity: 8 },
 ];
 
+const DEMO_ORDERS = [
+  { tableLabel: 'Mesa 3', note: 'seed-demo: mixto nuevo', items: [['Tiramisu Artesanal', 2], ['Mojito Clásico', 1]], finalStatus: 'PLACED' },
+  { tableLabel: 'Mesa 4', note: 'seed-demo: cocina en preparación', items: [['Cheesecake de Frutos Rojos', 1], ['Tiramisu Artesanal', 1]], finalStatus: 'IN_KITCHEN', destination: 'kitchen' },
+  { tableLabel: 'Barra 1', note: 'seed-demo: bar listo', items: [['Agua Mineral', 2], ['Limonada Natural', 1]], finalStatus: 'READY', destination: 'bar' },
+  { tableLabel: 'Barra 2', note: 'seed-demo: mixto con retraso (SLA de 5 min)', items: [['Cheesecake de Frutos Rojos', 1], ['Mojito Clásico', 2]], finalStatus: 'PLACED', estimatedMinutes: 5 },
+];
+
 const DEMO_RESERVATION = {
   customerName: 'Reserva Demo',
   phone: '3001234567',
@@ -772,6 +779,89 @@ async function main() {
     }
   }
 
+  // 10. Órdenes activas de cocina y bar (idempotente: una mesa con sesión activa no se vuelve a sembrar)
+  const loginAs = async (email, password) => {
+    const res = await fetch(`${GATEWAY_URL}/v1/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) throw new Error(`Login ${email} fallo (${res.status}): ${await res.text()}`);
+    return (await res.json()).tokens.accessToken;
+  };
+  const waiterToken = await loginAs('mesero@resto.com', process.env.DEMO_WAITER_PASSWORD || 'admin1234');
+  const waiterHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${waiterToken}` };
+
+  const menuData = await graphqlRequest(GATEWAY_URL, accessToken, 'query { products { id name } }');
+  const productIdByName = new Map((menuData.products || []).map((p) => [p.name, p.id]));
+
+  const tablesForOrdersRes = await fetch(`${GATEWAY_URL}/v1/tables`, { headers: authHeaders });
+  const tablesForOrdersRaw = await tablesForOrdersRes.json();
+  const tablesForOrders = Array.isArray(tablesForOrdersRaw) ? tablesForOrdersRaw : tablesForOrdersRaw.data || tablesForOrdersRaw.tables || [];
+  const tableIdByLabel = new Map(tablesForOrders.map((t) => [t.label, t.tableId || t.id]));
+
+  // Marca de idempotencia: la nota "seed-demo: ..." de las ordenes ya sembradas que siguen activas
+  const existingOrdersRes = await fetch(`${GATEWAY_URL}/v1/orders`, { headers: authHeaders });
+  const existingOrdersRaw = existingOrdersRes.ok ? await existingOrdersRes.json() : [];
+  const existingOrders = Array.isArray(existingOrdersRaw) ? existingOrdersRaw : existingOrdersRaw.data || existingOrdersRaw.orders || [];
+  const seededNotes = new Set(
+    existingOrders
+      .filter((o) => ['PLACED', 'IN_KITCHEN', 'READY'].includes(o.status) && typeof o.notes === 'string' && o.notes.startsWith('seed-demo:'))
+      .map((o) => o.notes),
+  );
+
+  let ordersCreated = 0;
+  let ordersExisting = 0;
+
+  for (const demo of DEMO_ORDERS) {
+    const tableId = tableIdByLabel.get(demo.tableLabel);
+    if (!tableId) throw new Error(`Seed de ordenes: no existe la mesa "${demo.tableLabel}"`);
+    if (seededNotes.has(demo.note)) {
+      ordersExisting++;
+      continue;
+    }
+
+    const openRes = await fetch(`${GATEWAY_URL}/v1/sessions/staff-open`, {
+      method: 'POST',
+      headers: waiterHeaders,
+      body: JSON.stringify({ tableId }),
+    });
+    if (!openRes.ok) throw new Error(`staff-open fallo en ${demo.tableLabel} (${openRes.status}): ${await openRes.text()}`);
+    const openData = await openRes.json();
+    const sessionId = openData.session?.sessionId || openData.sessionId;
+    const sessionHeaders = { ...waiterHeaders, Authorization: `Bearer ${openData.session?.guestToken || openData.guestToken || waiterToken}`, 'x-session-id': sessionId };
+
+    for (const [productName, quantity] of demo.items) {
+      const productId = productIdByName.get(productName);
+      if (!productId) throw new Error(`Seed de ordenes: producto "${productName}" no existe`);
+      const addRes = await fetch(`${GATEWAY_URL}/v1/cart/items`, {
+        method: 'POST',
+        headers: sessionHeaders,
+        body: JSON.stringify({ productId, quantity, modifiers: [] }),
+      });
+      if (!addRes.ok) throw new Error(`cart/items fallo (${addRes.status}): ${await addRes.text()}`);
+    }
+
+    const confirmRes = await fetch(`${GATEWAY_URL}/v1/cart/confirm`, {
+      method: 'POST',
+      headers: sessionHeaders,
+      body: JSON.stringify({ notes: demo.note, ...(demo.estimatedMinutes ? { estimatedMinutes: demo.estimatedMinutes } : {}) }),
+    });
+    if (!confirmRes.ok) throw new Error(`cart/confirm fallo (${confirmRes.status}): ${await confirmRes.text()}`);
+    const order = await confirmRes.json();
+
+    const steps = demo.finalStatus === 'READY' ? ['IN_KITCHEN', 'READY'] : demo.finalStatus === 'IN_KITCHEN' ? ['IN_KITCHEN'] : [];
+    for (const status of steps) {
+      const statusRes = await fetch(`${GATEWAY_URL}/v1/orders/${order.id}/status`, {
+        method: 'PATCH',
+        headers: authHeaders,
+        body: JSON.stringify({ status, destination: demo.destination }),
+      });
+      if (!statusRes.ok) throw new Error(`PATCH status ${status} fallo (${statusRes.status}): ${await statusRes.text()}`);
+    }
+    ordersCreated++;
+  }
+
   const totalDesiredOptions = DESIRED_MODIFIER_GROUPS.reduce((acc, g) => acc + g.options.length, 0);
   const totalDesiredRelations = DESIRED_PRODUCTS.reduce((acc, p) => acc + p.modifierGroupNames.length, 0);
 
@@ -786,6 +876,7 @@ async function main() {
   console.log(`Mesas:              creadas ${tablesCreated.toString().padStart(2)} / existentes ${tablesExisting.toString().padStart(2)} / actualizadas ${tablesUpdated} (total ${DESIRED_TABLES.length})`);
   console.log(`Reservas demo:      creadas ${reservationsCreated.toString().padStart(2)} / existentes ${reservationsExisting.toString().padStart(2)} (total 1)`);
   console.log(`Empleados demo:     creados ${employeesCreated.toString().padStart(2)} / existentes ${employeesExisting.toString().padStart(2)} (total ${DESIRED_EMPLOYEES.length})`);
+  console.log(`Ordenes demo:       creadas ${ordersCreated.toString().padStart(2)} / existentes ${ordersExisting.toString().padStart(2)} (total ${DEMO_ORDERS.length})`);
   console.log('============================\n');
   console.log('Seed demo completado con éxito.');
   process.exit(0);

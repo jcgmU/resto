@@ -165,7 +165,7 @@ describe('A. Ordering — unitarios checkout (Tests 1-8)', () => {
     expect(sessionService.closedSessions[0]).toEqual({
       tenantId: 't-1',
       sessionId: 's-5',
-      requester: { userId: 'staff-42', role: 'staff' },
+      requester: { userId: 'staff-42', role: 'cashier' },
     });
   });
 

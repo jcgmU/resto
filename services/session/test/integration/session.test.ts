@@ -38,7 +38,7 @@ describe('B. Session — integración (Tests 11-15)', () => {
     const closeRes = await request(app)
       .patch(`/sessions/${sessionId}/close`)
       .set('x-tenant-id', 'tenant-100')
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
 
     expect(closeRes.status).toBe(200);
     expect(closeRes.body.status).toBe('closed');
@@ -59,14 +59,14 @@ describe('B. Session — integración (Tests 11-15)', () => {
     const resOk = await request(app)
       .get(`/sessions/${sessionId}`)
       .set('x-tenant-id', 'tenant-100')
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
     expect(resOk.status).toBe(200);
 
     // Otro tenant -> 404
     const resOther = await request(app)
       .get(`/sessions/${sessionId}`)
       .set('x-tenant-id', 'tenant-other')
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
     expect(resOther.status).toBe(404);
 
     // Guest con x-session-id distinto -> 403
@@ -101,7 +101,7 @@ describe('B. Session — integración (Tests 11-15)', () => {
     const res = await request(app)
       .get('/sessions/expired-session-id')
       .set('x-tenant-id', 'tenant-100')
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
 
     expect(res.status).toBe(404);
     expect(['SESSION_NOT_FOUND', 'SESSION_EXPIRED']).toContain(res.body.error?.code);

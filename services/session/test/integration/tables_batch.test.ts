@@ -92,7 +92,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
       const listRes = await request(app)
         .get('/tables')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       expect(listRes.status).toBe(200);
       expect(listRes.body).toHaveLength(1);
       expect(listRes.body[0].label).toBe('Mesa 1');
@@ -323,7 +323,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
       const listRes = await request(app)
         .get('/tables')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       expect(listRes.status).toBe(200);
       expect(listRes.body).toEqual([]);
 
@@ -331,7 +331,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
       const qrRes = await request(app)
         .get(`/tables/${tableId}/qr`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       expect(qrRes.status).toBe(404);
       expect(qrRes.body.error.code).toBe('TABLE_NOT_FOUND');
 
@@ -369,7 +369,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
       const resCreateBatch = await request(app)
         .post('/tables/batch')
         .set('x-tenant-id', 'tenant-100')
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({ labels: ['Mesa Staff'] });
       expect(resCreateBatch.status).toBe(403);
       expect(resCreateBatch.body.error.code).toBe('FORBIDDEN');
@@ -377,7 +377,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
       const resPatchBatch = await request(app)
         .patch('/tables/batch')
         .set('x-tenant-id', 'tenant-100')
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({ updates: [{ tableId: 'table-1', label: 'Mesa X' }] });
       expect(resPatchBatch.status).toBe(403);
       expect(resPatchBatch.body.error.code).toBe('FORBIDDEN');
@@ -385,7 +385,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
       const resPatchSingle = await request(app)
         .patch('/tables/table-1')
         .set('x-tenant-id', 'tenant-100')
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({ label: 'Mesa X' });
       expect(resPatchSingle.status).toBe(403);
       expect(resPatchSingle.body.error.code).toBe('FORBIDDEN');
@@ -393,7 +393,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
       const resDeleteBatch = await request(app)
         .post('/tables/batch/delete')
         .set('x-tenant-id', 'tenant-100')
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({ tableIds: ['table-1'] });
       expect(resDeleteBatch.status).toBe(403);
       expect(resDeleteBatch.body.error.code).toBe('FORBIDDEN');
@@ -401,7 +401,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
       const resGet = await request(app)
         .get('/tables')
         .set('x-tenant-id', 'tenant-100')
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       expect(resGet.status).toBe(200);
     });
 

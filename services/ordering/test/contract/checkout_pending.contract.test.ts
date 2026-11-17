@@ -271,7 +271,7 @@ describe('Contract - Checkout con órdenes sin entregar (ADR D2)', () => {
       .set({
         'x-tenant-id': tenantId,
         'x-user-id': 'staff-1',
-        'x-user-role': 'staff',
+        'x-user-role': 'waiter',
       })
       .send({
         sessionId,
@@ -306,7 +306,7 @@ describe('Contract - Checkout con órdenes sin entregar (ADR D2)', () => {
       .set({
         'x-tenant-id': tenantId,
         'x-user-id': 'staff-1',
-        'x-user-role': 'staff',
+        'x-user-role': 'waiter',
       })
       .send({
         sessionId,
@@ -339,7 +339,7 @@ describe('Contract - Checkout con órdenes sin entregar (ADR D2)', () => {
       .set({
         'x-tenant-id': tenantId,
         'x-user-id': 'staff-1',
-        'x-user-role': 'staff',
+        'x-user-role': 'waiter',
       })
       .send({
         sessionId,
@@ -353,7 +353,7 @@ describe('Contract - Checkout con órdenes sin entregar (ADR D2)', () => {
       .set({
         'x-tenant-id': tenantId,
         'x-user-id': 'staff-1',
-        'x-user-role': 'staff',
+        'x-user-role': 'waiter',
       })
       .send({
         sessionId,

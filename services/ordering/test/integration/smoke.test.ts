@@ -106,7 +106,7 @@ describe('D. Cierre de oleada (smoke) (Tests 27-30)', () => {
     const staffOrders = await request(app)
       .get('/orders')
       .set('x-tenant-id', tenantId)
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
 
     expect(staffOrders.status).toBe(200);
     const placedOrder = staffOrders.body.find((o: any) => o.id === confirmRes.body.id);

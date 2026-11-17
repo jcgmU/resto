@@ -36,7 +36,7 @@ export function createSessionsRouter(deps: {
   // POST /sessions/staff-open -> protegido para staff (ADMIN, MANAGER, STAFF, WAITER)
   router.post(
     '/staff-open',
-    requireStaffRole(['admin', 'manager', 'staff', 'waiter']),
+    requireStaffRole(['admin', 'manager', 'waiter']),
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const tenantId = (req.headers['x-tenant-id'] as string) || req.body?.tenantId;
@@ -77,7 +77,7 @@ export function createSessionsRouter(deps: {
       const userRole = (req.headers['x-user-role'] as string || '').toLowerCase();
       const guestSessionId = req.headers['x-session-id'] as string;
 
-      const isStaff = ['staff', 'manager', 'admin', 'waiter', 'cashier'].includes(userRole);
+      const isStaff = ['manager', 'admin', 'waiter', 'cashier'].includes(userRole);
 
       if (!isStaff) {
         if (!guestSessionId || guestSessionId !== req.params.id) {
@@ -110,7 +110,7 @@ export function createSessionsRouter(deps: {
       const userRole = ((req.headers['x-user-role'] as string) || '').toLowerCase();
       const guestSessionId = req.headers['x-session-id'] as string;
 
-      const isStaff = ['staff', 'manager', 'admin', 'waiter', 'cashier'].includes(userRole);
+      const isStaff = ['manager', 'admin', 'waiter', 'cashier'].includes(userRole);
 
       if (!isStaff) {
         if (!guestSessionId || guestSessionId !== req.params.id) {
@@ -136,7 +136,7 @@ export function createSessionsRouter(deps: {
   // POST /sessions/:id/bill-reopen -> staff
   router.post(
     '/:id/bill-reopen',
-    requireStaffRole(['staff', 'manager', 'admin']),
+    requireStaffRole(['manager', 'admin', 'waiter']),
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const tenantId = (req.headers['x-tenant-id'] as string) || req.body?.tenantId;
@@ -165,8 +165,8 @@ export function createSessionsRouter(deps: {
     }
   };
 
-  router.patch('/:id/close', requireStaffRole(['staff', 'manager', 'admin', 'waiter', 'cashier']), handleClose);
-  router.post('/:id/close', requireStaffRole(['staff', 'manager', 'admin', 'waiter', 'cashier']), handleClose);
+  router.patch('/:id/close', requireStaffRole(['manager', 'admin', 'waiter', 'cashier']), handleClose);
+  router.post('/:id/close', requireStaffRole(['manager', 'admin', 'waiter', 'cashier']), handleClose);
 
   // POST /sessions/:id/move y POST /sessions/move -> staff (ADMIN, MANAGER, STAFF, WAITER, CASHIER)
   const handleMove = async (req: Request, res: Response, next: NextFunction) => {
@@ -191,13 +191,13 @@ export function createSessionsRouter(deps: {
     }
   };
 
-  router.post('/:id/move', requireStaffRole(['staff', 'manager', 'admin', 'waiter', 'cashier']), handleMove);
-  router.post('/move', requireStaffRole(['staff', 'manager', 'admin', 'waiter', 'cashier']), handleMove);
+  router.post('/:id/move', requireStaffRole(['manager', 'admin', 'waiter', 'cashier']), handleMove);
+  router.post('/move', requireStaffRole(['manager', 'admin', 'waiter', 'cashier']), handleMove);
 
   // GET /sessions -> staff
   router.get(
     '/',
-    requireStaffRole(['staff', 'manager', 'admin', 'waiter', 'cashier']),
+    requireStaffRole(['manager', 'admin', 'waiter', 'cashier']),
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const tenantId = req.headers['x-tenant-id'] as string;

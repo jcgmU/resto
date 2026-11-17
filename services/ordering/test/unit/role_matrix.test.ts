@@ -60,7 +60,7 @@ describe('Role Authorization Matrix for Ordering (U7 Reconciled)', () => {
   });
 
   describe('1. Checkout Routes Authorization', () => {
-    const allowedCheckoutRoles = ['admin', 'manager', 'staff', 'waiter', 'cashier', 'WAITER', 'CASHIER'];
+    const allowedCheckoutRoles = ['admin', 'manager', 'waiter', 'waiter', 'cashier', 'WAITER', 'CASHIER'];
     const forbiddenCheckoutRoles = ['monitor', 'MONITOR', 'guest', 'unknown'];
 
     for (const role of allowedCheckoutRoles) {
@@ -158,7 +158,7 @@ describe('Role Authorization Matrix for Ordering (U7 Reconciled)', () => {
         expect(res.status).toBe(201);
       });
 
-      for (const nonManagerRole of ['staff', 'waiter', 'cashier', 'WAITER', 'CASHIER']) {
+      for (const nonManagerRole of ['waiter', 'waiter', 'cashier', 'WAITER', 'CASHIER']) {
         it(`denies closePendingOrders for role ${nonManagerRole} with 403 FORBIDDEN`, async () => {
           const res = await request(app)
             .post('/checkout/confirm')
@@ -189,7 +189,7 @@ describe('Role Authorization Matrix for Ordering (U7 Reconciled)', () => {
       await orderRepo.save(tenantId, order);
     });
 
-    const statusRoles = ['admin', 'manager', 'staff', 'waiter', 'monitor', 'WAITER', 'MONITOR'];
+    const statusRoles = ['admin', 'manager', 'waiter', 'waiter', 'monitor', 'WAITER', 'MONITOR'];
     for (const role of statusRoles) {
       it(`PATCH /orders/:id/status allows role ${role} (does not return 403)`, async () => {
         const res = await request(app)
@@ -253,7 +253,7 @@ describe('Role Authorization Matrix for Ordering (U7 Reconciled)', () => {
     });
 
     it('PATCH /orders/:id/cancel denies staff, waiter, cashier, monitor with 403 FORBIDDEN', async () => {
-      for (const role of ['staff', 'waiter', 'cashier', 'monitor']) {
+      for (const role of ['waiter', 'waiter', 'cashier', 'monitor']) {
         const res = await request(app)
           .patch('/orders/ord-status-1/cancel')
           .set('x-tenant-id', tenantId)
@@ -269,7 +269,7 @@ describe('Role Authorization Matrix for Ordering (U7 Reconciled)', () => {
     const allowedServiceCallRoles = [
       'admin',
       'manager',
-      'staff',
+      'waiter',
       'waiter',
       'monitor',
       'cashier',

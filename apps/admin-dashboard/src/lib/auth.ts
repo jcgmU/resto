@@ -1,4 +1,25 @@
-export type UserRole = 'ADMIN' | 'MANAGER' | 'STAFF';
+export type UserRole = 'ADMIN' | 'MANAGER' | 'WAITER' | 'CASHIER' | 'MONITOR';
+
+const USER_ROLES: readonly string[] = ['ADMIN', 'MANAGER', 'WAITER', 'CASHIER', 'MONITOR'];
+
+const TERMINAL_HOME: Record<string, string> = {
+  WAITER: '/terminal-mesero',
+  CASHIER: '/terminal-caja',
+  MONITOR: '/monitor',
+};
+
+export function terminalHomeForRole(role: string | null | undefined): string | null {
+  return TERMINAL_HOME[(role || '').toUpperCase()] ?? null;
+}
+
+export function isTerminalRouteAllowed(pathname: string, role: string | null | undefined): boolean {
+  const normalized = (role || '').toUpperCase();
+  if (normalized === 'ADMIN' || normalized === 'MANAGER') return true;
+  const home = TERMINAL_HOME[normalized];
+  if (!home) return false;
+  const path = pathname.toLowerCase();
+  return path === home || path.startsWith(`${home}/`);
+}
 
 export function getUserRole(token: string | null): UserRole | null {
   if (!token) return null;
@@ -16,8 +37,8 @@ export function getUserRole(token: string | null): UserRole | null {
     if (!decodedJson) return null;
     const parsed = JSON.parse(decodedJson);
     const role = (parsed.role || '').toUpperCase();
-    if (role === 'ADMIN' || role === 'MANAGER' || role === 'STAFF') {
-      return role;
+    if (USER_ROLES.includes(role)) {
+      return role as UserRole;
     }
     return null;
   } catch {
@@ -37,11 +58,6 @@ export function isRouteAllowedForRole(pathname: string, role: UserRole | null): 
     return true;
   }
 
-  if (role === 'STAFF') {
-    // STAFF solo KDS, Mesas, Checkout (y Ajustes para cambio de contraseña propio)
-    const allowed = ['/kds', '/mesas', '/checkout', '/ajustes'];
-    return allowed.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
-  }
-
-  return true;
+  // Terminales (WAITER, CASHIER, MONITOR): solo su pantalla; el resto del panel redirige a ella.
+  return isTerminalRouteAllowed(path, role);
 }

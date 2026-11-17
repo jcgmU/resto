@@ -76,11 +76,11 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
         email: 'mesero1@bistro.com',
         displayName: 'Mesero 1',
         password: 'password123',
-        role: 'STAFF',
+        role: 'WAITER',
       });
 
     expect(res.status).toBe(201);
-    expect(res.body.role).toBe('STAFF');
+    expect(res.body.role).toBe('WAITER');
     expect(res.body.status).toBe('ACTIVE');
     expect(res.body.passwordHash).toBeUndefined();
 
@@ -104,7 +104,7 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
         email: 'mesero2@bistro.com',
         displayName: 'Mesero 2',
         password: 'password123',
-        role: 'STAFF',
+        role: 'WAITER',
       });
 
     expect(forbiddenRes.status).toBe(403);
@@ -117,7 +117,7 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
         email: 'mesero2@bistro.com',
         displayName: 'Mesero 2',
         password: 'password123',
-        role: 'STAFF',
+        role: 'WAITER',
       });
     expect(successRes.status).toBe(201);
     expect(successRes.body.status).toBe('ACTIVE');
@@ -133,7 +133,7 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
         email: 'shortpass@bistro.com',
         displayName: 'Short',
         password: 'short',
-        role: 'STAFF',
+        role: 'WAITER',
       });
     expect(shortPassRes.status).toBe(400);
     expect(shortPassRes.body.error.code).toBe('VALIDATION_ERROR');
@@ -161,7 +161,7 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
         email: 'mesero1@bistro.com',
         displayName: 'Mesero Clon',
         password: 'password123',
-        role: 'STAFF',
+        role: 'WAITER',
       });
     expect(duplicateEmailRes.status).toBe(409);
     expect(duplicateEmailRes.body.error.code).toBe('EMAIL_TAKEN');
@@ -216,7 +216,7 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
           email: 'patch@bistro.com',
           displayName: 'Original Name',
           password: 'password123',
-          role: 'STAFF',
+          role: 'WAITER',
         });
       const targetId = createRes.body.id;
 
@@ -241,7 +241,7 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
         .set('x-tenant-id', 't-patch')
         .set('x-user-id', 'admin-patch-id')
         .set('x-user-role', 'ADMIN')
-        .send({ role: 'STAFF' });
+        .send({ role: 'WAITER' });
       expect(selfRoleRes.status).toBe(403);
 
       // Aislamiento: 404 si es de otro tenant
@@ -276,7 +276,7 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
           email: 'disableme@bistro.com',
           displayName: 'Will Disable',
           password: 'password123',
-          role: 'STAFF',
+          role: 'WAITER',
         });
       const targetId = createRes.body.id;
 
@@ -335,7 +335,7 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
           email: 'resetme@bistro.com',
           displayName: 'Reset Me',
           password: 'oldpassword123',
-          role: 'STAFF',
+          role: 'WAITER',
         });
       const targetId = createRes.body.id;
 
@@ -374,7 +374,7 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
           email: 'changepass@bistro.com',
           displayName: 'Change Pass User',
           password: 'initialpassword123',
-          role: 'STAFF',
+          role: 'WAITER',
         });
       const userId = createRes.body.id;
 
@@ -549,7 +549,7 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
         tenantId,
         email: 'target.d1@bistro.com',
         displayName: 'Target D1',
-        role: 'STAFF',
+        role: 'WAITER',
         status: 'ACTIVE',
         passwordHash: 'hashed_password123',
         createdAt: new Date(),

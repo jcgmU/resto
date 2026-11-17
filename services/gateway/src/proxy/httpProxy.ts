@@ -1,7 +1,7 @@
 import { createProxyMiddleware, fixRequestBody } from 'http-proxy-middleware';
 import { Response } from 'express';
 
-const SESSION_SELECTING_ROLES = new Set(['ADMIN', 'MANAGER', 'STAFF', 'WAITER']);
+const SESSION_SELECTING_ROLES = new Set(['ADMIN', 'MANAGER', 'WAITER']);
 
 export function createServiceProxy(target: string) {
   return createProxyMiddleware({

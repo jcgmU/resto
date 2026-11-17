@@ -38,7 +38,7 @@ export function createReservationsRouter(deps: {
   // GET /reservations -> staff+ (supports filters by tableId or date)
   router.get(
     '/',
-    requireStaffRole(['staff', 'manager', 'admin']),
+    requireStaffRole(['manager', 'admin', 'waiter']),
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const tenantId = req.headers['x-tenant-id'] as string;
@@ -59,7 +59,7 @@ export function createReservationsRouter(deps: {
   // POST /reservations -> staff+
   router.post(
     '/',
-    requireStaffRole(['staff', 'manager', 'admin']),
+    requireStaffRole(['manager', 'admin', 'waiter']),
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const tenantId = req.headers['x-tenant-id'] as string;
@@ -83,7 +83,7 @@ export function createReservationsRouter(deps: {
   // PATCH /reservations/:id/cancel -> staff+
   router.patch(
     '/:id/cancel',
-    requireStaffRole(['staff', 'manager', 'admin']),
+    requireStaffRole(['manager', 'admin', 'waiter']),
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const tenantId = req.headers['x-tenant-id'] as string;
@@ -101,7 +101,7 @@ export function createReservationsRouter(deps: {
   // PATCH /reservations/:id -> staff+
   router.patch(
     '/:id',
-    requireStaffRole(['staff', 'manager', 'admin']),
+    requireStaffRole(['manager', 'admin', 'waiter']),
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const tenantId = req.headers['x-tenant-id'] as string;
@@ -125,7 +125,7 @@ export function createReservationsRouter(deps: {
   // POST /reservations/:id/seat -> staff+ ('Cliente Llegó': changes status to 'seated' and opens table session)
   router.post(
     '/:id/seat',
-    requireStaffRole(['staff', 'manager', 'admin']),
+    requireStaffRole(['manager', 'admin', 'waiter']),
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const tenantId = req.headers['x-tenant-id'] as string;

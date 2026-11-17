@@ -35,37 +35,37 @@ export const routeTable: RouteDefinition[] = [
   { method: 'GET', path: '/v1/uploads/:file', auth: false, targetService: 'catalog' },
 
   // Zonas (FASE B)
-  { method: 'GET', path: '/v1/zones', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter', 'cashier'], targetService: 'session' },
+  { method: 'GET', path: '/v1/zones', auth: true, requiredRoles: ['admin', 'manager', 'waiter', 'cashier'], targetService: 'session' },
   { method: 'POST', path: '/v1/zones', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },
   { method: 'PATCH', path: '/v1/zones/:id', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },
   { method: 'DELETE', path: '/v1/zones/:id', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },
 
   // Reservas (FASE B)
-  { method: 'GET', path: '/v1/reservations', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter'], targetService: 'session' },
-  { method: 'POST', path: '/v1/reservations', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter'], targetService: 'session' },
-  { method: 'PATCH', path: '/v1/reservations/:id/cancel', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter'], targetService: 'session' },
-  { method: 'PATCH', path: '/v1/reservations/:id', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter'], targetService: 'session' },
-  { method: 'POST', path: '/v1/reservations/:id/seat', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter'], targetService: 'session' },
+  { method: 'GET', path: '/v1/reservations', auth: true, requiredRoles: ['admin', 'manager', 'waiter'], targetService: 'session' },
+  { method: 'POST', path: '/v1/reservations', auth: true, requiredRoles: ['admin', 'manager', 'waiter'], targetService: 'session' },
+  { method: 'PATCH', path: '/v1/reservations/:id/cancel', auth: true, requiredRoles: ['admin', 'manager', 'waiter'], targetService: 'session' },
+  { method: 'PATCH', path: '/v1/reservations/:id', auth: true, requiredRoles: ['admin', 'manager', 'waiter'], targetService: 'session' },
+  { method: 'POST', path: '/v1/reservations/:id/seat', auth: true, requiredRoles: ['admin', 'manager', 'waiter'], targetService: 'session' },
 
   // Mesas & Sesiones (Oleada 2 & FASE B)
   { method: 'POST', path: '/v1/sessions/open', auth: false, targetService: 'session' },
-  { method: 'POST', path: '/v1/sessions/staff-open', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter'], targetService: 'session' },
+  { method: 'POST', path: '/v1/sessions/staff-open', auth: true, requiredRoles: ['admin', 'manager', 'waiter'], targetService: 'session' },
   { method: 'POST', path: '/v1/tables/batch/delete', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },
   { method: 'POST', path: '/v1/tables/batch', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },
   { method: 'PATCH', path: '/v1/tables/batch', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },
   { method: 'POST', path: '/v1/tables/:tableId/qr/rotate', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },
-  { method: 'GET', path: '/v1/tables/:tableId/qr', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter'], targetService: 'session' },
+  { method: 'GET', path: '/v1/tables/:tableId/qr', auth: true, requiredRoles: ['admin', 'manager', 'waiter'], targetService: 'session' },
   { method: 'PATCH', path: '/v1/tables/:tableId', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },
   { method: 'DELETE', path: '/v1/tables/:tableId', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },
   { method: 'POST', path: '/v1/tables', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'session' },
-  { method: 'GET', path: '/v1/tables', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter', 'cashier'], targetService: 'session' },
-  { method: 'PATCH', path: '/v1/sessions/:id/close', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter', 'cashier'], targetService: 'session' },
+  { method: 'GET', path: '/v1/tables', auth: true, requiredRoles: ['admin', 'manager', 'waiter', 'cashier', 'monitor'], targetService: 'session' },
+  { method: 'PATCH', path: '/v1/sessions/:id/close', auth: true, requiredRoles: ['admin', 'manager', 'waiter', 'cashier'], targetService: 'session' },
   { method: 'POST', path: '/v1/sessions/:id/bill-request', auth: true, targetService: 'session' },
-  { method: 'POST', path: '/v1/sessions/:id/bill-reopen', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter'], targetService: 'session' },
-  { method: 'POST', path: '/v1/sessions/:id/move', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter', 'cashier'], targetService: 'session' },
-  { method: 'POST', path: '/v1/sessions/move', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter', 'cashier'], targetService: 'session' },
+  { method: 'POST', path: '/v1/sessions/:id/bill-reopen', auth: true, requiredRoles: ['admin', 'manager', 'waiter'], targetService: 'session' },
+  { method: 'POST', path: '/v1/sessions/:id/move', auth: true, requiredRoles: ['admin', 'manager', 'waiter', 'cashier'], targetService: 'session' },
+  { method: 'POST', path: '/v1/sessions/move', auth: true, requiredRoles: ['admin', 'manager', 'waiter', 'cashier'], targetService: 'session' },
   { method: 'GET', path: '/v1/sessions/:id', auth: true, targetService: 'session' },
-  { method: 'GET', path: '/v1/sessions', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter', 'cashier'], targetService: 'session' },
+  { method: 'GET', path: '/v1/sessions', auth: true, requiredRoles: ['admin', 'manager', 'waiter', 'cashier'], targetService: 'session' },
 
   // Cart (Oleada 3)
   { path: '/v1/cart/items/:cartItemId', auth: true, targetService: 'ordering' },
@@ -75,19 +75,19 @@ export const routeTable: RouteDefinition[] = [
 
   // Orders (Oleada 3, 4 & FASE B)
   { method: 'GET', path: '/v1/orders/:id/history', auth: true, targetService: 'ordering' },
-  { method: 'PATCH', path: '/v1/orders/:id/delay', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter', 'monitor'], targetService: 'ordering' },
+  { method: 'PATCH', path: '/v1/orders/:id/delay', auth: true, requiredRoles: ['admin', 'manager', 'waiter', 'monitor'], targetService: 'ordering' },
   { method: 'PATCH', path: '/v1/orders/:id/cancel', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'ordering' },
-  { method: 'PATCH', path: '/v1/orders/:id/status', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter', 'monitor'], targetService: 'ordering' },
+  { method: 'PATCH', path: '/v1/orders/:id/status', auth: true, requiredRoles: ['admin', 'manager', 'waiter', 'monitor'], targetService: 'ordering' },
   { path: '/v1/orders/:id', auth: true, targetService: 'ordering' },
   { path: '/v1/orders', auth: true, targetService: 'ordering' },
 
   // Service Calls (Oleada 4)
   { method: 'POST', path: '/v1/service-calls', auth: true, targetService: 'ordering' },
-  { method: 'GET', path: '/v1/service-calls', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter', 'monitor', 'cashier'], targetService: 'ordering' },
-  { method: 'PATCH', path: '/v1/service-calls/:id/resolve', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter', 'monitor', 'cashier'], targetService: 'ordering' },
+  { method: 'GET', path: '/v1/service-calls', auth: true, requiredRoles: ['admin', 'manager', 'waiter', 'monitor', 'cashier'], targetService: 'ordering' },
+  { method: 'PATCH', path: '/v1/service-calls/:id/resolve', auth: true, requiredRoles: ['admin', 'manager', 'waiter', 'monitor', 'cashier'], targetService: 'ordering' },
 
   // Checkout (Oleada 5)
-  { method: 'GET', path: '/v1/checkout/:sessionId', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter', 'cashier'], targetService: 'ordering' },
-  { method: 'POST', path: '/v1/checkout/confirm', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter', 'cashier'], targetService: 'ordering' },
-  { method: 'POST', path: '/v1/checkout/:sessionId/retry-invoice', auth: true, requiredRoles: ['admin', 'manager', 'staff', 'waiter', 'cashier'], targetService: 'ordering' },
+  { method: 'GET', path: '/v1/checkout/:sessionId', auth: true, requiredRoles: ['admin', 'manager', 'waiter', 'cashier'], targetService: 'ordering' },
+  { method: 'POST', path: '/v1/checkout/confirm', auth: true, requiredRoles: ['admin', 'manager', 'waiter', 'cashier'], targetService: 'ordering' },
+  { method: 'POST', path: '/v1/checkout/:sessionId/retry-invoice', auth: true, requiredRoles: ['admin', 'manager', 'waiter', 'cashier'], targetService: 'ordering' },
 ];

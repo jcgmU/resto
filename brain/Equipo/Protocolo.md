@@ -124,3 +124,10 @@ Antes de cerrar sesión, y el orquestador cada vez que cambia el turno:
 ## Estilo de reportes (ahorro de tokens, orden del usuario)
 
 Reportes al usuario y handoffs: una linea por tarea con ✅; si hay problema, una frase corta (⚠️). Sin rutas de archivos, sin tablas largas ni narrativa. Detalles solo en el handoff si el destinatario los necesita para actuar. Instrucciones entre agentes: breves, sin repetir contexto ya escrito.
+
+## Cola de ideas (decision del usuario 2026-11-16)
+
+- Las ideas futuras viven en `brain/Backlog/ideas.md` (una linea cada una, en orden de prioridad).
+- El usuario agrega ideas diciendole a claude "agrega a la cola: ...". Claude las anota y no las trabaja hasta que lleguen a "En curso".
+- Al cerrar un hilo (aprobado), claude propone los 3 primeros de la Cola; el usuario elige y claude abre el objetivo al planificador.
+- Claude actualiza el archivo: mueve a "En curso" al empezar y a "Hecho" al aprobar. Los agentes no editan la cola.

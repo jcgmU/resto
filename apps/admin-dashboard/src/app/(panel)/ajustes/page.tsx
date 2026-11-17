@@ -28,12 +28,11 @@ interface Employee {
   monitorKind?: string | null;
 }
 
-type OperativeRole = 'ADMIN' | 'MANAGER' | 'STAFF' | 'WAITER' | 'CASHIER' | 'MONITOR';
+type OperativeRole = 'ADMIN' | 'MANAGER' | 'WAITER' | 'CASHIER' | 'MONITOR';
 
 const ROLE_OPTIONS: { value: OperativeRole; label: string }[] = [
   { value: 'ADMIN', label: 'Administrador' },
   { value: 'MANAGER', label: 'Encargado' },
-  { value: 'STAFF', label: 'Personal' },
   { value: 'WAITER', label: 'Mesero' },
   { value: 'CASHIER', label: 'Caja' },
   { value: 'MONITOR', label: 'Monitor KDS' },
@@ -109,7 +108,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
 
   // Roles: ADMIN y MANAGER leen el equipo; solo ADMIN lo administra. Sin rol legible (token opaco) no se restringe la UI.
   const role = getUserRole(ApiClient.token);
-  const canReadTeam = role !== 'STAFF';
+  const canReadTeam = role === 'ADMIN' || role === 'MANAGER' || role === null;
   const canManageTeam = role === 'ADMIN' || role === null;
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -248,7 +247,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
   const handleUpdateRole = async () => {
     if (!roleModal) return;
     try {
-      await ApiClient.updateTeamMember(roleModal.user.id, { role: roleModal.selectedRole as 'MANAGER' | 'STAFF' });
+      await ApiClient.updateTeamMember(roleModal.user.id, { role: roleModal.selectedRole as 'MANAGER' | 'WAITER' | 'CASHIER' | 'MONITOR' });
       setToastMessage('Rol actualizado exitosamente');
       setRoleModal(null);
       await loadData();
@@ -525,7 +524,6 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
                   <option value="WAITER">Mesero (Terminal Móvil)</option>
                   <option value="CASHIER">Caja (Terminal de Cobro)</option>
                   <option value="MONITOR">Monitor KDS (Cocina / Bar)</option>
-                  <option value="STAFF">Personal</option>
                   <option value="MANAGER">Encargado</option>
                   <option value="ADMIN">Administrador</option>
                 </select>
@@ -689,7 +687,7 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
                                 user: emp,
                                 selectedRole: ROLE_OPTIONS.some((r) => r.value === emp.role)
                                   ? (emp.role as OperativeRole)
-                                  : 'STAFF',
+                                  : 'WAITER',
                               })
                             }
                           >

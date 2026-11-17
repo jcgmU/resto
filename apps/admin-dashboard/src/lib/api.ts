@@ -326,7 +326,7 @@ export class ApiClient {
   static async createTeamMember(data: {
     email: string;
     displayName: string;
-    role: 'MANAGER' | 'STAFF';
+    role: 'MANAGER' | 'WAITER' | 'CASHIER' | 'MONITOR';
     password: string;
   }): Promise<any> {
     return this.request('/v1/identity/users', {
@@ -337,7 +337,7 @@ export class ApiClient {
 
   static async updateTeamMember(
     id: string,
-    data: { displayName?: string; role?: 'MANAGER' | 'STAFF' }
+    data: { displayName?: string; role?: 'MANAGER' | 'WAITER' | 'CASHIER' | 'MONITOR' }
   ): Promise<any> {
     return this.request(`/v1/identity/users/${id}`, {
       method: 'PATCH',

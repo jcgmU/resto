@@ -139,6 +139,10 @@ describe('U6 [R2]: Gating por rol y perfiles de terminal', () => {
     });
 
     currentPathname = '/terminal-caja';
+    localStorage.setItem(
+      'resto_user',
+      JSON.stringify({ id: 'u-c', email: 'caja@resto.com', displayName: 'Cajero Luis', role: 'CASHIER' })
+    );
     rerender(
       <TerminalShell>
         <div>Vista Caja</div>

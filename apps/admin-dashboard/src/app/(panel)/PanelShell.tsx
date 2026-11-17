@@ -5,7 +5,7 @@ import { SidebarRail, PageHeader, ErrorState, BentoCard } from '@packages/ui-com
 import type { SidebarRailItem } from '@packages/ui-components';
 import { ApiClient } from '../../lib/api';
 import { logout } from '../../lib/auth/logout';
-import { getUserRole, isRouteAllowedForRole } from '../../lib/auth';
+import { getUserRole, isRouteAllowedForRole, terminalHomeForRole } from '../../lib/auth';
 import type { UserRole } from '../../lib/auth';
 
 const Svg = ({ children }: { children: React.ReactNode }) => (
@@ -104,13 +104,6 @@ const NAV: NavDef[] = [
   },
 ];
 
-const STAFF_FORBIDDEN_PATHS = ['/menu', '/ajustes'];
-const STAFF_NAV_IDS = new Set(['dashboard', 'kds', 'checkout']);
-
-function isStaffForbiddenPath(pathname: string | null | undefined): boolean {
-  if (!pathname) return false;
-  return STAFF_FORBIDDEN_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-}
 
 function activeIdFor(pathname: string | null | undefined): string | undefined {
   if (!pathname) return undefined;
@@ -165,21 +158,9 @@ export default function PanelShell({
         const u = JSON.parse(rawUser);
         setCurrentUser(u);
         const role = String(u.role || '').toUpperCase();
-        if (role === 'WAITER') {
-          router.replace('/terminal-mesero');
-          return;
-        }
-        if (role === 'CASHIER') {
-          router.replace('/terminal-caja');
-          return;
-        }
-        if (role === 'MONITOR') {
-          router.replace('/monitor');
-          return;
-        }
-        if (role === 'STAFF' && isStaffForbiddenPath(pathname)) {
-          setIsAuthenticated(false);
-          router.replace('/kds');
+        const home = terminalHomeForRole(role);
+        if (home) {
+          router.replace(home);
           return;
         }
       }
@@ -202,13 +183,8 @@ export default function PanelShell({
   const storedRole = String(currentUser?.role || '').toUpperCase();
   const role: UserRole | null =
     getUserRole(ApiClient.token) ??
-    (storedRole === 'ADMIN' || storedRole === 'MANAGER' || storedRole === 'STAFF' ? storedRole : null);
-  const visibleNav =
-    role === 'STAFF'
-      ? NAV.filter((n) => STAFF_NAV_IDS.has(n.id)).map((n) =>
-          n.id === 'dashboard' ? { ...n, href: '/mesas' } : n,
-        )
-      : NAV;
+    (storedRole === 'ADMIN' || storedRole === 'MANAGER' ? storedRole : null);
+  const visibleNav = NAV;
   const activeId = activeIdFor(pathname);
   const items: SidebarRailItem[] = visibleNav.map((n) => ({
     id: n.id,

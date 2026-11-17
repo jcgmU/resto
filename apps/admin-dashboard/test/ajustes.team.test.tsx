@@ -64,13 +64,13 @@ describe('U7 & U9: Ajustes - Gestión de Equipo y Cambio de Contraseña', () => 
       expect(ApiClient.listTeam).toHaveBeenCalled();
     });
 
-    test('2. Rol abre el modal con los 6 roles operativos y actualiza vía updateTeamMember', async () => {
+    test('2. Rol abre el modal con los 5 roles operativos y actualiza vía updateTeamMember', async () => {
       render(<AjustesView />);
       await waitFor(() => expect(screen.getByText('Mesero Pedro')).toBeInTheDocument());
 
       fireEvent.click(actionBtn(screen.getByTestId('employee-row-u-staff'), 'Rol')!);
       expect(screen.getByText('Cambiar rol')).toBeInTheDocument();
-      expect(screen.getByRole('dialog').querySelectorAll('input[name="roleSelect"]')).toHaveLength(6);
+      expect(screen.getByRole('dialog').querySelectorAll('input[name="roleSelect"]')).toHaveLength(5);
 
       fireEvent.click(screen.getByLabelText(/MANAGER/i));
       fireEvent.click(screen.getByRole('button', { name: /Guardar rol/i }));
@@ -123,7 +123,7 @@ describe('U7 & U9: Ajustes - Gestión de Equipo y Cambio de Contraseña', () => 
     });
   });
 
-  describe('MANAGER y STAFF: acceso por rol y cambio de contraseña', () => {
+  describe('MANAGER y WAITER: acceso por rol y cambio de contraseña', () => {
     test('6. MANAGER lee la lista de empleados pero no ve acciones ni alta', async () => {
       ApiClient.token = makeJwt('MANAGER');
       render(<AjustesView />);
@@ -135,8 +135,8 @@ describe('U7 & U9: Ajustes - Gestión de Equipo y Cambio de Contraseña', () => 
       expect(screen.getByText('Cambiar mi Contraseña')).toBeInTheDocument();
     });
 
-    test('7. STAFF no ve Equipo de Trabajo ni consulta la lista', async () => {
-      ApiClient.token = makeJwt('STAFF');
+    test('7. WAITER no ve Equipo de Trabajo ni consulta la lista', async () => {
+      ApiClient.token = makeJwt('WAITER');
       render(<AjustesView />);
 
       expect(screen.queryByText('Equipo de Trabajo')).not.toBeInTheDocument();
@@ -145,7 +145,7 @@ describe('U7 & U9: Ajustes - Gestión de Equipo y Cambio de Contraseña', () => 
     });
 
     test('8. Cambiar mi contraseña: error al no coincidir y éxito al corregir', async () => {
-      ApiClient.token = makeJwt('STAFF');
+      ApiClient.token = makeJwt('WAITER');
       render(<AjustesView />);
 
       fireEvent.change(screen.getByLabelText(/Contraseña actual/i), { target: { value: 'claveactual123' } });

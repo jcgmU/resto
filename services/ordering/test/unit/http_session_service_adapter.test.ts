@@ -47,7 +47,7 @@ describe('HttpSessionServiceAdapter - Eliminación de bypass hardcodeado s-smoke
     // If the hardcoded bypass exists, closeSession returns immediately without error
     // Without the bypass, server responds with 500, so closeSession must reject
     await expect(
-      adapter.closeSession('t-smoke-e2e', 's-smoke-e2e', { userId: 'staff-1', role: 'staff' })
+      adapter.closeSession('t-smoke-e2e', 's-smoke-e2e', { userId: 'staff-1', role: 'waiter' })
     ).rejects.toThrow();
   });
 });

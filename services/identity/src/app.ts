@@ -243,7 +243,7 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
         email: req.body?.email,
         displayName: req.body?.displayName,
         password: req.body?.password,
-        role: req.body?.role || 'STAFF',
+        role: req.body?.role || 'WAITER',
         monitorKind: req.body?.monitorKind,
       });
 
@@ -440,7 +440,7 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
       }
 
       const role = ((req.headers['x-user-role'] as string) || '').toUpperCase();
-      const isStaff = ['ADMIN', 'MANAGER', 'STAFF', 'WAITER', 'CASHIER', 'MONITOR'].includes(role);
+      const isStaff = ['ADMIN', 'MANAGER', 'WAITER', 'CASHIER', 'MONITOR'].includes(role);
 
       if (isStaff) {
         return res.status(200).json({

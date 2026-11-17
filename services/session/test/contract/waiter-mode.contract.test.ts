@@ -137,7 +137,7 @@ describe('V21 Waiter Mode Contract Test (Session Service con Redis Real db2)', (
     it('con hybrid: staff (ADMIN, MANAGER, STAFF) también puede abrir sesión con staff-open', async () => {
       inMemorySettings.setOperatingMode(tenantId, 'hybrid');
 
-      const roles = ['ADMIN', 'MANAGER', 'STAFF'];
+      const roles = ['ADMIN', 'MANAGER', 'WAITER'];
       for (const role of roles) {
         await flushSessionRedis();
         await tableRepo.save(tenantId, {

@@ -59,7 +59,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const staffCreate = await request(app)
         .post('/zones')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({ name: 'Terraza', sortOrder: 1 });
       expect(staffCreate.status).toBe(403);
 
@@ -73,7 +73,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const staffGet = await request(app)
         .get('/zones')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       expect(staffGet.status).toBe(200);
       expect(staffGet.body).toEqual([]);
     });
@@ -104,7 +104,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const listRes = await request(app)
         .get('/zones')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       expect(listRes.status).toBe(200);
       expect(listRes.body).toHaveLength(2);
       expect(listRes.body[0].name).toBe('Terraza');
@@ -131,7 +131,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const listAfterDel = await request(app)
         .get('/zones')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       expect(listAfterDel.body).toHaveLength(1);
       expect(listAfterDel.body[0].id).toBe(resZ1.body.id);
     });
@@ -381,7 +381,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const staffRole = await request(app)
         .delete(`/tables/${tableId}`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       expect(staffRole.status).toBe(403);
     });
 
@@ -413,7 +413,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       await request(app)
         .patch(`/sessions/${sessionId}/close`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
 
       // Ahora sí se puede eliminar la mesa
       const delSuccess = await request(app)
@@ -440,7 +440,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const resCreate = await request(app)
         .post('/reservations')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({
           tableId,
           customerName: 'Juan Pérez',
@@ -463,7 +463,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       await request(app)
         .patch(`/reservations/${reservationId}/cancel`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
 
       // Ahora sí se puede eliminar la mesa
       const delSuccess = await request(app)
@@ -491,7 +491,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const badTable = await request(app)
         .post('/reservations')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({
           tableId: 'mesa-inexistente',
           customerName: 'Ana',
@@ -505,7 +505,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const badParty = await request(app)
         .post('/reservations')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({
           tableId: table.tableId,
           customerName: 'Ana',
@@ -520,7 +520,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const createRes = await request(app)
         .post('/reservations')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({
           tableId: table.tableId,
           customerName: 'Ana Ruiz',
@@ -538,7 +538,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const listTable = await request(app)
         .get(`/reservations?tableId=${table.tableId}`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       expect(listTable.status).toBe(200);
       expect(listTable.body).toHaveLength(1);
       expect(listTable.body[0].id).toBe(resId);
@@ -547,7 +547,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const cancelRes = await request(app)
         .patch(`/reservations/${resId}/cancel`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       expect(cancelRes.status).toBe(200);
       expect(cancelRes.body.status).toBe('cancelled');
     });
@@ -567,7 +567,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const createRes = await request(app)
         .post('/reservations')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({
           tableId: table.tableId,
           customerName: 'Santiago L.',
@@ -581,7 +581,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const seatRes = await request(app)
         .post(`/reservations/${resId}/seat`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
 
       expect(seatRes.status).toBe(200);
       expect(seatRes.body.reservation).toBeDefined();
@@ -611,7 +611,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const getInitial = await request(app)
         .get('/tables')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       const tableInitial = getInitial.body.find((t: any) => t.tableId === table.tableId);
       expect(tableInitial.status).toBe('AVAILABLE');
 
@@ -620,7 +620,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const resCreate = await request(app)
         .post('/reservations')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({
           tableId: table.tableId,
           customerName: 'Visual State User',
@@ -634,7 +634,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const getAfterRes = await request(app)
         .get('/tables')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       const tableAfterRes = getAfterRes.body.find((t: any) => t.tableId === table.tableId);
       expect(tableAfterRes.status).toBe('RESERVED');
 
@@ -642,12 +642,12 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       await request(app)
         .patch(`/reservations/${resId}/cancel`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
 
       const getAfterCancel = await request(app)
         .get('/tables')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       const tableAfterCancel = getAfterCancel.body.find((t: any) => t.tableId === table.tableId);
       expect(tableAfterCancel.status).toBe('AVAILABLE');
     });
@@ -667,7 +667,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const createdRes = await request(app)
         .post('/reservations')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({
           tableId: table.tableId,
           customerName: 'Carlos M.',
@@ -690,7 +690,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const notFoundPatch = await request(app)
         .patch('/reservations/res-non-existent')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({ customerName: 'Nuevo Nombre' });
       expect(notFoundPatch.status).toBe(404);
       expect(notFoundPatch.body.error.code).toBe('RESERVATION_NOT_FOUND');
@@ -699,7 +699,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const badDatePatch = await request(app)
         .patch(`/reservations/${resId}`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({ reservedFor: 'fecha-invalida' });
       expect(badDatePatch.status).toBe(400);
       expect(badDatePatch.body.error.code).toBe('VALIDATION_ERROR');
@@ -707,21 +707,21 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const badPartyPatch = await request(app)
         .patch(`/reservations/${resId}`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({ partySize: 0 });
       expect(badPartyPatch.status).toBe(400);
 
       const emptyNamePatch = await request(app)
         .patch(`/reservations/${resId}`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({ customerName: '   ' });
       expect(emptyNamePatch.status).toBe(400);
 
       const emptyPhonePatch = await request(app)
         .patch(`/reservations/${resId}`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({ phone: '' });
       expect(emptyPhonePatch.status).toBe(400);
 
@@ -730,7 +730,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const patchSuccess = await request(app)
         .patch(`/reservations/${resId}`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({
           customerName: 'Carlos Mendoza',
           phone: '3119876543',
@@ -781,7 +781,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       await request(app)
         .post('/reservations')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({
           tableId,
           customerName: 'Cliente Reserva y Ocupada',
@@ -794,7 +794,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const getTablesOcc = await request(app)
         .get('/tables')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       expect(getTablesOcc.status).toBe(200);
       const tableOcc = getTablesOcc.body.find((t: any) => t.tableId === tableId);
       expect(tableOcc.status).toBe('OCCUPIED');
@@ -809,7 +809,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const getTablesDis = await request(app)
         .get('/tables')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       const tableDis = getTablesDis.body.find((t: any) => t.tableId === tableId);
       expect(tableDis.status).toBe('DISABLED');
 
@@ -824,7 +824,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const getTablesOccAgain = await request(app)
         .get('/tables')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       const tableOccAgain = getTablesOccAgain.body.find((t: any) => t.tableId === tableId);
       expect(tableOccAgain.status).toBe('OCCUPIED');
 
@@ -832,12 +832,12 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       await request(app)
         .patch(`/sessions/${sessionId}/close`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
 
       const getTablesRes = await request(app)
         .get('/tables')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       const tableResAfter = getTablesRes.body.find((t: any) => t.tableId === tableId);
       expect(tableResAfter.status).toBe('RESERVED');
     });
@@ -861,7 +861,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       const res1 = await request(app)
         .post('/reservations')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({
           tableId: table.tableId,
           customerName: 'Cliente Dentro Ventana',
@@ -882,14 +882,14 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       await request(app)
         .patch(`/reservations/${res1.body.id}/cancel`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
 
       // 2. Reserva 15 minutos en el pasado (dentro de [-30m, +2h]) -> también bloquea
       const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
       const res2 = await request(app)
         .post('/reservations')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({
           tableId: table.tableId,
           customerName: 'Cliente Pasado Reciente',
@@ -909,7 +909,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       await request(app)
         .patch(`/reservations/${res2.body.id}/cancel`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
     });
 
     test('200 Permitido si la reserva active está fuera de la ventana [-30m, +2h]', async () => {
@@ -929,7 +929,7 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       await request(app)
         .post('/reservations')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({
           tableId: table.tableId,
           customerName: 'Cliente Lejano',
@@ -951,14 +951,14 @@ describe('V18 Zonas, Capacidad de Mesas, Reservas y Eliminación Protegida (Cont
       await request(app)
         .patch(`/sessions/${qrOpenSuccess.body.session.sessionId}/close`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
 
       // 2. Reserva 45 minutos en el pasado (fuera de [-30m, +2h])
       const fortyFiveMinsAgo = new Date(Date.now() - 45 * 60 * 1000).toISOString();
       await request(app)
         .post('/reservations')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({
           tableId: table.tableId,
           customerName: 'Cliente Pasado Lejano',

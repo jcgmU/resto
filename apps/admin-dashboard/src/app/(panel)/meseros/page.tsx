@@ -6,6 +6,7 @@ import {
   StatusChip,
   TabsPill,
   PageHeader,
+  tableDisplayName,
 } from '@packages/ui-components';
 import { formatCOP, TableDTO, ZoneDTO } from '@packages/shared-types';
 import {
@@ -323,7 +324,7 @@ export default function WaiterTerminalPage() {
       });
 
       setSuccessMessage(
-        `¡Pedido enviado a cocina para Mesa ${selectedTable.label}!`
+        `¡Pedido enviado a cocina para ${tableDisplayName(selectedTable.label)}!`
       );
       setLastConfirmedTable(selectedTable.label);
     } catch (err: any) {
@@ -797,7 +798,7 @@ export default function WaiterTerminalPage() {
                                 color: 'var(--bento-text)',
                               }}
                             >
-                              Mesa {t.label}
+                              {tableDisplayName(t.label)}
                             </span>
                             <p
                               style={{
@@ -888,7 +889,7 @@ export default function WaiterTerminalPage() {
                       margin: '2px 0 0 0',
                     }}
                   >
-                    Mesa {selectedTable.label} ({selectedTable.zoneName} • {selectedTable.capacity} puestos)
+                    {tableDisplayName(selectedTable.label)} ({selectedTable.zoneName} • {selectedTable.capacity} puestos)
                   </h2>
                 </div>
 
@@ -1211,7 +1212,7 @@ export default function WaiterTerminalPage() {
                         margin: '2px 0 0 0',
                       }}
                     >
-                      Pedido para Mesa {selectedTable.label}
+                      Pedido para {tableDisplayName(selectedTable.label)}
                     </h2>
                     <p
                       style={{

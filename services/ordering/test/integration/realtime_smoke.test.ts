@@ -15,10 +15,10 @@ describe('D. Cierre de oleada (smoke) (Tests 24-26)', () => {
 
   test('24. Gateway: filas de §3.2 activas; los 134 tests previos en verde', () => {
     const requiredRoutes = [
-      { method: 'PATCH', path: '/v1/orders/:id/status', targetService: 'ordering', roles: ['staff', 'manager', 'admin'] },
+      { method: 'PATCH', path: '/v1/orders/:id/status', targetService: 'ordering', roles: ['waiter', 'manager', 'admin'] },
       { method: 'POST', path: '/v1/service-calls', targetService: 'ordering' },
-      { method: 'GET', path: '/v1/service-calls', targetService: 'ordering', roles: ['staff'] },
-      { method: 'PATCH', path: '/v1/service-calls/:id/resolve', targetService: 'ordering', roles: ['staff'] },
+      { method: 'GET', path: '/v1/service-calls', targetService: 'ordering', roles: ['waiter'] },
+      { method: 'PATCH', path: '/v1/service-calls/:id/resolve', targetService: 'ordering', roles: ['waiter'] },
     ];
 
     for (const r of requiredRoutes) {
@@ -77,7 +77,7 @@ describe('D. Cierre de oleada (smoke) (Tests 24-26)', () => {
     const port = (server.address() as any).port;
     const socketUrl = `http://localhost:${port}/orders`;
 
-    const staffToken = jwt.sign({ tenantId, role: 'staff' }, JWT_SECRET);
+    const staffToken = jwt.sign({ tenantId, role: 'waiter' }, JWT_SECRET);
     const guestToken = jwt.sign({ tenantId, role: 'guest', sessionId }, JWT_SECRET);
 
     const staffSocket: ClientSocket = Client(socketUrl, { auth: { token: staffToken }, forceNew: true });
@@ -115,7 +115,7 @@ describe('D. Cierre de oleada (smoke) (Tests 24-26)', () => {
     const resolveRes = await request(app)
       .patch(`/service-calls/${callRes.body.callId}/resolve`)
       .set('x-tenant-id', tenantId)
-      .set('x-user-role', 'staff')
+      .set('x-user-role', 'waiter')
       .send();
 
     expect(resolveRes.status).toBe(200);
@@ -154,14 +154,14 @@ describe('D. Cierre de oleada (smoke) (Tests 24-26)', () => {
     const advance1 = await request(app)
       .patch(`/orders/${orderId}/status`)
       .set('x-tenant-id', tenantId)
-      .set('x-user-role', 'staff')
+      .set('x-user-role', 'waiter')
       .send({ status: 'IN_KITCHEN' });
     expect(advance1.status).toBe(200);
 
     const advance2 = await request(app)
       .patch(`/orders/${orderId}/status`)
       .set('x-tenant-id', tenantId)
-      .set('x-user-role', 'staff')
+      .set('x-user-role', 'waiter')
       .send({ status: 'READY' });
     expect(advance2.status).toBe(200);
 

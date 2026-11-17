@@ -29,7 +29,7 @@ export function createZonesRouter(deps: {
   // GET /zones -> staff+
   router.get(
     '/',
-    requireStaffRole(['staff', 'manager', 'admin', 'waiter', 'cashier']),
+    requireStaffRole(['manager', 'admin', 'waiter', 'cashier']),
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const tenantId = req.headers['x-tenant-id'] as string;

@@ -103,7 +103,7 @@ describe('B. Ordering — integración HTTP (Tests 13-17)', () => {
     const staffOrders = await request(app)
       .get('/orders')
       .set('x-tenant-id', 'tenant-1')
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
     expect(staffOrders.status).toBe(200);
 
     const otherSessionOrder = await request(app)

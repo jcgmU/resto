@@ -41,7 +41,7 @@ export function requireGatewayIdentity(req: Request, res: Response, next: NextFu
     userId = userId || tokenClaims.userId || tokenClaims.sub;
 
     const tokenRole = (tokenClaims.role || role || '').toUpperCase();
-    const isStaff = ['ADMIN', 'MANAGER', 'STAFF', 'WAITER'].includes(tokenRole);
+    const isStaff = ['ADMIN', 'MANAGER', 'WAITER'].includes(tokenRole);
 
     if (!isStaff) {
       // Prevención de spoofing: si el token de guest tiene sessionId y se intenta usar otro sessionId explícito
@@ -62,7 +62,7 @@ export function requireGatewayIdentity(req: Request, res: Response, next: NextFu
   } else {
     // Si no vino token pero vino x-token-session-id vs x-session-id
     const tokenSessionHeader = req.headers['x-token-session-id'] as string;
-    const isStaff = ['ADMIN', 'MANAGER', 'STAFF', 'WAITER'].includes((role || '').toUpperCase());
+    const isStaff = ['ADMIN', 'MANAGER', 'WAITER'].includes((role || '').toUpperCase());
 
     if (!isStaff && tokenSessionHeader && sessionId && tokenSessionHeader !== sessionId) {
       return res.status(403).json({

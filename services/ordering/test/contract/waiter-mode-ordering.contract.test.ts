@@ -399,7 +399,7 @@ describe('V21 Waiter Mode & Staff Ordering Contract Test (Postgres + Redis Reale
         config.jwtSecret
       );
       const staffToken = jwt.sign(
-        { tenantId, userId: 'staff-1', role: 'staff' },
+        { tenantId, userId: 'staff-1', role: 'waiter' },
         config.jwtSecret
       );
 
