@@ -1462,8 +1462,8 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
         .replace(':id', 'id-mat-1');
     }
 
-    test('39. La tabla de rutas reconciliada contiene las 62 rutas unificadas (54 de wip + 8 de main) sin duplicados de (method, path)', () => {
-      expect(routeTable.length).toBe(62);
+    test('39. La tabla de rutas contiene 63 rutas sin duplicados de (method, path)', () => {
+      expect(routeTable.length).toBe(63);
       const seen = new Set<string>();
       for (const r of routeTable) {
         const key = `${r.method || 'ALL'} ${r.path}`;

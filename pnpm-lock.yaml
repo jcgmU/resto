@@ -374,6 +374,9 @@ importers:
       '@prisma/client':
         specifier: ^5.22.0
         version: 5.22.0(prisma@5.22.0)
+      decimal.js:
+        specifier: 10.6.0
+        version: 10.6.0
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1

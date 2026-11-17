@@ -7,6 +7,8 @@ export const CHECKOUT_ROLES = ['admin', 'manager', 'waiter', 'cashier'] as const
 
 export const CHECKOUT_OVERRIDE_PENDING_ROLES = ['admin', 'manager'] as const;
 
+export const REPORT_ROLES = ['admin', 'manager'] as const;
+
 export const ORDER_STATUS_ROLES = ['admin', 'manager', 'waiter', 'monitor'] as const;
 
 export const ORDER_CANCEL_ROLES = ['admin', 'manager'] as const;

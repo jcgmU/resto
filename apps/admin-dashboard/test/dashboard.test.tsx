@@ -7,7 +7,7 @@ import DashboardPage from '../src/app/(panel)/dashboard/page';
 import { ProductCard } from '../src/components/ProductCard';
 import { ApiClient } from '../src/lib/api';
 import * as realtimeModule from '../src/lib/realtime';
-import { FeatureGuard } from '@packages/ui-components';
+import { FeatureGuard, FeatureFlagProviderRoot, StaticFeatureFlagProvider } from '@packages/ui-components';
 
 describe('E.1 Admin Dashboard — Comportamiento Bento Box (Tests 31-36)', () => {
   beforeEach(() => {
@@ -82,9 +82,11 @@ describe('E.1 Admin Dashboard — Comportamiento Bento Box (Tests 31-36)', () =>
 
   test('36. <FeatureGuard flag="analytics"> con el flag apagado -> BentoCard con data-testid="proximamente" que OCUPA su celda del grid (el layout no colapsa)', () => {
     const { container } = render(
-      <FeatureGuard flag="analytics">
-        <div>Contenido Analytics</div>
-      </FeatureGuard>
+      <FeatureFlagProviderRoot provider={new StaticFeatureFlagProvider({ analytics: false })}>
+        <FeatureGuard flag="analytics">
+          <div>Contenido Analytics</div>
+        </FeatureGuard>
+      </FeatureFlagProviderRoot>
     );
 
     const bentoCard = container.querySelector('[data-component="bento-card"]');

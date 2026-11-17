@@ -81,6 +81,9 @@ export const routeTable: RouteDefinition[] = [
   { path: '/v1/orders/:id', auth: true, targetService: 'ordering' },
   { path: '/v1/orders', auth: true, targetService: 'ordering' },
 
+  // Reports
+  { method: 'GET', path: '/v1/reports/*', auth: true, requiredRoles: ['admin', 'manager'], targetService: 'ordering' },
+
   // Service Calls (Oleada 4)
   { method: 'POST', path: '/v1/service-calls', auth: true, targetService: 'ordering' },
   { method: 'GET', path: '/v1/service-calls', auth: true, requiredRoles: ['admin', 'manager', 'waiter', 'monitor', 'cashier'], targetService: 'ordering' },

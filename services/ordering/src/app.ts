@@ -38,6 +38,10 @@ import { InMemoryTransactionCoordinator } from './infrastructure/fakes/InMemoryT
 import { MocaInvoiceProvider } from './infrastructure/invoice/MocaInvoiceProvider';
 import { InvoiceProvider } from '@packages/shared-types';
 import { HttpIdentitySettingsAdapter } from './infrastructure/identity/HttpIdentitySettingsAdapter';
+import { SalesReportPort } from './application/ports/SalesReportPort';
+import { GetTodaySales } from './application/GetTodaySales';
+import { PrismaSalesReportRepository } from './infrastructure/persistence/PrismaSalesReportRepository';
+import { createReportsRouter } from './interfaces/http/reports.routes';
 
 export interface AppDependencies {
   cartRepo?: CartRepository;
@@ -46,6 +50,7 @@ export interface AppDependencies {
   serviceCallRepo?: ServiceCallRepository;
   eventPublisher?: EventPublisher;
   paymentRepo?: PaymentRepository;
+  salesReportRepo?: SalesReportPort;
   sessionService?: SessionServicePort | OrderingSessionPort;
   identitySettings?: IdentitySettingsPort;
   invoiceProvider?: InvoiceProvider;
@@ -205,6 +210,7 @@ export function createOrderingApp(deps?: AppDependencies): Express {
   app.use('/orders', createOrdersRouter(orderUseCases));
   app.use('/service-calls', createServiceCallsRouter(serviceCallUseCases));
   app.use('/checkout', createCheckoutRouter(checkoutUseCases));
+  app.use('/reports', createReportsRouter(new GetTodaySales(deps?.salesReportRepo || new PrismaSalesReportRepository(prisma || getPrisma()))));
 
   app.use(errorHandler);
 

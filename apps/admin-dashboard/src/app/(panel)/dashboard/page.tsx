@@ -15,7 +15,6 @@ import {
   ErrorState,
   KpiDelta,
   FeatureGuard,
-  Proximamente,
   getTableDisplayName,
   formatOrderNumber,
   tableDisplayName,
@@ -31,6 +30,7 @@ import {
   computeOrderOverdue,
 } from '@packages/shared-types';
 import { ApiClient } from '../../../lib/api';
+import { SalesSummary } from '../../../components/SalesSummary';
 import { resolveMediaUrl } from '../../../lib/media';
 import {
   fetchTables,
@@ -1152,14 +1152,7 @@ export default function DashboardPage() {
           flag="analytics"
           fallback={null}
         >
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '24px', marginTop: '24px' }}>
-            <BentoCard style={{ backgroundColor: 'var(--bento-card-bg-solid)', padding: '24px', minHeight: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Proximamente featureName="Ventas del Día" />
-            </BentoCard>
-            <BentoCard style={{ backgroundColor: 'var(--bento-card-bg-solid)', padding: '24px', minHeight: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Proximamente featureName="Ticket Promedio" />
-            </BentoCard>
-          </div>
+          <SalesSummary />
         </FeatureGuard>
       </section>
 

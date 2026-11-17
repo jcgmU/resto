@@ -137,8 +137,8 @@ describe('U10: Admin Dashboard, Pagos y Ajustes', () => {
       expect(kpis.length).toBeGreaterThanOrEqual(2);
       expect(kpis[0].closest('[data-component="status-card"]')).toHaveAttribute('data-status', 'occupied');
 
-      // KPI sin endpoint real (analytics) está protegido tras FeatureGuard mostrando Próximamente
-      expect(screen.getAllByTestId('proximamente').length).toBeGreaterThanOrEqual(1);
+      // Sin rol de gestión identificado, no muestra datos financieros.
+      expect(screen.queryByText('Ventas del Día')).not.toBeInTheDocument();
 
       // Panel Brief muestra alerta real de servicio
       expect(screen.getByText(/Brief Operativo|Alertas/i)).toBeInTheDocument();
@@ -166,8 +166,10 @@ describe('U10: Admin Dashboard, Pagos y Ajustes', () => {
       expect(screen.getByText('Sin alertas activas')).toBeInTheDocument();
     });
 
-    test('5. Flag "analytics" ON: Ventas del Día y Ticket Promedio muestran Próximamente (no $0.00 falso sin endpoint)', async () => {
+    test('5. Flag "analytics" ON: Ventas del Día y Ticket Promedio muestran el reporte real', async () => {
+      localStorage.setItem('resto_user', JSON.stringify({ role: 'ADMIN' }));
       ApiClient.request = jest.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/v1/reports/sales/today')) return { total: '10000.00', tickets: 1, averageTicket: '10000.00' };
         if (url.includes('/v1/sessions')) return { status: 200, data: [] };
         if (url.includes('/v1/tables')) return { status: 200, data: [] };
         if (url.includes('/v1/orders')) return { status: 200, data: [] };
@@ -181,10 +183,10 @@ describe('U10: Admin Dashboard, Pagos y Ajustes', () => {
         expect(screen.getByText('Mesas Activas')).toBeInTheDocument();
       });
 
-      expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
-      expect(screen.getAllByTestId('proximamente').length).toBeGreaterThanOrEqual(2);
-      expect(screen.getByText(/Ventas del Día/i)).toBeInTheDocument();
+      expect(await screen.findByText(/Ventas del Día/i)).toBeInTheDocument();
       expect(screen.getByText(/Ticket Promedio/i)).toBeInTheDocument();
+      expect(screen.queryByTestId('proximamente')).not.toBeInTheDocument();
+      localStorage.removeItem('resto_user');
     });
   });
 

@@ -62,7 +62,7 @@ describe('A. @packages/ui-components — FeatureGuard & Flags (Tests 1-14)', () 
       const provider = new StaticFeatureFlagProvider();
       expect(provider.isEnabled('kitchen-display')).toBe(false);
       expect(provider.isEnabled('payments')).toBe(false);
-      expect(provider.isEnabled('analytics')).toBe(false);
+      expect(provider.isEnabled('analytics')).toBe(true);
       expect(provider.isEnabled('multi-language')).toBe(false);
     });
 
@@ -73,7 +73,7 @@ describe('A. @packages/ui-components — FeatureGuard & Flags (Tests 1-14)', () 
         const provider = new EnvFeatureFlagProvider();
         expect(provider.isEnabled('kitchen-display')).toBe(true);
         expect(provider.isEnabled('payments')).toBe(true);
-        expect(provider.isEnabled('analytics')).toBe(false);
+        expect(provider.isEnabled('analytics')).toBe(true);
       } finally {
         process.env.NEXT_PUBLIC_FEATURE_FLAGS = originalEnv;
       }

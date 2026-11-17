@@ -17,7 +17,7 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   'table-qr': true,
   'kitchen-display': false,
   'payments': false,
-  'analytics': false,
+  'analytics': true,
   'multi-language': false,
   'dev-components': false,
 };
