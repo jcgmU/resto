@@ -33,6 +33,11 @@ describe('A. @packages/ui-components — FeatureGuard & Flags (Tests 1-14)', () 
       expect(result['table-qr']).toBe(true);
     });
 
+    test('3b. space-editor está ON por defecto y se puede apagar', () => {
+      expect(parseFeatureFlags(undefined)['space-editor']).toBe(true);
+      expect(parseFeatureFlags('space-editor:false')['space-editor']).toBe(false);
+    });
+
     test('4. parseFeatureFlags("unknown-flag:true") ignora la clave desconocida y no lanza', () => {
       expect(() => {
         const result = parseFeatureFlags('unknown-flag:true');

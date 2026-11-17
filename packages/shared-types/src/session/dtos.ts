@@ -1,3 +1,5 @@
+import type { Polygon } from '../floorplan/geometry';
+
 export type TableStatus =
   | 'AVAILABLE'
   | 'OCCUPIED'
@@ -78,6 +80,7 @@ export interface ZoneDTO {
   name: string;
   sortOrder: number;
   staffIds?: string[];
+  polygon?: Polygon;
 }
 
 export interface CreateZoneRequest {
@@ -85,12 +88,14 @@ export interface CreateZoneRequest {
   sortOrder?: number;
   id?: string;
   staffIds?: string[];
+  polygon?: Polygon | null;
 }
 
 export interface UpdateZoneRequest {
   name?: string;
   sortOrder?: number;
   staffIds?: string[];
+  polygon?: Polygon | null;
 }
 
 export type ReservationStatus = 'active' | 'seated' | 'cancelled';

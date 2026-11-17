@@ -21,6 +21,10 @@ Propuesta para que el cliente dibuje sus espacios y arrastre mesas, con medidas 
 4. **TDD**: tests rojos primero para la geometría (contención, solape, redimensionado) como módulo puro compartido entre front y back.
 5. **PWA cliente / meseros** (posterior): mostrar el plano con estado de cada mesa.
 
+### Estado Fase 1 (espacios)
+
+Las zonas de session aceptan `polygon` opcional en metros (`null` lo quita). El servidor valida con `validateSpacePolygon` + `checkSpace` y responde 422 `{ error: { code, details } }`; no hay regla de lado mínimo (paridad U7). El editor vive en `/mesas/espacios` tras el flag `space-editor`; `seed-demo` añade polígonos válidos de forma idempotente. Colocar mesas en el plano es Fase 2.
+
 ## Decisión abierta
 
 Paleta del demo: usar los tokens reales del panel (`--bento-papel/hueso/tinta`) o una distinta. El hook de diseño marca la paleta crema actual del demo; se resuelve al portarlo a React.

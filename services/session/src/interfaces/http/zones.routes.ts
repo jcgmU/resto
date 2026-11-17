@@ -54,6 +54,7 @@ export function createZonesRouter(deps: {
           sortOrder: req.body.sortOrder,
           id: req.body.id,
           staffIds: req.body.staffIds,
+          polygon: req.body.polygon,
         });
         res.status(201).json(zone);
       } catch (err) {
@@ -75,6 +76,7 @@ export function createZonesRouter(deps: {
           name: req.body.name,
           sortOrder: req.body.sortOrder,
           staffIds: req.body.staffIds,
+          polygon: req.body.polygon,
         });
         res.status(200).json(updated);
       } catch (err) {

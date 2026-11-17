@@ -1,9 +1,29 @@
-import { ZoneDTO, ZoneRepository, TableRepository, DomainError } from '@packages/shared-types';
+import { ZoneDTO, ZoneRepository, TableRepository, DomainError, floorplan, zoneToFloorSpace } from '@packages/shared-types';
+
+export class ZonePolygonError extends Error {
+  constructor(readonly details: floorplan.SpaceRuleError) {
+    super(details.code);
+  }
+}
+
+async function checkedPolygon(zoneRepo: ZoneRepository, zone: ZoneDTO, candidate: unknown): Promise<floorplan.Polygon> {
+  const invalid = floorplan.validateSpacePolygon(candidate, zone.id);
+  if (invalid) throw new ZonePolygonError(invalid);
+  const step = floorplan.DEFAULT_FLOOR_LIMITS.gridStepM;
+  const snap = (value: number) => Number((Math.round(value / step) * step).toFixed(6));
+  const polygon: floorplan.Polygon = (candidate as floorplan.Polygon).map(([x, y]) => [snap(x), snap(y)]);
+  const spaces = (await zoneRepo.listByTenant(zone.tenantId))
+    .map(zoneToFloorSpace)
+    .filter((space): space is floorplan.FloorSpace => space !== null);
+  const error = floorplan.checkSpace({ id: zone.id, name: zone.name, polygon }, spaces, floorplan.DEFAULT_FLOOR_LIMITS, zone.id);
+  if (error) throw new ZonePolygonError(error);
+  return polygon;
+}
 
 export class CreateZoneUseCaseImpl {
   constructor(private readonly zoneRepo: ZoneRepository) {}
 
-  async execute(input: { tenantId: string; name: string; sortOrder?: number; id?: string; staffIds?: string[] }): Promise<ZoneDTO> {
+  async execute(input: { tenantId: string; name: string; sortOrder?: number; id?: string; staffIds?: string[]; polygon?: floorplan.Polygon | null }): Promise<ZoneDTO> {
     if (!input.name || typeof input.name !== 'string' || input.name.trim() === '') {
       throw new DomainError('VALIDATION_ERROR', 'El nombre de la zona es requerido');
     }
@@ -19,6 +39,9 @@ export class CreateZoneUseCaseImpl {
       staffIds: Array.isArray(input.staffIds) ? input.staffIds : [],
     };
 
+    if (input.polygon !== undefined && input.polygon !== null) {
+      zone.polygon = await checkedPolygon(this.zoneRepo, zone, input.polygon);
+    }
     return this.zoneRepo.save(input.tenantId, zone);
   }
 }
@@ -26,11 +49,12 @@ export class CreateZoneUseCaseImpl {
 export class UpdateZoneUseCaseImpl {
   constructor(private readonly zoneRepo: ZoneRepository) {}
 
-  async execute(input: { tenantId: string; zoneId: string; name?: string; sortOrder?: number; staffIds?: string[] }): Promise<ZoneDTO> {
-    const zone = await this.zoneRepo.findById(input.tenantId, input.zoneId);
-    if (!zone) {
+  async execute(input: { tenantId: string; zoneId: string; name?: string; sortOrder?: number; staffIds?: string[]; polygon?: floorplan.Polygon | null }): Promise<ZoneDTO> {
+    const existing = await this.zoneRepo.findById(input.tenantId, input.zoneId);
+    if (!existing) {
       throw new DomainError('ZONE_NOT_FOUND', `Zona ${input.zoneId} no encontrada`);
     }
+    const zone = { ...existing };
 
     if (input.name !== undefined) {
       if (typeof input.name !== 'string' || input.name.trim() === '') {
@@ -53,6 +77,8 @@ export class UpdateZoneUseCaseImpl {
       zone.staffIds = input.staffIds;
     }
 
+    if (input.polygon === null) delete zone.polygon;
+    else if (input.polygon !== undefined) zone.polygon = await checkedPolygon(this.zoneRepo, zone, input.polygon);
     return this.zoneRepo.save(input.tenantId, zone);
   }
 }

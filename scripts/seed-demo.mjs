@@ -195,10 +195,10 @@ const DESIRED_PRODUCTS = [
 ];
 
 const DESIRED_ZONES = [
-  { name: 'Terraza', sortOrder: 1 },
-  { name: 'Salón Principal', sortOrder: 2 },
-  { name: 'Barra', sortOrder: 3 },
-  { name: 'VIP', sortOrder: 4 },
+  { name: 'Terraza', sortOrder: 1, polygon: [[0, 0], [6, 0], [6, 4], [0, 4]] },
+  { name: 'Salón Principal', sortOrder: 2, polygon: [[7, 0], [14, 0], [14, 4], [7, 4]] },
+  { name: 'Barra', sortOrder: 3, polygon: [[0, 5], [6, 5], [6, 7], [0, 7]] },
+  { name: 'VIP', sortOrder: 4, polygon: [[7, 5], [11, 5], [11, 8], [7, 8]] },
 ];
 
 const DESIRED_TABLES = [
@@ -621,12 +621,23 @@ async function main() {
   }
   const existingZones = (await zonesRes.json()) || [];
   const zoneMap = new Map(existingZones.map((z) => [z.name, z.id || z.zoneId]));
+  const existingByName = new Map(existingZones.map((z) => [z.name, z]));
 
   let zonesCreated = 0;
   let zonesExisting = 0;
   for (const desiredZone of DESIRED_ZONES) {
     if (zoneMap.has(desiredZone.name)) {
       zonesExisting++;
+      if (!existingByName.get(desiredZone.name)?.polygon) {
+        const patchRes = await fetch(`${GATEWAY_URL}/v1/zones/${zoneMap.get(desiredZone.name)}`, {
+          method: 'PATCH',
+          headers: authHeaders,
+          body: JSON.stringify({ polygon: desiredZone.polygon }),
+        });
+        if (!patchRes.ok) {
+          throw new Error(`PATCH /v1/zones polygon fallo para "${desiredZone.name}" (${patchRes.status}): ${await patchRes.text()}`);
+        }
+      }
       continue;
     }
     const createZoneRes = await fetch(`${GATEWAY_URL}/v1/zones`, {

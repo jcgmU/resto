@@ -1,6 +1,16 @@
 import Redis from 'ioredis';
-import { ZoneRepository, ZoneDTO } from '@packages/shared-types';
+import { ZoneRepository, ZoneDTO, floorplan } from '@packages/shared-types';
 import { RedisKeys } from './keys';
+
+function readPolygon(value?: string): floorplan.Polygon | undefined {
+  if (!value) return undefined;
+  try {
+    const polygon: unknown = JSON.parse(value);
+    return floorplan.validateSpacePolygon(polygon) === null ? polygon as floorplan.Polygon : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export class RedisZoneRepository implements ZoneRepository {
   constructor(private readonly redis: Redis) {}
@@ -16,12 +26,11 @@ export class RedisZoneRepository implements ZoneRepository {
       sortOrder: String(zone.sortOrder ?? 0),
       staffIds: JSON.stringify(zone.staffIds || []),
     };
+    if (zone.polygon) fields.polygon = JSON.stringify(zone.polygon);
 
-    await this.redis
-      .multi()
-      .hset(key, fields)
-      .sadd(setKey, zone.id)
-      .exec();
+    const transaction = this.redis.multi().hset(key, fields).sadd(setKey, zone.id);
+    if (!zone.polygon) transaction.hdel(key, 'polygon');
+    await transaction.exec();
 
     return zone;
   }
@@ -48,6 +57,7 @@ export class RedisZoneRepository implements ZoneRepository {
       name: raw.name,
       sortOrder: Number(raw.sortOrder ?? 0),
       staffIds,
+      ...(readPolygon(raw.polygon) ? { polygon: readPolygon(raw.polygon) } : {}),
     };
   }
 
@@ -78,6 +88,7 @@ export class RedisZoneRepository implements ZoneRepository {
           name: item.name,
           sortOrder: Number(item.sortOrder ?? 0),
           staffIds,
+          ...(readPolygon(item.polygon) ? { polygon: readPolygon(item.polygon) } : {}),
         });
       }
     }

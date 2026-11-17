@@ -2155,6 +2155,10 @@ export default function DashboardPage() {
               </div>
             )}
 
+            <Button variant="secondary" onClick={() => router.push('/mesas/espacios')} style={{ marginBottom: '12px' }}>
+              Editar espacios en el plano
+            </Button>
+
             {/* Crear nueva zona */}
             <form onSubmit={handleCreateZone} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
               <div style={{ display: 'flex', gap: '8px' }}>

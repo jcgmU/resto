@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { DomainError } from '@packages/shared-types';
+import { ZonePolygonError } from '../../../application/ZoneUseCases';
 
 export function errorHandler(
   err: any,
@@ -7,6 +8,9 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ) {
+  if (err instanceof ZonePolygonError) {
+    return res.status(422).json({ error: { code: err.details.code, details: err.details } });
+  }
   let status = 500;
   let code = 'INTERNAL_ERROR';
   let message = err.message || 'Error interno del servidor';
