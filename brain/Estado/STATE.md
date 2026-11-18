@@ -3,13 +3,13 @@
 > Bloque que actualizan los agentes en cada checkpoint (ver Protocolo). Notas libres debajo.
 
 <!-- team-state:begin -->
-- **fase**: integracion-main-wip (ronda 1: ejecutando oleadas 1-3 U1-U3 hasta PARADA 1 en `/Users/jcgm/Developer/Resto-integracion` según `2026-11-11-1837-planner-a-agy.md`)
+- **fase**: sistema-de-diseno (parada 2, U8 y U9 implementadas; pendiente revisión de planner)
 - **fase_anterior**: editor-espacios-fase1 (rondas 1 y 2 verificadas por claude en `/Users/jcgm/Developer/Resto-editor` con 4 suites / 150 tests en verde); qa-main-hallazgos-flujo-completo CERRADO en `wip/correcciones-qa-y-notas`; mesas-lote y hardening-p1 en `origin/main`
-- **ronda**: 1
-- **turno**: agy (hilo integracion-main-wip: plan U1-U13 `2026-11-11-1837-planner-a-agy.md` en el worktree Resto-integracion; paradas con revisión de planner tras oleadas 3 y 5; editor-espacios-fase1 geometría verificado por claude)
-- **siguiente**: agy entrega `ejecucion` parcial U1-U3 en PARADA 1 a `planner` (`w3:pF`) y espera visto bueno antes de pasar a U4.
-- **engram_pendiente**: si (servidor MCP engram no registrado en esta sesión de agy; resumen registrado en handoff y notas de STATE.md)
-- **actualizado**: 2026-11-13T14:23:30-05:00
+- **ronda**: 3
+- **turno**: usuario (cola de ideas principal terminada; PR #3 abierto, pendiente de revisión y merge)
+- **siguiente**: el usuario prueba arrastre táctil/ratón en el editor de espacios; luego batería completa y merge del PR #3; tras el merge `pnpm install` una vez.
+- **engram_pendiente**: no (resumen de sesión guardado en proyecto resto)
+- **actualizado**: 2026-11-18T10:30:00-05:00
 <!-- team-state:end -->
 
 ## Notas

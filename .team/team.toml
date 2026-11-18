@@ -18,8 +18,9 @@ kind = "claude"
 version = "2.1.296"
 last_session_id = ""
 
+# 2026-11-17: agy tambien sin cuota. EJECUTOR = claude Sonnet 5.5 (pane w3:pQ, --dangerously-skip-permissions, cwd Resto-integracion), decision del usuario.
 [roles.executor]
-agent_name = "agy"
-kind = "agy"
-version = "1.4.0"
+agent_name = "executor"
+kind = "claude"
+version = "sonnet-5-5"
 last_session_id = ""

@@ -131,3 +131,9 @@ Reportes al usuario y handoffs: una linea por tarea con ✅; si hay problema, un
 - El usuario agrega ideas diciendole a claude "agrega a la cola: ...". Claude las anota y no las trabaja hasta que lleguen a "En curso".
 - Al cerrar un hilo (aprobado), claude propone los 3 primeros de la Cola; el usuario elige y claude abre el objetivo al planificador.
 - Claude actualiza el archivo: mueve a "En curso" al empezar y a "Hecho" al aprobar. Los agentes no editan la cola.
+
+## Vigía de traspasos (anti-tiempo-muerto)
+
+- Al terminar, quien entrega escribe el handoff y avisa al destinatario con `herdr agent prompt`. Si el aviso falla, lo reintenta una vez (arriba) y lo deja `no-entregado`.
+- El orquestador corre `watch-team.py` (Monitor): si un agente lleva >90 s inactivo y hay un handoff para él sin `hecho`, se lo empuja una vez; si es para el orquestador, lo avisa. Aviso extra a los ~20 min de inactividad.
+- Nadie espera en silencio: un agente inactivo con handoff pendiente es un fallo del equipo, no del usuario.
