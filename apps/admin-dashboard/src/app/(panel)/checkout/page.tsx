@@ -10,6 +10,7 @@ import {
   ConfirmPaymentButton,
   PaymentSuccessCard,
   ReleaseTableModal,
+  dedupeSessions,
 } from '../../../components/checkout';
 import {
   fetchActiveSessions as apiFetchActiveSessions,
@@ -67,6 +68,7 @@ function CheckoutContent({ allowPendingOrdersOverride = true }: { allowPendingOr
   const isMountedRef = useRef(true);
   const latestRequestedSessionIdRef = useRef<string | null>(null);
   const billRequestGenRef = useRef(0);
+  const sessionsRequestGenRef = useRef(0);
   const isProcessingPaymentRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const paidSessionIdsRef = useRef<Set<string>>(new Set());
@@ -83,17 +85,18 @@ function CheckoutContent({ allowPendingOrdersOverride = true }: { allowPendingOr
 
   const fetchActiveSessions = async () => {
     if (!isMountedRef.current) return;
+    const requestGen = ++sessionsRequestGenRef.current;
     setLoadingSessions(true);
     setSessionError(null);
     try {
       const data = await apiFetchActiveSessions();
-      if (!isMountedRef.current) return;
-      setSessions(data.filter((s) => !paidSessionIdsRef.current.has(s.sessionId)));
+      if (!isMountedRef.current || requestGen !== sessionsRequestGenRef.current) return;
+      setSessions(dedupeSessions(data.filter((s) => !paidSessionIdsRef.current.has(s.sessionId))));
     } catch (err: any) {
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current || requestGen !== sessionsRequestGenRef.current) return;
       setSessionError(parseCheckoutError(err));
     } finally {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && requestGen === sessionsRequestGenRef.current) {
         setLoadingSessions(false);
       }
     }

@@ -14,6 +14,33 @@ import {
   shortId,
 } from '@packages/ui-components';
 
+export function dedupeSessions(sessions: TableSessionDTO[]): TableSessionDTO[] {
+  const seen = new Set<string>();
+  return sessions.filter((s) => {
+    if (seen.has(s.sessionId)) return false;
+    seen.add(s.sessionId);
+    return true;
+  });
+}
+
+export interface TableSessionGroup {
+  tableId: string;
+  sessions: TableSessionDTO[];
+  primary: TableSessionDTO;
+}
+
+/** Una entrada por mesa; la sesión principal es la más reciente (el resto es legado). */
+export function groupSessionsByTable(sessions: TableSessionDTO[]): TableSessionGroup[] {
+  const groups = new Map<string, TableSessionDTO[]>();
+  for (const session of dedupeSessions(sessions)) {
+    groups.set(session.tableId, [...(groups.get(session.tableId) ?? []), session]);
+  }
+  return Array.from(groups, ([tableId, list]) => {
+    const sorted = [...list].sort((x, y) => Date.parse(y.createdAt ?? '') - Date.parse(x.createdAt ?? '') || 0);
+    return { tableId, sessions: sorted, primary: sorted[0] };
+  });
+}
+
 export interface ActiveTablesGridProps {
   sessions: TableSessionDTO[];
   tables?: TableDTO[];
@@ -74,14 +101,16 @@ export function ActiveTablesGrid({
         gap: 'var(--bento-grid-gap)',
       }}
     >
-      {sessions.map((session) => {
-        const isSelected = selectedSessionId === session.sessionId;
+      {groupSessionsByTable(sessions).map((group) => {
+        const session = group.primary;
+        const isSelected = group.sessions.some((s) => s.sessionId === selectedSessionId);
         const displayName = getTableDisplayName(session.tableId, tables);
         return (
           <BentoCard
-            key={session.sessionId}
-            interactive={Boolean(onSelectSession)}
-            onClick={() => onSelectSession?.(session)}
+            key={group.tableId}
+            data-selected={isSelected ? 'true' : undefined}
+            interactive={Boolean(onSelectSession) && group.sessions.length === 1}
+            onClick={group.sessions.length === 1 ? () => onSelectSession?.(session) : undefined}
             style={{
               padding: '16px',
               minHeight: '44px',
@@ -120,12 +149,44 @@ export function ActiveTablesGrid({
                 gap: '2px',
               }}
             >
-              <span>
-                Abierta: {session.createdAt ? new Date(session.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
-              </span>
-              <span>
-                Sesión #{shortId(session.sessionId)}
-              </span>
+              {group.sessions.length === 1 ? (
+                <>
+                  <span>
+                    Abierta: {session.createdAt ? new Date(session.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                  </span>
+                  <span>
+                    Sesión #{shortId(session.sessionId)}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span data-testid="grouped-sessions" style={{ color: 'var(--bento-status-reserved-text)', fontWeight: 600 }}>
+                    {group.sessions.length} sesiones activas
+                  </span>
+                  {group.sessions.map((s) => (
+                    <button
+                      key={s.sessionId}
+                      type="button"
+                      aria-pressed={s.sessionId === selectedSessionId}
+                      onClick={() => onSelectSession?.(s)}
+                      style={{
+                        textAlign: 'left',
+                        padding: '6px 8px',
+                        minHeight: '36px',
+                        borderRadius: 'var(--bento-inner-radius)',
+                        border: s.sessionId === selectedSessionId ? '2px solid var(--bento-primary)' : '1px solid var(--bento-border)',
+                        background: 'var(--bento-card-bg-solid)',
+                        color: 'var(--bento-text)',
+                        cursor: onSelectSession ? 'pointer' : 'default',
+                        fontFamily: 'var(--bento-font-body)',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      Sesión #{shortId(s.sessionId)} · {s.createdAt ? new Date(s.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                    </button>
+                  ))}
+                </>
+              )}
             </div>
           </BentoCard>
         );

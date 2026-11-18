@@ -298,7 +298,8 @@ describe('C. Admin Dashboard — Vista de Checkout (Tests 13-19)', () => {
 
     render(<ActiveTablesGrid sessions={sessions} tables={tables} />);
     const tableHeaders = screen.getAllByText('Mesa Salón');
-    expect(tableHeaders).toHaveLength(2);
+    expect(tableHeaders).toHaveLength(1);
+    expect(screen.getByText(/2 sesiones activas/i)).toBeInTheDocument();
 
     expect(screen.getByText(/Sesión #111111/i)).toBeInTheDocument();
     expect(screen.getByText(/Sesión #222222/i)).toBeInTheDocument();

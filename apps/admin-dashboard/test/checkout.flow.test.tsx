@@ -389,7 +389,7 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
       // (a) Nombre de mesa resuelto con getTableDisplayName
       await waitFor(() => {
         const vipHeaders = screen.getAllByText('Mesa VIP 77');
-        expect(vipHeaders).toHaveLength(2);
+        expect(vipHeaders).toHaveLength(1);
       });
 
       // (b) Sesiones gemelas son distinguibles en la grilla
