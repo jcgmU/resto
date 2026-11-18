@@ -20,7 +20,18 @@ import { ApiClient } from '../src/lib/api';
 import { act } from '@testing-library/react';
 const { renderToStaticMarkup } = require('react-dom/server.node');
 
+const FIXED_NOW = Date.parse('2026-10-14T12:00:00.000Z');
+const REAL_TIMERS = ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'setImmediate', 'clearImmediate', 'nextTick', 'queueMicrotask', 'requestAnimationFrame', 'cancelAnimationFrame', 'requestIdleCallback', 'cancelIdleCallback', 'performance', 'hrtime'] as const;
+
 describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
+  beforeEach(() => {
+    jest.useFakeTimers({ now: FIXED_NOW, doNotFake: [...REAL_TIMERS] });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   const sampleOrder: OrderDTO = {
     id: 'ord-kds-1',
     tenantId: 't-1',
@@ -47,7 +58,7 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
         ],
       },
     ],
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(FIXED_NOW).toISOString(),
   };
 
   test('14. /kds renderiza las 3 columnas y las órdenes como tarjetas de estado', () => {
@@ -142,6 +153,12 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
     const resolveBtn = screen.getByRole('button', { name: /resolver/i });
     fireEvent.click(resolveBtn);
     expect(onResolve).toHaveBeenCalledWith('call-1');
+  });
+
+  test('0. el reloj de la suite KDS está congelado y los temporizadores siguen reales', () => {
+    expect(Date.now()).toBe(FIXED_NOW);
+    expect(new Date().toISOString()).toBe('2026-10-14T12:00:00.000Z');
+    expect(jest.isMockFunction(setTimeout)).toBe(false);
   });
 
   test('20. El socket se construye con namespace /orders y auth.token = staff JWT (assert sobre el mock de socket.io-client)', () => {
