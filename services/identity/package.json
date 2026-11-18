@@ -4,12 +4,14 @@
   "private": true,
   "main": "./dist/index.js",
   "scripts": {
-    "build": "tsc",
-    "test": "jest --runInBand",
-    "test:real": "jest --config jest.real.config.js --runInBand",
+    "build": "prisma generate && tsc && node ../../scripts/copy-generated-client.mjs",
+    "test": "prisma generate && jest --runInBand",
+    "test:real": "prisma generate && jest --config jest.real.config.js --runInBand",
     "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts",
-    "lint": "eslint ."
+    "dev": "prisma generate && ts-node src/index.ts",
+    "lint": "eslint .",
+    "postinstall": "prisma generate",
+    "generate": "prisma generate"
   },
   "dependencies": {
     "@packages/shared-types": "workspace:*",
