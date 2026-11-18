@@ -48,7 +48,10 @@ function getFreePort() {
   });
 }
 
-export async function waitForHttp(url, timeoutMs = 30000) {
+// Una sesión pagada rechaza pedidos con 409; ordering usa uno u otro código según la ruta.
+const NOT_ORDERABLE_CODES = ['SESSION_NOT_ACTIVE', 'SESSION_NOT_ORDERABLE'];
+
+export async function waitForHttp(url, timeoutMs = 30000, expectedStatuses = ['ok']) {
   const start = Date.now();
   let lastReason = 'no response';
   while (Date.now() - start < timeoutMs) {
@@ -56,7 +59,7 @@ export async function waitForHttp(url, timeoutMs = 30000) {
       const res = await fetch(url);
       if (res.status === 200) {
         const body = await res.json().catch(() => null);
-        if (body && body.status === 'ok') {
+        if (body && expectedStatuses.includes(body.status)) {
           return true;
         }
         lastReason = `HTTP 200 with invalid body ${JSON.stringify(body)}`;
@@ -403,7 +406,8 @@ export async function main() {
         {
           name: 'gateway',
           dir: 'services/gateway',
-          url: `http://127.0.0.1:${gatewayPort}/health`,
+          url: `http://127.0.0.1:${gatewayPort}/health/ready`,
+          expectedStatuses: ['ready'],
           env: {
             PORT: String(gatewayPort),
             GATEWAY_PORT: String(gatewayPort),
@@ -442,21 +446,22 @@ export async function main() {
 
       // Wait for health of each service
       for (const svc of serviceDefs) {
-        await waitForHttp(svc.url, 25000);
+        await waitForHttp(svc.url, 25000, svc.expectedStatuses);
         log(`Service ${svc.name} is healthy at ${svc.url}`);
       }
 
       // Verify Gateway aggregation health check
       log('Verifying Gateway aggregation health endpoint...');
-      const gwRes = await fetch(`http://127.0.0.1:${gatewayPort}/health`);
+      const gwRes = await fetch(`http://127.0.0.1:${gatewayPort}/health/ready`);
       if (!gwRes.ok) {
         throw new Error(`Gateway health check failed with status ${gwRes.status}`);
       }
       const gwData = await gwRes.json();
       log(`Gateway responded with: ${JSON.stringify(gwData)}`);
 
-      if (gwData.status !== 'ok') {
-        throw new Error(`Gateway returned non-ok status: ${JSON.stringify(gwData)}`);
+      const upstreamsUp = Object.values(gwData.services || {}).every((state) => state === 'up');
+      if (gwData.status !== 'ready' || !upstreamsUp) {
+        throw new Error(`Gateway is not ready: ${JSON.stringify(gwData)}`);
       }
 
       const gwBase = `http://127.0.0.1:${gatewayPort}`;
@@ -628,9 +633,16 @@ export async function main() {
 
       // 3. Mesa y Sesión QR (U7 / H9)
       log('[E2E 3/6] Testing Table & QR Session via Gateway...');
+      const createZoneRes = await gwRequest('POST', '/v1/zones', {
+        token: adminTokenA,
+        body: { name: 'Salón', sortOrder: 1 },
+      });
+      if (createZoneRes.status !== 201 || !createZoneRes.data?.id) {
+        throw new Error(`[E2E 3/6] Create zone failed: status=${createZoneRes.status} body=${JSON.stringify(createZoneRes.data)}`);
+      }
       const createTableRes = await gwRequest('POST', '/v1/tables', {
         token: adminTokenA,
-        body: { label: 'Mesa 1' },
+        body: { label: 'Mesa 1', zoneId: createZoneRes.data.id },
       });
       if (createTableRes.status !== 201 || !createTableRes.data?.tableId) {
         throw new Error(`[E2E 3/6] Create table failed: status=${createTableRes.status} body=${JSON.stringify(createTableRes.data)}`);
@@ -790,26 +802,35 @@ export async function main() {
         token: guestToken,
         body: { productId: productAId, quantity: 1 },
       });
-      if (postPaidCartRes.status !== 409 || postPaidCartRes.data?.error?.code !== 'SESSION_NOT_ACTIVE') {
-        throw new Error(`[E2E 6/6] Post-payment POST /v1/cart/items must return 409 SESSION_NOT_ACTIVE, got status=${postPaidCartRes.status} body=${JSON.stringify(postPaidCartRes.data)}`);
+      if (postPaidCartRes.status !== 409 || !NOT_ORDERABLE_CODES.includes(postPaidCartRes.data?.error?.code)) {
+        throw new Error(`[E2E 6/6] Post-payment POST /v1/cart/items must return 409 ${NOT_ORDERABLE_CODES.join(' or ')}, got status=${postPaidCartRes.status} body=${JSON.stringify(postPaidCartRes.data)}`);
       }
 
       const postPaidOrderRes = await gwRequest('POST', '/v1/orders/confirm', {
         token: guestToken,
         body: { tableId },
       });
-      if (postPaidOrderRes.status !== 409 || postPaidOrderRes.data?.error?.code !== 'SESSION_NOT_ACTIVE') {
-        throw new Error(`[E2E 6/6] Post-payment POST /v1/orders/confirm must return 409 SESSION_NOT_ACTIVE, got status=${postPaidOrderRes.status} body=${JSON.stringify(postPaidOrderRes.data)}`);
+      if (postPaidOrderRes.status !== 409 || !NOT_ORDERABLE_CODES.includes(postPaidOrderRes.data?.error?.code)) {
+        throw new Error(`[E2E 6/6] Post-payment POST /v1/orders/confirm must return 409 ${NOT_ORDERABLE_CODES.join(' or ')}, got status=${postPaidOrderRes.status} body=${JSON.stringify(postPaidOrderRes.data)}`);
       }
       log('[E2E 6/6] Checkout & Post-payment Rejection passed.');
 
       // 7. Gestión de Mesas en Lote vía Gateway (mesas-lote)
       log('[E2E 7/7] Testing Batch Table Management via Gateway (mesas-lote)...');
 
+      const batchZoneRes = await gwRequest('POST', '/v1/zones', {
+        token: adminTokenA,
+        body: { name: 'Terraza', sortOrder: 2 },
+      });
+      if (batchZoneRes.status !== 201 || !batchZoneRes.data?.id) {
+        throw new Error(`[E2E 7/7] Create zone failed: status=${batchZoneRes.status} body=${JSON.stringify(batchZoneRes.data)}`);
+      }
+      const batchZoneId = batchZoneRes.data.id;
+
       // 1. POST /v1/tables/batch con prefix 'Terraza' (count: 5, start: 1)
       const batchCreateRes = await gwRequest('POST', '/v1/tables/batch', {
         token: adminTokenA,
-        body: { prefix: 'Terraza', count: 5, start: 1 },
+        body: { prefix: 'Terraza', count: 5, start: 1, zoneId: batchZoneId },
       });
       if (
         batchCreateRes.status !== 201 ||
@@ -840,7 +861,7 @@ export async function main() {
       // 2. Conflicto 409 al reusar label existente (insensible a mayúsculas/espacios)
       const conflictRes = await gwRequest('POST', '/v1/tables/batch', {
         token: adminTokenA,
-        body: { labels: ['  terraza 1  '] },
+        body: { labels: ['  terraza 1  '], zoneId: batchZoneId },
       });
       if (
         conflictRes.status !== 409 ||
@@ -989,7 +1010,7 @@ export async function main() {
 
       const recreateRes = await gwRequest('POST', '/v1/tables/batch', {
         token: adminTokenA,
-        body: { labels: ['Terraza 5'] },
+        body: { labels: ['Terraza 5'], zoneId: batchZoneId },
       });
       if (
         recreateRes.status !== 201 ||
@@ -1012,7 +1033,7 @@ export async function main() {
       // 7. Guards de rol WAITER (403 Forbidden)
       const staffCreateRes = await gwRequest('POST', '/v1/tables/batch', {
         token: staffTokenA,
-        body: { labels: ['Staff 1'] },
+        body: { labels: ['Staff 1'], zoneId: batchZoneId },
       });
       if (staffCreateRes.status !== 403) {
         throw new Error(

@@ -88,6 +88,45 @@ describe('Harness Hardening (U0-R7)', () => {
     }
   });
 
+  it('waitForHttp con estados esperados acepta {"status":"ready"} y rechaza {"status":"live"} (readiness del gateway)', async () => {
+    let body: { status: string } = { status: 'live' };
+    const server = http.createServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(body));
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = (server.address() as { port: number }).port;
+    const url = `http://127.0.0.1:${port}/health/ready`;
+    const harnessUrl = pathToFileURL(HARNESS_SCRIPT).href;
+
+    const run = async (timeoutMs: number, expected?: string[]): Promise<boolean> => {
+      try {
+        await execFileAsync(
+          process.execPath,
+          [
+            '--input-type=module',
+            '-e',
+            `import { waitForHttp } from ${JSON.stringify(harnessUrl)}; await waitForHttp(${JSON.stringify(url)}, ${timeoutMs}, ${JSON.stringify(expected)});`,
+          ],
+          { cwd: ROOT_DIR }
+        );
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    try {
+      expect(await run(600, ['ready'])).toBe(false);
+      expect(await run(600)).toBe(false);
+      body = { status: 'ready' };
+      expect(await run(2000, ['ready'])).toBe(true);
+      expect(await run(600)).toBe(false);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it('ignores external HARNESS_PROJECT_NAME and HARNESS_COMPOSE_FILE environment variables and protects non-resto-test projects', () => {
     const decoyProject = `proyecto-ajeno-senuelo-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     const decoyCompose = path.join(os.tmpdir(), `${decoyProject}-compose.yml`);
