@@ -18,7 +18,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: postgres
         ports:
           - 5432:5432
@@ -63,10 +63,9 @@ jobs:
 
       - name: Create contract-test databases and apply migrations
         env:
-          PGPASSWORD: postgres
-          IDENTITY_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/resto_identity_test?schema=public
-          CATALOG_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/resto_catalog_test?schema=public
-          ORDERING_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/resto_ordering_test?schema=public
+          IDENTITY_DATABASE_URL: postgresql://postgres@localhost:5432/resto_identity_test?schema=public
+          CATALOG_DATABASE_URL: postgresql://postgres@localhost:5432/resto_catalog_test?schema=public
+          ORDERING_DATABASE_URL: postgresql://postgres@localhost:5432/resto_ordering_test?schema=public
         run: |
           for db in resto_identity_test resto_catalog_test resto_ordering_test; do
             psql -h localhost -U postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE $db"
@@ -80,9 +79,9 @@ jobs:
 
       - name: Run unit and integration tests
         env:
-          IDENTITY_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/resto_identity_test?schema=public
-          CATALOG_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/resto_catalog_test?schema=public
-          ORDERING_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/resto_ordering_test?schema=public
+          IDENTITY_DATABASE_URL: postgresql://postgres@localhost:5432/resto_identity_test?schema=public
+          CATALOG_DATABASE_URL: postgresql://postgres@localhost:5432/resto_catalog_test?schema=public
+          ORDERING_DATABASE_URL: postgresql://postgres@localhost:5432/resto_ordering_test?schema=public
           REDIS_SESSION_TEST_URL: redis://localhost:6379/2
           REDIS_ORDERING_TEST_URL: redis://localhost:6379/3
         run: pnpm -r run test
