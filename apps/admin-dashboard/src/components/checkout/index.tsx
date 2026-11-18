@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BillDTO, PaymentMethod, TableSessionDTO, TableDTO, PendingOrderSummaryDTO, formatCOP } from '@packages/shared-types';
+import { BillDTO, OrderDTO, OrderHistoryEventDTO, PaymentMethod, TableSessionDTO, TableDTO, PendingOrderSummaryDTO, formatCOP } from '@packages/shared-types';
 import {
   BentoCard,
   KpiValue,
@@ -12,7 +12,9 @@ import {
   getTableDisplayName,
   PAYMENT_METHOD_LABELS,
   shortId,
+  OrderRoute,
 } from '@packages/ui-components';
+import { fetchOrderHistory } from '../../lib/api/kds';
 
 export function dedupeSessions(sessions: TableSessionDTO[]): TableSessionDTO[] {
   const seen = new Set<string>();
@@ -203,6 +205,7 @@ export interface BillSummaryCardProps {
   pendingOrders?: PendingOrderSummaryDTO[];
   canOverridePendingOrders?: boolean;
   onOverridePendingOrders?: () => void;
+  onFetchHistory?: (orderId: string) => Promise<OrderHistoryEventDTO[]>;
 }
 
 const PENDING_STATUS_LABELS: Record<string, string> = {
@@ -218,6 +221,84 @@ function formatPendingOrderStatus(status?: string | null): string {
   return PENDING_STATUS_LABELS[status] || ORDER_STATUS_LABELS[status] || status;
 }
 
+function OrderRouteToggle({
+  order,
+  onFetchHistory,
+}: {
+  order: OrderDTO;
+  onFetchHistory?: (orderId: string) => Promise<OrderHistoryEventDTO[]>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [events, setEvents] = useState<OrderHistoryEventDTO[] | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setEvents((await (onFetchHistory ?? fetchOrderHistory)(order.id)) || []);
+    } catch (err: any) {
+      setError(err?.message || 'No se pudo cargar la ruta');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggle = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
+    if (events === null) void load();
+  };
+
+  return (
+    <div style={{ marginTop: '4px' }}>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={toggle}
+        style={{
+          background: 'none',
+          border: 'none',
+          padding: '2px 0',
+          minHeight: '28px',
+          color: 'var(--bento-primary)',
+          fontSize: '0.8rem',
+          fontWeight: 600,
+          textDecoration: 'underline',
+          cursor: 'pointer',
+          fontFamily: 'var(--bento-font-body)',
+        }}
+      >
+        {open ? 'Ocultar ruta' : 'Ver ruta'}
+      </button>
+      {open && (
+        <div style={{ marginTop: '6px' }}>
+          {loading ? (
+            <span style={{ fontSize: '0.8rem', color: 'var(--bento-text-muted)' }}>Cargando ruta…</span>
+          ) : error ? (
+            <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: 'var(--bento-destructive)' }}>
+              <span>{error}</span>
+              <button
+                type="button"
+                onClick={() => void load()}
+                style={{ background: 'none', border: 'none', color: 'var(--bento-primary)', fontWeight: 600, textDecoration: 'underline', cursor: 'pointer', minHeight: '28px' }}
+              >
+                Reintentar
+              </button>
+            </div>
+          ) : (
+            <OrderRoute status={order.status} events={events ?? []} createdAt={order.createdAt} mode="detail" />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function BillSummaryCard({
   bill,
   tables,
@@ -226,6 +307,7 @@ export function BillSummaryCard({
   pendingOrders = [],
   canOverridePendingOrders = false,
   onOverridePendingOrders,
+  onFetchHistory,
 }: BillSummaryCardProps) {
   const [isOverrideConfirmOpen, setIsOverrideConfirmOpen] = useState(false);
   const activeOrders = (bill.orders || []).filter((o) => o.status !== 'CANCELLED');
@@ -461,6 +543,7 @@ export function BillSummaryCard({
             <div style={{ fontSize: '0.85rem', color: 'var(--bento-text-muted)', marginBottom: '4px', fontFamily: 'var(--bento-font-body)' }}>
               {formatOrderNumber(order.id)} • Subtotal: {formatCOP(order.total)}
             </div>
+            <OrderRouteToggle order={order} onFetchHistory={onFetchHistory} />
             {order.items.map((item) => (
               <div
                 key={item.id}

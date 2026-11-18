@@ -977,6 +977,25 @@ describe('B. @services/gateway — API Gateway (Tests 15-27)', () => {
         expect(res.status).toBe(200);
       });
 
+      test('GET /v1/orders/:id/history con cajero (CASHIER) -> proxy a ordering sin filtrar el rol', async () => {
+        const token = makeToken('CASHIER');
+        const upstream = nock('http://localhost:4004', {
+          reqheaders: {
+            'x-internal-token': INTERNAL_SECRET,
+            'x-user-role': 'CASHIER',
+          },
+        })
+          .get('/orders/ord-99/history')
+          .reply(200, []);
+
+        const res = await request(app)
+          .get('/v1/orders/ord-99/history')
+          .set('Authorization', `Bearer ${token}`);
+
+        expect(upstream.isDone()).toBe(true);
+        expect(res.status).toBe(200);
+      });
+
       describe('x-session-id explícito (terminal de mesero)', () => {
         const captureCartHeaders = () => {
           const captured: { headers?: Record<string, any> } = {};

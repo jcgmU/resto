@@ -278,6 +278,33 @@ describe('V17 - Ordering Notas, SLA, Demora e Historial (Contract Tests PostgreS
       expect(res.body.error.code).toBe('FORBIDDEN');
     });
 
+    it('cajero ve el historial en su tenant (200), otro tenant recibe 404 y el mesero no cambia', async () => {
+      await request(app)
+        .post('/cart/items')
+        .set(guestHeaders)
+        .send({ productId: 'prod-sla-1', quantity: 1 });
+      const confirmRes = await request(app)
+        .post('/cart/confirm')
+        .set(guestHeaders)
+        .send({ tableId: 'mesa-sla-1' });
+      const orderId = confirmRes.body.id;
+      await request(app).patch(`/orders/${orderId}/status`).set(staffHeaders).send({ status: 'IN_KITCHEN' });
+
+      const cashier = { 'x-tenant-id': tenantId, 'x-user-id': 'u-cashier-1', 'x-user-role': 'cashier' };
+      const own = await request(app).get(`/orders/${orderId}/history`).set(cashier);
+      expect(own.status).toBe(200);
+      expect(own.body).toHaveLength(1);
+      expect(own.body[0].toStatus).toBe('IN_KITCHEN');
+
+      const otherTenant = await request(app)
+        .get(`/orders/${orderId}/history`)
+        .set({ ...cashier, 'x-tenant-id': 't-otro-tenant' });
+      expect(otherTenant.status).toBe(404);
+
+      const waiter = await request(app).get(`/orders/${orderId}/history`).set(staffHeaders);
+      expect(waiter.status).toBe(200);
+    });
+
     it('registra evento en OrderStatusEvent al cancelar orden', async () => {
       await request(app)
         .post('/cart/items')

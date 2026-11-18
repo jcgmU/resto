@@ -17,7 +17,7 @@ export const ORDER_STAFF_ROLES = ['admin', 'manager', 'waiter', 'monitor', 'cash
 
 export const SERVICE_CALL_ROLES = ['admin', 'manager', 'waiter', 'monitor', 'cashier'] as const;
 
-export const ORDER_HISTORY_ROLES = ['admin', 'manager', 'waiter', 'monitor'] as const;
+export const ORDER_HISTORY_ROLES = ['admin', 'manager', 'waiter', 'cashier', 'monitor'] as const;
 
 export const CART_STAFF_ROLES = ['admin', 'manager', 'waiter'] as const;
 
