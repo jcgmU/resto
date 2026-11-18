@@ -1,5 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
-import { DomainError, TenantRepository, UserRepository, RefreshTokenRepository, PasswordHasher, TokenIssuer } from '@packages/shared-types';
+import { DomainError, isValidCurrency, isValidLocale, TenantRepository, UserRepository, RefreshTokenRepository, PasswordHasher, TokenIssuer } from '@packages/shared-types';
 import { RegisterTenantUseCaseImpl } from './application/RegisterTenant';
 import { LoginUseCaseImpl } from './application/Login';
 import { RefreshSessionUseCaseImpl } from './application/RefreshSession';
@@ -449,12 +449,16 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
           operatingMode: tenant.operatingMode ?? 'hybrid',
           estimatedPrepMinutes: tenant.estimatedPrepMinutes ?? 18,
           invoiceMode: tenant.invoiceMode ?? 'simple',
+          currency: tenant.currency ?? 'COP',
+          locale: tenant.locale ?? 'es-CO',
         });
       }
 
       // Guest o no-staff: únicamente campos públicos permitidos. GUEST NUNCA DEBE VER estimatedPrepMinutes ni invoiceMode
       return res.status(200).json({
         operatingMode: tenant.operatingMode ?? 'hybrid',
+        currency: tenant.currency ?? 'COP',
+        locale: tenant.locale ?? 'es-CO',
       });
     } catch (err) {
       next(err);
@@ -505,13 +509,19 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
         });
       }
 
-      const { operatingMode, estimatedPrepMinutes, invoiceMode } = req.body || {};
+      const { operatingMode, estimatedPrepMinutes, invoiceMode, currency, locale } = req.body || {};
 
-      if (operatingMode === undefined && estimatedPrepMinutes === undefined && invoiceMode === undefined) {
+      if (
+        operatingMode === undefined &&
+        estimatedPrepMinutes === undefined &&
+        invoiceMode === undefined &&
+        currency === undefined &&
+        locale === undefined
+      ) {
         return res.status(400).json({
           error: {
             code: 'VALIDATION_ERROR',
-            message: 'Se requiere al menos un campo a actualizar: operatingMode, estimatedPrepMinutes o invoiceMode',
+            message: 'Se requiere al menos un campo a actualizar: operatingMode, estimatedPrepMinutes, invoiceMode, currency o locale',
           },
         });
       }
@@ -554,16 +564,38 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
         }
       }
 
+      if (currency !== undefined && !isValidCurrency(currency)) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'currency debe ser un código ISO 4217 válido en mayúsculas (p. ej. COP, USD)',
+          },
+        });
+      }
+
+      if (locale !== undefined && !isValidLocale(locale)) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'locale debe ser una etiqueta BCP 47 válida (p. ej. es-CO, en-US)',
+          },
+        });
+      }
+
       const updated = await tenantRepo.updateSettings(tenantId, {
         operatingMode,
         estimatedPrepMinutes,
         invoiceMode,
+        currency,
+        locale,
       });
 
       return res.status(200).json({
         operatingMode: updated.operatingMode ?? 'hybrid',
         estimatedPrepMinutes: updated.estimatedPrepMinutes ?? 18,
         invoiceMode: updated.invoiceMode ?? 'simple',
+        currency: updated.currency ?? 'COP',
+        locale: updated.locale ?? 'es-CO',
       });
     } catch (err) {
       next(err);
@@ -600,6 +632,8 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
 
       return res.status(200).json({
         operatingMode: tenant.operatingMode ?? 'hybrid',
+        currency: tenant.currency ?? 'COP',
+        locale: tenant.locale ?? 'es-CO',
       });
     } catch (err) {
       next(err);
@@ -632,6 +666,8 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
       return res.status(200).json({
         operatingMode: tenant.operatingMode ?? 'hybrid',
         estimatedPrepMinutes: tenant.estimatedPrepMinutes ?? 18,
+        currency: tenant.currency ?? 'COP',
+        locale: tenant.locale ?? 'es-CO',
       });
     } catch (err) {
       next(err);

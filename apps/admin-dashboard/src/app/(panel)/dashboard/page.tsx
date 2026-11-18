@@ -25,7 +25,6 @@ import {
   ZoneDTO,
   ReservationDTO,
   OperatingMode,
-  formatCOP,
   OrderDTO,
   computeOrderOverdue,
 } from '@packages/shared-types';
@@ -56,6 +55,7 @@ import {
   updateTenantSettings,
 } from '../../../lib/api/settings';
 import * as realtime from '../../../lib/realtime';
+import { useMoney } from '../../../lib/money';
 
 interface SessionItem {
   id?: string;
@@ -99,6 +99,7 @@ function isDateToday(isoOrDateStr: string): boolean {
 }
 
 export default function DashboardPage() {
+  const { format: formatMoney } = useMoney();
   const router = useRouter();
 
   // Datos principales
@@ -1344,7 +1345,7 @@ export default function DashboardPage() {
                       {/* Consumo si está ocupada */}
                       {t.effectiveStatus === 'OCUPADA' && (
                         <p style={{ margin: '6px 0 0 0', fontSize: '0.9375rem', fontWeight: 600, color: 'var(--bento-text)' }}>
-                          {formatCOP(t.currentBillCop)}
+                          {formatMoney(t.currentBillCop)}
                         </p>
                       )}
                     </div>
@@ -1534,7 +1535,7 @@ export default function DashboardPage() {
         <Modal open title={tableDisplayName(inspectedTable.label)} scrim={false} onClose={() => setInspectedTableId(null)}>
           <p>{inspectedTable.capacity} Puestos • {inspectedTable.zoneName}</p>
           <p>Estado: {inspectedTable.effectiveStatus === 'LIBRE' ? 'Libre' : inspectedTable.effectiveStatus === 'OCUPADA' ? 'Ocupada' : inspectedTable.effectiveStatus === 'RESERVADA' ? 'Reservada' : 'Deshabilitada'}</p>
-          {inspectedTable.effectiveStatus === 'OCUPADA' && <p>Consumo: {formatCOP(inspectedTable.currentBillCop)}</p>}
+          {inspectedTable.effectiveStatus === 'OCUPADA' && <p>Consumo: {formatMoney(inspectedTable.currentBillCop)}</p>}
         </Modal>
       )}
 

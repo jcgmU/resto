@@ -130,6 +130,8 @@ exports.Prisma.TenantScalarFieldEnum = {
   operatingMode: 'operatingMode',
   estimatedPrepMinutes: 'estimatedPrepMinutes',
   invoiceMode: 'invoiceMode',
+  currency: 'currency',
+  locale: 'locale',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };

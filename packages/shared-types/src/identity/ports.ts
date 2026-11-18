@@ -23,7 +23,7 @@ export interface TenantRepository {
   delete?(id: string): Promise<void>;
   updateSettings(
     id: string,
-    settings: { operatingMode?: string; estimatedPrepMinutes?: number; invoiceMode?: string }
+    settings: { operatingMode?: string; estimatedPrepMinutes?: number; invoiceMode?: string; currency?: string; locale?: string }
   ): Promise<TenantDTO>;
 }
 

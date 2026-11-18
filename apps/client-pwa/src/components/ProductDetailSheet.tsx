@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Button, Modal } from '@packages/ui-components';
-import { ProductDTO, formatCOP } from '@packages/shared-types';
+import { ProductDTO } from '@packages/shared-types';
 import { ModifierGroupPicker } from './ModifierGroupPicker';
 import { QuantityStepper } from './cart/QuantityStepper';
+import { useMoney } from '../lib/money';
 
 export interface ProductDetailSheetProps {
   product: ProductDTO | null;
@@ -21,6 +22,7 @@ export function ProductDetailSheet({
   isOrderable = true,
   orderBlockReason,
 }: ProductDetailSheetProps) {
+  const { format } = useMoney();
   const [selectedModifiers, setSelectedModifiers] = useState<Record<string, string[]>>({});
   const [quantity, setQuantity] = useState(1);
   const [itemNotes, setItemNotes] = useState('');
@@ -181,7 +183,7 @@ export function ProductDetailSheet({
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--bento-spacing-md)' }}>
           <p style={{ color: 'var(--bento-accent-strong)', fontWeight: 700, margin: 0, fontSize: '1.25rem' }}>
-            {formatCOP(product.price)}
+            {format(product.price)}
           </p>
 
           {!isAvailable && (

@@ -7,7 +7,7 @@ import {
   PageHeader,
   tableDisplayName,
 } from '@packages/ui-components';
-import { formatCOP, TableDTO, ZoneDTO } from '@packages/shared-types';
+import { TableDTO, ZoneDTO } from '@packages/shared-types';
 import {
   fetchTables,
   fetchZones,
@@ -21,6 +21,7 @@ import {
   WaiterProduct,
 } from '../../../lib/api/waiter';
 import { ApiClient } from '../../../lib/api';
+import { useMoney } from '../../../lib/money';
 
 interface EnrichedTable {
   tableId: string;
@@ -59,6 +60,7 @@ const Svg = ({ children }: { children: React.ReactNode }) => (
 );
 
 export default function WaiterTerminalPage() {
+  const { format: formatMoney } = useMoney();
   const router = useRouter();
 
   // Pasos: 1 = Seleccionar Mesa, 2 = Agregar Productos, 3 = Revisión y Envío
@@ -906,7 +908,7 @@ export default function WaiterTerminalPage() {
                         cart.length > 0 ? '0 2px 8px rgba(92, 103, 132, 0.3)' : 'none',
                     }}
                   >
-                    Revisar Pedido ({cartTotalItems} ítems) • {formatCOP(cartTotal)} →
+                    Revisar Pedido ({cartTotalItems} ítems) • {formatMoney(cartTotal)} →
                   </button>
                 </div>
               </div>
@@ -1061,7 +1063,7 @@ export default function WaiterTerminalPage() {
                             color: 'var(--bento-text)',
                           }}
                         >
-                          {formatCOP(prod.price)}
+                          {formatMoney(prod.price)}
                         </p>
                       </div>
 
@@ -1279,7 +1281,7 @@ export default function WaiterTerminalPage() {
                                 color: 'var(--bento-text-muted)',
                               }}
                             >
-                              ({formatCOP(item.price)} c/u)
+                              ({formatMoney(item.price)} c/u)
                             </span>
                           </div>
 
@@ -1291,7 +1293,7 @@ export default function WaiterTerminalPage() {
                                 color: 'var(--bento-text)',
                               }}
                             >
-                              {formatCOP(item.price * item.quantity)}
+                              {formatMoney(item.price * item.quantity)}
                             </span>
 
                             {/* Controles de cantidad */}
@@ -1499,7 +1501,7 @@ export default function WaiterTerminalPage() {
                         color: 'var(--bento-text)',
                       }}
                     >
-                      {formatCOP(cartTotal)}
+                      {formatMoney(cartTotal)}
                     </span>
                   </div>
 
@@ -1541,7 +1543,7 @@ export default function WaiterTerminalPage() {
                           <line x1="22" y1="2" x2="11" y2="13" />
                           <polygon points="22 2 15 22 11 13 2 9 22 2" />
                         </Svg>
-                        Enviar a Cocina • {formatCOP(cartTotal)}
+                        Enviar a Cocina • {formatMoney(cartTotal)}
                       </>
                     )}
                   </button>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BillDTO, OrderDTO, OrderHistoryEventDTO, PaymentMethod, TableSessionDTO, TableDTO, PendingOrderSummaryDTO, formatCOP } from '@packages/shared-types';
+import { BillDTO, OrderDTO, OrderHistoryEventDTO, PaymentMethod, TableSessionDTO, TableDTO, PendingOrderSummaryDTO } from '@packages/shared-types';
 import {
   BentoCard,
   KpiValue,
@@ -15,6 +15,7 @@ import {
   OrderRoute,
 } from '@packages/ui-components';
 import { fetchOrderHistory } from '../../lib/api/kds';
+import { useMoney } from '../../lib/money';
 
 export function dedupeSessions(sessions: TableSessionDTO[]): TableSessionDTO[] {
   const seen = new Set<string>();
@@ -276,7 +277,7 @@ function OrderRouteToggle({
         {open ? 'Ocultar ruta' : 'Ver ruta'}
       </button>
       {open && (
-        <div style={{ marginTop: '6px' }}>
+        <div style={{ marginTop: '6px', marginBottom: '8px' }}>
           {loading ? (
             <span style={{ fontSize: '0.8rem', color: 'var(--bento-text-muted)' }}>Cargando ruta…</span>
           ) : error ? (
@@ -309,6 +310,7 @@ export function BillSummaryCard({
   onOverridePendingOrders,
   onFetchHistory,
 }: BillSummaryCardProps) {
+  const { format: formatMoney } = useMoney();
   const [isOverrideConfirmOpen, setIsOverrideConfirmOpen] = useState(false);
   const activeOrders = (bill.orders || []).filter((o) => o.status !== 'CANCELLED');
   const isOrdersNotDelivered = error === 'ORDERS_NOT_DELIVERED' || pendingOrders.length > 0;
@@ -347,7 +349,7 @@ export function BillSummaryCard({
           </svg>
           Cuenta — {getTableDisplayName(bill.tableId, tables)}
         </h3>
-        <KpiValue label="Total a cobrar" value={formatCOP(bill.total)} tone="accent" />
+        <KpiValue label="Total a cobrar" value={formatMoney(bill.total)} tone="accent" />
       </div>
 
       {error && (
@@ -510,7 +512,7 @@ export function BillSummaryCard({
           open={isOverrideConfirmOpen}
           title="Cobrar igual y cerrar pedidos"
           current={{ label: 'Pedidos pendientes', value: String(pendingOrders.length) }}
-          proposed={{ label: 'Total a cobrar', value: formatCOP(bill.total) }}
+          proposed={{ label: 'Total a cobrar', value: formatMoney(bill.total) }}
           impacts={[
             {
               label: 'Impacto',
@@ -541,7 +543,7 @@ export function BillSummaryCard({
             }}
           >
             <div style={{ fontSize: '0.85rem', color: 'var(--bento-text-muted)', marginBottom: '4px', fontFamily: 'var(--bento-font-body)' }}>
-              {formatOrderNumber(order.id)} • Subtotal: {formatCOP(order.total)}
+              {formatOrderNumber(order.id)} • Subtotal: {formatMoney(order.total)}
             </div>
             <OrderRouteToggle order={order} onFetchHistory={onFetchHistory} />
             {order.items.map((item) => (
@@ -558,7 +560,7 @@ export function BillSummaryCard({
                   <span style={{ marginRight: '6px' }}>{item.quantity}x</span>
                   <span>{item.productName}</span>
                 </div>
-                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCOP(item.unitPrice * item.quantity)}</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatMoney(item.unitPrice * item.quantity)}</span>
               </div>
             ))}
           </div>
@@ -659,6 +661,7 @@ export function ConfirmPaymentButton({
   loading = false,
   sessionId,
 }: ConfirmPaymentButtonProps) {
+  const { format: formatMoney } = useMoney();
   const [isConfirming, setIsConfirming] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSubmittingRef = React.useRef(false);
@@ -726,8 +729,8 @@ export function ConfirmPaymentButton({
       <ModalConfirm
         open={isConfirming && !isPending}
         title="Confirmar cobro"
-        current={{ label: 'Cuenta actual', value: formatCOP(total) }}
-        proposed={{ label: 'Total a cobrar', value: formatCOP(total) }}
+        current={{ label: 'Cuenta actual', value: formatMoney(total) }}
+        proposed={{ label: 'Total a cobrar', value: formatMoney(total) }}
         impacts={[
           { label: 'Método', value: PAYMENT_METHOD_LABELS[method || 'CASH'] || 'Efectivo' },
         ]}
@@ -763,6 +766,7 @@ export function PaymentSuccessCard({
   invoiceError,
   onRetryInvoice,
 }: PaymentSuccessCardProps) {
+  const { format: formatMoney } = useMoney();
   return (
     <BentoCard
       data-testid="payment-success-card"
@@ -792,7 +796,7 @@ export function PaymentSuccessCard({
         </span>
       </div>
       <div style={{ color: 'var(--bento-text-muted)', fontFamily: 'var(--bento-font-body)' }}>
-        {getTableDisplayName(tableId, tables)} • Total: {formatCOP(amount)} • Medio: {PAYMENT_METHOD_LABELS[method] || method}
+        {getTableDisplayName(tableId, tables)} • Total: {formatMoney(amount)} • Medio: {PAYMENT_METHOD_LABELS[method] || method}
       </div>
       {invoiceStatus && invoiceStatus !== 'none' && (
         <div
@@ -887,6 +891,7 @@ export function ReleaseTableModal({
   onClose,
   onRetry,
 }: ReleaseTableModalProps) {
+  const { format: formatMoney } = useMoney();
   if (!open) return null;
 
   const hasPending = pendingAmount > 0;
@@ -933,7 +938,7 @@ export function ReleaseTableModal({
               <span>Acción bloqueada</span>
             </div>
             <span style={{ fontSize: '0.9rem' }}>
-              La mesa tiene un consumo pendiente de {formatCOP(pendingAmount)} sin cobrar. No es posible liberar la mesa hasta liquidar la cuenta.
+              La mesa tiene un consumo pendiente de {formatMoney(pendingAmount)} sin cobrar. No es posible liberar la mesa hasta liquidar la cuenta.
             </span>
           </div>
         ) : (
@@ -955,7 +960,7 @@ export function ReleaseTableModal({
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
             <span style={{ color: 'var(--bento-text-muted)' }}>Saldo pendiente</span>
             <span style={{ fontWeight: 700, color: hasPending ? 'var(--bento-destructive)' : 'var(--bento-success)' }}>
-              {formatCOP(pendingAmount)}
+              {formatMoney(pendingAmount)}
             </span>
           </div>
         </div>

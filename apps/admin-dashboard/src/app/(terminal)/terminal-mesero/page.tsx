@@ -8,7 +8,7 @@ import {
   TabsPill,
   tableDisplayName,
 } from '@packages/ui-components';
-import { formatCOP, TableDTO, ZoneDTO, ServiceCallDTO, OrderDTO } from '@packages/shared-types';
+import { TableDTO, ZoneDTO, ServiceCallDTO, OrderDTO } from '@packages/shared-types';
 import {
   fetchTables,
   fetchZones,
@@ -22,6 +22,7 @@ import {
 } from '../../../lib/api/waiter';
 import { ApiClient } from '../../../lib/api';
 import { connectOrdersSocket } from '../../../lib/realtime';
+import { useMoney } from '../../../lib/money';
 
 interface WaiterCartItem {
   tempId: string;
@@ -33,6 +34,7 @@ interface WaiterCartItem {
 }
 
 export default function TerminalMeseroPage() {
+  const { format: formatMoney } = useMoney();
   const router = useRouter();
 
   // Datos base
@@ -510,7 +512,7 @@ export default function TerminalMeseroPage() {
                     <div>
                       <p style={{ margin: 0, fontWeight: 600, fontSize: '0.875rem' }}>{prod.name}</p>
                       <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--bento-text-muted)' }}>
-                        {formatCOP(prod.price)}
+                        {formatMoney(prod.price)}
                       </p>
                     </div>
                     <Button
@@ -545,13 +547,13 @@ export default function TerminalMeseroPage() {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                   <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>Comanda actual ({cart.length})</span>
-                  <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>{formatCOP(cartTotal)}</span>
+                  <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>{formatMoney(cartTotal)}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '0.5rem' }}>
                   {cart.map((item) => (
                     <div key={item.tempId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
                       <span>{item.quantity}x {item.name}</span>
-                      <span>{formatCOP(item.price * item.quantity)}</span>
+                      <span>{formatMoney(item.price * item.quantity)}</span>
                     </div>
                   ))}
                 </div>
@@ -586,7 +588,7 @@ export default function TerminalMeseroPage() {
                     cursor: isSubmittingOrder ? 'wait' : 'pointer',
                   }}
                 >
-                  {isSubmittingOrder ? 'Enviando comanda...' : `Enviar a Cocina • ${formatCOP(cartTotal)}`}
+                  {isSubmittingOrder ? 'Enviando comanda...' : `Enviar a Cocina • ${formatMoney(cartTotal)}`}
                 </Button>
               </div>
             )}
@@ -680,7 +682,7 @@ export default function TerminalMeseroPage() {
               >
                 <span style={{ fontSize: '0.75rem', color: 'var(--bento-text-muted)' }}>Consumo activo:</span>
                 <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--bento-text-strong)' }}>
-                  {formatCOP(t.tableConsumption)}
+                  {formatMoney(t.tableConsumption)}
                 </span>
               </div>
             ) : (

@@ -1,8 +1,9 @@
 import React from 'react';
-import { CartItemDTO, formatCOP } from '@packages/shared-types';
+import { CartItemDTO } from '@packages/shared-types';
 import { BentoCard, KpiValue } from '@packages/ui-components';
 import { QuantityStepper } from './QuantityStepper';
 import { AddedByBadge } from './AddedByBadge';
+import { useMoney } from '../../lib/money';
 
 export interface CartLineItemProps {
   item: CartItemDTO;
@@ -16,6 +17,7 @@ export function CartLineItem({
   onUpdateQuantity,
   onRemove,
 }: CartLineItemProps) {
+  const { format } = useMoney();
   const modifiersSummary = (item.modifiers || [])
     .map((m) => m.optionName)
     .join(', ');
@@ -65,7 +67,7 @@ export function CartLineItem({
 
         <KpiValue
           label="Subtotal"
-          value={formatCOP(item.lineTotal)}
+          value={format(item.lineTotal)}
           tone="accent"
         />
       </div>

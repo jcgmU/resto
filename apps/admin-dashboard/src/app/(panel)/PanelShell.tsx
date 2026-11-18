@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { SidebarRail, PageHeader, ErrorState, BentoCard } from '@packages/ui-components';
 import type { SidebarRailItem } from '@packages/ui-components';
 import { ApiClient } from '../../lib/api';
+import { MoneyProvider } from '../../lib/money';
 import { logout } from '../../lib/auth/logout';
 import { getUserRole, isRouteAllowedForRole, terminalHomeForRole } from '../../lib/auth';
 import type { UserRole } from '../../lib/auth';
@@ -452,7 +453,7 @@ export default function PanelShell({
             }}
           >
             {isAllowed ? (
-              children
+              <MoneyProvider>{children}</MoneyProvider>
             ) : (
               <BentoCard
                 style={{

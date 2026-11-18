@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '@packages/ui-components';
 import { useRouter, usePathname } from 'next/navigation';
 import { ApiClient } from '../../lib/api';
+import { MoneyProvider } from '../../lib/money';
 import { logout } from '../../lib/auth/logout';
 import { ChangePasswordModal } from '../../components/ChangePasswordModal';
 import { isTerminalRouteAllowed, terminalHomeForRole } from '../../lib/auth';
@@ -243,7 +244,7 @@ export default function TerminalShell({ children }: { children: React.ReactNode 
           overflowY: 'auto',
         }}
       >
-        {children}
+        <MoneyProvider>{children}</MoneyProvider>
       </main>
       <ChangePasswordModal open={passwordModalOpen} onClose={() => setPasswordModalOpen(false)} />
     </div>

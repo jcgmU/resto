@@ -21,6 +21,8 @@ export class InMemoryTenantRepository implements TenantRepository {
       operatingMode: 'hybrid',
       estimatedPrepMinutes: 18,
       invoiceMode: 'simple',
+      currency: 'COP',
+      locale: 'es-CO',
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -32,6 +34,8 @@ export class InMemoryTenantRepository implements TenantRepository {
       operatingMode: 'hybrid',
       estimatedPrepMinutes: 18,
       invoiceMode: 'simple',
+      currency: 'COP',
+      locale: 'es-CO',
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -57,7 +61,7 @@ export class InMemoryTenantRepository implements TenantRepository {
 
   async updateSettings(
     id: string,
-    settings: { operatingMode?: string; estimatedPrepMinutes?: number; invoiceMode?: string }
+    settings: { operatingMode?: string; estimatedPrepMinutes?: number; invoiceMode?: string; currency?: string; locale?: string }
   ): Promise<TenantDTO> {
     const tenant = this.tenants.find((t) => t.id === id);
     if (!tenant) {
@@ -71,6 +75,12 @@ export class InMemoryTenantRepository implements TenantRepository {
     }
     if (settings.invoiceMode !== undefined) {
       tenant.invoiceMode = settings.invoiceMode as any;
+    }
+    if (settings.currency !== undefined) {
+      tenant.currency = settings.currency;
+    }
+    if (settings.locale !== undefined) {
+      tenant.locale = settings.locale;
     }
     tenant.updatedAt = new Date();
     return tenant;

@@ -13,7 +13,9 @@ import {
   Avatar,
   Toast,
 } from '@packages/ui-components';
+import { DEFAULT_CURRENCY, DEFAULT_LOCALE, isValidLocale } from '@packages/shared-types';
 import { ApiClient } from '../../../lib/api';
+import { useMoney } from '../../../lib/money';
 import { getUserRole } from '../../../lib/auth';
 import { uploadProductImage } from '../../../lib/api/menu';
 import { resolveMediaUrl } from '../../../lib/media';
@@ -87,6 +89,14 @@ const fieldInputStyle: React.CSSProperties = {
   boxSizing: 'border-box',
 };
 
+function listCurrencies(): string[] {
+  const supported = (Intl as unknown as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf;
+  const codes = supported ? supported('currency') : [];
+  return codes.includes(DEFAULT_CURRENCY) ? codes : [DEFAULT_CURRENCY, ...codes];
+}
+
+const CURRENCY_OPTIONS = listCurrencies();
+
 export function AjustesView({ initialLoading = false, initialError = null }: AjustesViewProps) {
   const [loading, setLoading] = useState(initialLoading);
   const [error, setError] = useState<string | null>(initialError);
@@ -127,6 +137,13 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
   const [savingInvoice, setSavingInvoice] = useState(false);
   const [invoiceSuccess, setInvoiceSuccess] = useState(false);
 
+  const { refresh: refreshMoney } = useMoney();
+  const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
+  const [locale, setLocale] = useState(DEFAULT_LOCALE);
+  const [savingFormat, setSavingFormat] = useState(false);
+  const [formatError, setFormatError] = useState<string | null>(null);
+  const [formatSuccess, setFormatSuccess] = useState(false);
+
   const loadData = useCallback(async () => {
     try {
       setLoadingEmployees(true);
@@ -141,6 +158,12 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
 
       if (settingsRes.status === 'fulfilled' && settingsRes.value?.data?.invoiceMode) {
         setInvoiceMode(settingsRes.value.data.invoiceMode);
+      }
+
+      if (settingsRes.status === 'fulfilled') {
+        const loaded = settingsRes.value?.data;
+        if (typeof loaded?.currency === 'string') setCurrency(loaded.currency);
+        if (typeof loaded?.locale === 'string') setLocale(loaded.locale);
       }
     } catch (err: any) {
       setError(err?.message || 'Error al cargar ajustes');
@@ -320,6 +343,32 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
       setError(err?.message || 'Error al actualizar facturación');
     } finally {
       setSavingInvoice(false);
+    }
+  };
+
+  const handleSaveFormat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormatSuccess(false);
+    const nextLocale = locale.trim();
+    if (!isValidLocale(nextLocale)) {
+      setFormatError('El idioma/región no es válido. Usa un código como es-CO o en-US.');
+      return;
+    }
+    setSavingFormat(true);
+    setFormatError(null);
+    try {
+      await ApiClient.request('/v1/tenant/settings', {
+        method: 'PATCH',
+        body: JSON.stringify({ currency, locale: nextLocale }),
+      });
+      setLocale(nextLocale);
+      setFormatSuccess(true);
+      await refreshMoney();
+      setTimeout(() => setFormatSuccess(false), 3000);
+    } catch (err: any) {
+      setFormatError(err?.message || 'No se pudo guardar la moneda y el formato');
+    } finally {
+      setSavingFormat(false);
     }
   };
 
@@ -850,6 +899,95 @@ export function AjustesView({ initialLoading = false, initialError = null }: Aju
           </label>
         </div>
       </BentoCard>
+
+      {canReadTeam && (
+        <BentoCard style={{ backgroundColor: 'var(--bento-card-bg-solid)', padding: '24px', maxWidth: '560px' }}>
+          <h2
+            style={{
+              margin: '0 0 8px 0',
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              color: 'var(--bento-text-strong)',
+              fontFamily: 'var(--bento-font-heading)',
+            }}
+          >
+            Moneda y formato
+          </h2>
+          <p style={{ margin: '0 0 20px 0', fontSize: '0.875rem', color: 'var(--bento-text-muted)' }}>
+            Define cómo se muestran los precios y totales de tu restaurante.
+          </p>
+          {formatError && (
+            <div
+              role="alert"
+              style={{
+                padding: '8px 12px',
+                marginBottom: '16px',
+                borderRadius: 'var(--bento-inner-radius)',
+                backgroundColor: 'var(--bento-panel-bg)',
+                border: '1px solid var(--bento-border)',
+                color: 'var(--bento-text-strong)',
+                fontSize: '0.8125rem',
+              }}
+            >
+              {formatError}
+            </div>
+          )}
+          {formatSuccess && (
+            <div role="status" style={{ marginBottom: '16px', fontSize: '0.875rem', color: 'var(--bento-text-strong)' }}>
+              Moneda y formato actualizados.
+            </div>
+          )}
+          <form onSubmit={handleSaveFormat} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <label
+                htmlFor="tenantCurrency"
+                style={{ display: 'block', marginBottom: '4px', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--bento-text-strong)' }}
+              >
+                Moneda
+              </label>
+              <select
+                id="tenantCurrency"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                style={fieldInputStyle}
+              >
+                {CURRENCY_OPTIONS.map((code) => (
+                  <option key={code} value={code}>
+                    {code}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label
+                htmlFor="tenantLocale"
+                style={{ display: 'block', marginBottom: '4px', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--bento-text-strong)' }}
+              >
+                Idioma y región (ej. es-CO, en-US)
+              </label>
+              <input
+                id="tenantLocale"
+                type="text"
+                value={locale}
+                onChange={(e) => setLocale(e.target.value)}
+                style={fieldInputStyle}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={savingFormat}
+              style={{
+                ...primaryButtonStyle,
+                alignSelf: 'flex-start',
+                cursor: savingFormat ? 'not-allowed' : 'pointer',
+                opacity: savingFormat ? 0.7 : 1,
+              }}
+            >
+              {savingFormat ? 'Guardando...' : 'Guardar formato'}
+            </button>
+          </form>
+        </BentoCard>
+      )}
 
       {/* Sección 3: Configuración del Sistema (conserva compatibilidad con suite) */}
       <BentoCard

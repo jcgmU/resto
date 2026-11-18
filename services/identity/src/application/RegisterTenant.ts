@@ -58,6 +58,8 @@ export class RegisterTenantUseCaseImpl implements RegisterTenantUseCase {
       operatingMode: 'hybrid',
       estimatedPrepMinutes: 18,
       invoiceMode: 'simple',
+      currency: 'COP',
+      locale: 'es-CO',
       createdAt: new Date(),
       updatedAt: new Date(),
     };

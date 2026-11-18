@@ -1,9 +1,9 @@
 'use client';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Skeleton, StatusCard } from '@packages/ui-components';
-import { formatCOP } from '@packages/shared-types';
 import { ApiClient } from '../lib/api';
 import { getUserRole } from '../lib/auth';
+import { useMoney } from '../lib/money';
 
 interface SalesReport {
   total: string;
@@ -23,6 +23,7 @@ function canViewSales(): boolean {
 }
 
 export function SalesSummary() {
+  const { format: formatMoney } = useMoney();
   const [allowed, setAllowed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState<SalesReport | null>(null);
@@ -66,12 +67,12 @@ export function SalesSummary() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '24px', marginTop: '24px' }}>
       <StatusCard status="neutral" style={{ padding: '24px' }}>
         <h3>Ventas del Día</h3>
-        <p>{formatCOP(report.total)}</p>
+        <p>{formatMoney(report.total)}</p>
         {report.tickets === 0 && <p>Sin ventas hoy</p>}
       </StatusCard>
       <StatusCard status="neutral" style={{ padding: '24px' }}>
         <h3>Ticket Promedio</h3>
-        <p>{formatCOP(report.averageTicket)}</p>
+        <p>{formatMoney(report.averageTicket)}</p>
       </StatusCard>
     </div>
   );

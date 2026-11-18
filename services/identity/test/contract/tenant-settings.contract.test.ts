@@ -77,6 +77,8 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
           operatingMode: 'hybrid',
           estimatedPrepMinutes: 18,
           invoiceMode: 'simple',
+          currency: 'COP',
+          locale: 'es-CO',
         });
         expect(res.body.operatingMode).toBe('hybrid');
         expect(res.body.estimatedPrepMinutes).toBe(18);
@@ -92,6 +94,8 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
         operatingMode: 'hybrid',
         estimatedPrepMinutes: 18,
         invoiceMode: 'simple',
+        currency: 'COP',
+        locale: 'es-CO',
       });
     });
 
@@ -115,6 +119,8 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
         expect(res.status).toBe(200);
         expect(res.body).toEqual({
           operatingMode: 'hybrid',
+          currency: 'COP',
+          locale: 'es-CO',
         });
         expect(res.body.estimatedPrepMinutes).toBeUndefined();
         expect(Object.keys(res.body)).not.toContain('estimatedPrepMinutes');
@@ -166,6 +172,8 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
         operatingMode: 'waiter_only',
         estimatedPrepMinutes: 25,
         invoiceMode: 'simple',
+        currency: 'COP',
+        locale: 'es-CO',
       });
 
       // 2. Verificar persistencia REAL en PostgreSQL
@@ -183,6 +191,8 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
       expect(guestGet.status).toBe(200);
       expect(guestGet.body).toEqual({
         operatingMode: 'waiter_only',
+        currency: 'COP',
+        locale: 'es-CO',
       });
       expect(guestGet.body.estimatedPrepMinutes).toBeUndefined();
 
@@ -199,6 +209,8 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
         operatingMode: 'waiter_only',
         estimatedPrepMinutes: 45,
         invoiceMode: 'simple',
+        currency: 'COP',
+        locale: 'es-CO',
       });
 
       const inDbAfterManager = await prisma.tenant.findUnique({
@@ -354,6 +366,8 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
       expect(res1.body).toEqual({
         operatingMode: 'hybrid',
         estimatedPrepMinutes: 18,
+        currency: 'COP',
+        locale: 'es-CO',
       });
 
       // 2. Con rol guest (no debe censurarse en internal)
@@ -363,6 +377,8 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
       expect(res2.body).toEqual({
         operatingMode: 'hybrid',
         estimatedPrepMinutes: 18,
+        currency: 'COP',
+        locale: 'es-CO',
       });
 
       // 3. Con custom values
@@ -375,6 +391,8 @@ describe('V16: Tenant Settings Contract Test (Postgres Real: resto_identity_test
       expect(res3.body).toEqual({
         operatingMode: 'waiter_only',
         estimatedPrepMinutes: 45,
+        currency: 'COP',
+        locale: 'es-CO',
       });
     });
 

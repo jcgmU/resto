@@ -26,6 +26,10 @@ export type MonitorKind = 'kitchen' | 'bar';
 
 export interface PublicTenantSettingsDTO {
   operatingMode: OperatingMode;
+  /** ISO 4217 (por defecto COP). */
+  currency: string;
+  /** BCP 47 (por defecto es-CO). */
+  locale: string;
 }
 
 export interface TenantSettingsDTO extends PublicTenantSettingsDTO {
@@ -37,6 +41,8 @@ export interface UpdateTenantSettingsRequest {
   operatingMode?: OperatingMode;
   estimatedPrepMinutes?: number;
   invoiceMode?: InvoiceMode;
+  currency?: string;
+  locale?: string;
 }
 
 export interface TenantDTO {
@@ -47,6 +53,8 @@ export interface TenantDTO {
   operatingMode?: OperatingMode;
   estimatedPrepMinutes?: number;
   invoiceMode?: InvoiceMode;
+  currency?: string;
+  locale?: string;
   createdAt: Date;
   updatedAt: Date;
 }

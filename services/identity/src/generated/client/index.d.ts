@@ -1152,6 +1152,8 @@ export namespace Prisma {
     operatingMode: string | null
     estimatedPrepMinutes: number | null
     invoiceMode: string | null
+    currency: string | null
+    locale: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1164,6 +1166,8 @@ export namespace Prisma {
     operatingMode: string | null
     estimatedPrepMinutes: number | null
     invoiceMode: string | null
+    currency: string | null
+    locale: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1176,6 +1180,8 @@ export namespace Prisma {
     operatingMode: number
     estimatedPrepMinutes: number
     invoiceMode: number
+    currency: number
+    locale: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -1198,6 +1204,8 @@ export namespace Prisma {
     operatingMode?: true
     estimatedPrepMinutes?: true
     invoiceMode?: true
+    currency?: true
+    locale?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1210,6 +1218,8 @@ export namespace Prisma {
     operatingMode?: true
     estimatedPrepMinutes?: true
     invoiceMode?: true
+    currency?: true
+    locale?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1222,6 +1232,8 @@ export namespace Prisma {
     operatingMode?: true
     estimatedPrepMinutes?: true
     invoiceMode?: true
+    currency?: true
+    locale?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -1321,6 +1333,8 @@ export namespace Prisma {
     operatingMode: string
     estimatedPrepMinutes: number
     invoiceMode: string
+    currency: string
+    locale: string
     createdAt: Date
     updatedAt: Date
     _count: TenantCountAggregateOutputType | null
@@ -1352,6 +1366,8 @@ export namespace Prisma {
     operatingMode?: boolean
     estimatedPrepMinutes?: boolean
     invoiceMode?: boolean
+    currency?: boolean
+    locale?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     users?: boolean | Tenant$usersArgs<ExtArgs>
@@ -1366,6 +1382,8 @@ export namespace Prisma {
     operatingMode?: boolean
     estimatedPrepMinutes?: boolean
     invoiceMode?: boolean
+    currency?: boolean
+    locale?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["tenant"]>
@@ -1378,6 +1396,8 @@ export namespace Prisma {
     operatingMode?: boolean
     estimatedPrepMinutes?: boolean
     invoiceMode?: boolean
+    currency?: boolean
+    locale?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -1401,6 +1421,8 @@ export namespace Prisma {
       operatingMode: string
       estimatedPrepMinutes: number
       invoiceMode: string
+      currency: string
+      locale: string
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["tenant"]>
@@ -1804,6 +1826,8 @@ export namespace Prisma {
     readonly operatingMode: FieldRef<"Tenant", 'String'>
     readonly estimatedPrepMinutes: FieldRef<"Tenant", 'Int'>
     readonly invoiceMode: FieldRef<"Tenant", 'String'>
+    readonly currency: FieldRef<"Tenant", 'String'>
+    readonly locale: FieldRef<"Tenant", 'String'>
     readonly createdAt: FieldRef<"Tenant", 'DateTime'>
     readonly updatedAt: FieldRef<"Tenant", 'DateTime'>
   }
@@ -4152,6 +4176,8 @@ export namespace Prisma {
     operatingMode: 'operatingMode',
     estimatedPrepMinutes: 'estimatedPrepMinutes',
     invoiceMode: 'invoiceMode',
+    currency: 'currency',
+    locale: 'locale',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -4329,6 +4355,8 @@ export namespace Prisma {
     operatingMode?: StringFilter<"Tenant"> | string
     estimatedPrepMinutes?: IntFilter<"Tenant"> | number
     invoiceMode?: StringFilter<"Tenant"> | string
+    currency?: StringFilter<"Tenant"> | string
+    locale?: StringFilter<"Tenant"> | string
     createdAt?: DateTimeFilter<"Tenant"> | Date | string
     updatedAt?: DateTimeFilter<"Tenant"> | Date | string
     users?: UserListRelationFilter
@@ -4342,6 +4370,8 @@ export namespace Prisma {
     operatingMode?: SortOrder
     estimatedPrepMinutes?: SortOrder
     invoiceMode?: SortOrder
+    currency?: SortOrder
+    locale?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     users?: UserOrderByRelationAggregateInput
@@ -4358,6 +4388,8 @@ export namespace Prisma {
     operatingMode?: StringFilter<"Tenant"> | string
     estimatedPrepMinutes?: IntFilter<"Tenant"> | number
     invoiceMode?: StringFilter<"Tenant"> | string
+    currency?: StringFilter<"Tenant"> | string
+    locale?: StringFilter<"Tenant"> | string
     createdAt?: DateTimeFilter<"Tenant"> | Date | string
     updatedAt?: DateTimeFilter<"Tenant"> | Date | string
     users?: UserListRelationFilter
@@ -4371,6 +4403,8 @@ export namespace Prisma {
     operatingMode?: SortOrder
     estimatedPrepMinutes?: SortOrder
     invoiceMode?: SortOrder
+    currency?: SortOrder
+    locale?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: TenantCountOrderByAggregateInput
@@ -4391,6 +4425,8 @@ export namespace Prisma {
     operatingMode?: StringWithAggregatesFilter<"Tenant"> | string
     estimatedPrepMinutes?: IntWithAggregatesFilter<"Tenant"> | number
     invoiceMode?: StringWithAggregatesFilter<"Tenant"> | string
+    currency?: StringWithAggregatesFilter<"Tenant"> | string
+    locale?: StringWithAggregatesFilter<"Tenant"> | string
     createdAt?: DateTimeWithAggregatesFilter<"Tenant"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Tenant"> | Date | string
   }
@@ -4552,6 +4588,8 @@ export namespace Prisma {
     operatingMode?: string
     estimatedPrepMinutes?: number
     invoiceMode?: string
+    currency?: string
+    locale?: string
     createdAt?: Date | string
     updatedAt?: Date | string
     users?: UserCreateNestedManyWithoutTenantInput
@@ -4565,6 +4603,8 @@ export namespace Prisma {
     operatingMode?: string
     estimatedPrepMinutes?: number
     invoiceMode?: string
+    currency?: string
+    locale?: string
     createdAt?: Date | string
     updatedAt?: Date | string
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
@@ -4578,6 +4618,8 @@ export namespace Prisma {
     operatingMode?: StringFieldUpdateOperationsInput | string
     estimatedPrepMinutes?: IntFieldUpdateOperationsInput | number
     invoiceMode?: StringFieldUpdateOperationsInput | string
+    currency?: StringFieldUpdateOperationsInput | string
+    locale?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     users?: UserUpdateManyWithoutTenantNestedInput
@@ -4591,6 +4633,8 @@ export namespace Prisma {
     operatingMode?: StringFieldUpdateOperationsInput | string
     estimatedPrepMinutes?: IntFieldUpdateOperationsInput | number
     invoiceMode?: StringFieldUpdateOperationsInput | string
+    currency?: StringFieldUpdateOperationsInput | string
+    locale?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
@@ -4604,6 +4648,8 @@ export namespace Prisma {
     operatingMode?: string
     estimatedPrepMinutes?: number
     invoiceMode?: string
+    currency?: string
+    locale?: string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -4616,6 +4662,8 @@ export namespace Prisma {
     operatingMode?: StringFieldUpdateOperationsInput | string
     estimatedPrepMinutes?: IntFieldUpdateOperationsInput | number
     invoiceMode?: StringFieldUpdateOperationsInput | string
+    currency?: StringFieldUpdateOperationsInput | string
+    locale?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4628,6 +4676,8 @@ export namespace Prisma {
     operatingMode?: StringFieldUpdateOperationsInput | string
     estimatedPrepMinutes?: IntFieldUpdateOperationsInput | number
     invoiceMode?: StringFieldUpdateOperationsInput | string
+    currency?: StringFieldUpdateOperationsInput | string
+    locale?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4857,6 +4907,8 @@ export namespace Prisma {
     operatingMode?: SortOrder
     estimatedPrepMinutes?: SortOrder
     invoiceMode?: SortOrder
+    currency?: SortOrder
+    locale?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -4873,6 +4925,8 @@ export namespace Prisma {
     operatingMode?: SortOrder
     estimatedPrepMinutes?: SortOrder
     invoiceMode?: SortOrder
+    currency?: SortOrder
+    locale?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -4885,6 +4939,8 @@ export namespace Prisma {
     operatingMode?: SortOrder
     estimatedPrepMinutes?: SortOrder
     invoiceMode?: SortOrder
+    currency?: SortOrder
+    locale?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -5581,6 +5637,8 @@ export namespace Prisma {
     operatingMode?: string
     estimatedPrepMinutes?: number
     invoiceMode?: string
+    currency?: string
+    locale?: string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -5593,6 +5651,8 @@ export namespace Prisma {
     operatingMode?: string
     estimatedPrepMinutes?: number
     invoiceMode?: string
+    currency?: string
+    locale?: string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -5647,6 +5707,8 @@ export namespace Prisma {
     operatingMode?: StringFieldUpdateOperationsInput | string
     estimatedPrepMinutes?: IntFieldUpdateOperationsInput | number
     invoiceMode?: StringFieldUpdateOperationsInput | string
+    currency?: StringFieldUpdateOperationsInput | string
+    locale?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -5659,6 +5721,8 @@ export namespace Prisma {
     operatingMode?: StringFieldUpdateOperationsInput | string
     estimatedPrepMinutes?: IntFieldUpdateOperationsInput | number
     invoiceMode?: StringFieldUpdateOperationsInput | string
+    currency?: StringFieldUpdateOperationsInput | string
+    locale?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

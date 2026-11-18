@@ -1,6 +1,7 @@
 import React from 'react';
-import { ProductDTO, formatCOP } from '@packages/shared-types';
+import { ProductDTO } from '@packages/shared-types';
 import { BentoCard, KpiValue } from '@packages/ui-components';
+import { useMoney } from '../lib/money';
 
 export interface ProductListCardProps {
   product: ProductDTO;
@@ -8,6 +9,7 @@ export interface ProductListCardProps {
 }
 
 export function ProductListCard({ product, onSelect }: ProductListCardProps) {
+  const { format } = useMoney();
   const isAvailable = product.isAvailable !== false;
 
   return (
@@ -111,7 +113,7 @@ export function ProductListCard({ product, onSelect }: ProductListCardProps) {
       >
         <KpiValue
           label="Precio"
-          value={formatCOP(product.price)}
+          value={format(product.price)}
           tone="accent"
         />
 
