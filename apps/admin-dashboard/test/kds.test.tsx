@@ -748,6 +748,23 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
     spyRequest.mockRestore();
   });
 
+  test('33b. ruta del plato: la card muestra la ruta compacta con el paso actual sin pedir nada al servidor', () => {
+    const onFetchHistory = jest.fn();
+    render(<KdsOrderCard order={{ ...sampleOrder, id: 'ord-route-1', status: 'IN_KITCHEN' }} onFetchHistory={onFetchHistory} />);
+    const route = screen.getByRole('list', { name: /ruta del plato/i });
+    const items = within(route).getAllByRole('listitem');
+    expect(items).toHaveLength(4);
+    expect(items.filter((li) => li.getAttribute('aria-current') === 'step')).toHaveLength(1);
+    expect(items[1]).toHaveAttribute('aria-current', 'step');
+    expect(onFetchHistory).not.toHaveBeenCalled();
+  });
+
+  test('33c. ruta del plato: en el monitor de bar usa el estado del bar', () => {
+    render(<KdsOrderCard order={{ ...sampleOrder, status: 'IN_KITCHEN', barStatus: 'READY' } as any} monitorKind="bar" />);
+    const items = within(screen.getByRole('list', { name: /ruta del plato/i })).getAllByRole('listitem');
+    expect(items[2]).toHaveAttribute('aria-current', 'step');
+  });
+
   test('33. N13: Historial de orden muestra línea de tiempo con transiciones y horas desde /v1/orders/:id/history', async () => {
     const mockEvents = [
       {
@@ -785,10 +802,14 @@ describe('C. KDS — Admin Dashboard (Tests 14-23)', () => {
 
     expect(onFetchHistory).toHaveBeenCalledWith('ord-hist-1');
 
-    // Panel visible con eventos y sus transiciones formateadas en español
-    expect(screen.getByTestId('order-history-panel')).toBeInTheDocument();
-    expect(screen.getByText(/Recibido → En cocina/)).toBeInTheDocument();
-    expect(screen.getByText(/En cocina → Listo/)).toBeInTheDocument();
+    // Panel visible con la ruta en detalle: hora de cada paso y duración entre pasos
+    const panel = screen.getByTestId('order-history-panel');
+    expect(panel).toBeInTheDocument();
+    const detailRoute = within(panel).getByRole('list', { name: /ruta del plato/i });
+    expect(within(detailRoute).getAllByRole('listitem')).toHaveLength(4);
+    expect(within(detailRoute).getByText('+15 min')).toBeInTheDocument();
+    expect(screen.queryByTestId('history-event-row')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Recibido → En cocina/)).not.toBeInTheDocument();
 
     // Botón para cerrar
     const closeBtn = screen.getByRole('button', { name: /cerrar/i });

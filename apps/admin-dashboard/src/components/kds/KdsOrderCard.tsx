@@ -5,6 +5,7 @@ import {
   formatOrderNumber,
   getTableDisplayName,
   SlaDot,
+  OrderRoute,
 } from '@packages/ui-components';
 import {
   OrderDTO,
@@ -170,6 +171,8 @@ export function KdsOrderCard({
             </span>
           </div>
         </div>
+
+        <OrderRoute status={currentEffectiveStatus} createdAt={order.createdAt} />
 
         {/* Ítems del pedido */}
         <div
@@ -383,39 +386,20 @@ export function KdsOrderCard({
                 <span style={{ fontSize: '11px', color: 'var(--bento-destructive)' }}>
                   {historyError}
                 </span>
-              ) : historyEvents.length === 0 ? (
-                <span style={{ fontSize: '11px', color: 'var(--bento-text-muted)' }}>
-                  Sin historial registrado
-                </span>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  {historyEvents.map((evt) => (
-                    <div
-                      key={evt.id}
-                      data-testid="history-event-row"
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        fontSize: '11px',
-                        padding: '4px 6px',
-                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                        borderRadius: '4px',
-                      }}
-                    >
-                      <span style={{ fontWeight: 600 }}>
-                        {ORDER_STATUS_LABELS[evt.fromStatus] || evt.fromStatus} →{' '}
-                        {ORDER_STATUS_LABELS[evt.toStatus] || evt.toStatus}
-                      </span>
-                      <span style={{ color: 'var(--bento-text-muted)', fontSize: '10px' }}>
-                        {new Date(evt.occurredAt).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                <>
+                  <OrderRoute
+                    status={currentEffectiveStatus}
+                    events={historyEvents}
+                    createdAt={order.createdAt}
+                    mode="detail"
+                  />
+                  {historyEvents.length === 0 && (
+                    <span style={{ display: 'block', marginTop: '6px', fontSize: '11px', color: 'var(--bento-text-muted)' }}>
+                      Sin historial registrado
+                    </span>
+                  )}
+                </>
               )}
             </div>
           )}
