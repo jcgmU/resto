@@ -1,3 +1,4 @@
+import { isReservationActive } from '../../domain/reservationRules';
 import { Router, Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { requireStaffRole } from './middleware/requireStaffRole';
@@ -288,17 +289,7 @@ export function createTablesRouter(deps: {
 
         if (reservationRepo) {
           const reservations = await reservationRepo.listByTable(tenantId, req.params.tableId);
-          const now = Date.now();
-          const twoHoursAgo = now - 2 * 60 * 60 * 1000;
-          const hasActiveReservation = reservations.some((r) => {
-            const s = (r.status || '').toLowerCase();
-            if (s === 'cancelled' || s === 'seated') return false;
-            const resTime = new Date(r.reservedFor).getTime();
-            if (!isNaN(resTime)) {
-              return resTime >= twoHoursAgo;
-            }
-            return true;
-          });
+          const hasActiveReservation = reservations.some((r) => isReservationActive(r, Date.now()));
           if (hasActiveReservation) {
             return res.status(409).json({
               error: { code: 'TABLE_HAS_RESERVATIONS', message: 'No se puede eliminar una mesa con reservas activas' },
@@ -308,9 +299,19 @@ export function createTablesRouter(deps: {
 
         const nowIso = new Date().toISOString();
         const newQrKey = crypto.randomBytes(16).toString('hex');
-        await tableRepo.softDeleteMany(tenantId, [
+        const outcome = await tableRepo.softDeleteMany(tenantId, [
           { tableId: req.params.tableId, deletedAt: nowIso, newQrKey },
         ]);
+        const failure = outcome.failed[0];
+        if (failure) {
+          if (failure.code === 'TABLE_NOT_FOUND') {
+            return res.status(404).json({ error: { code: 'TABLE_NOT_FOUND', message: 'Mesa no encontrada' } });
+          }
+          const message = failure.code === 'TABLE_HAS_RESERVATIONS'
+            ? 'No se puede eliminar una mesa con reservas activas'
+            : 'No se puede eliminar una mesa con sesión activa';
+          return res.status(409).json({ error: { code: failure.code, message } });
+        }
 
         if (eventPublisher) {
           await eventPublisher.publishSessionEvent(tenantId, {

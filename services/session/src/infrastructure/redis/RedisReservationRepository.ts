@@ -1,6 +1,37 @@
 import Redis from 'ioredis';
-import { ReservationRepository, ReservationDTO, ReservationStatus } from '@packages/shared-types';
+import { ReservationRepository, ReservationDTO, ReservationStatus, DomainError } from '@packages/shared-types';
 import { RedisKeys } from './keys';
+import { INACTIVE_RESERVATION_STATUSES } from '../../domain/reservationRules';
+
+const LUA_SAVE_RESERVATION = `
+local reservationKey = KEYS[1]
+local tenantSet = KEYS[2]
+local tableSet = KEYS[3]
+local tableKey = KEYS[4]
+local tenantId = ARGV[1]
+local reservationId = ARGV[2]
+local makesInactive = ARGV[3] == '1'
+
+if not makesInactive then
+  local tableRaw = redis.call('GET', tableKey)
+  if not tableRaw then
+    return redis.error_reply('TABLE_NOT_FOUND')
+  end
+  local tableObj = cjson.decode(tableRaw)
+  if tableObj.tenantId ~= tenantId or tableObj.status == 'deleted' then
+    return redis.error_reply('TABLE_NOT_FOUND')
+  end
+end
+
+local fields = {}
+for i = 4, #ARGV do
+  table.insert(fields, ARGV[i])
+end
+redis.call('HSET', reservationKey, unpack(fields))
+redis.call('SADD', tenantSet, reservationId)
+redis.call('SADD', tableSet, reservationId)
+return 1
+`;
 
 export class RedisReservationRepository implements ReservationRepository {
   constructor(private readonly redis: Redis) {}
@@ -25,11 +56,27 @@ export class RedisReservationRepository implements ReservationRepository {
       fields.notes = reservation.notes;
     }
 
-    const multi = this.redis.multi();
-    multi.hset(key, fields);
-    multi.sadd(tenantSet, reservation.id);
-    multi.sadd(tableSet, reservation.id);
-    await multi.exec();
+    const flatFields = Object.entries(fields).flat();
+    const makesInactive = (INACTIVE_RESERVATION_STATUSES as readonly string[]).includes(String(reservation.status).toLowerCase());
+    try {
+      await this.redis.eval(
+        LUA_SAVE_RESERVATION,
+        4,
+        key,
+        tenantSet,
+        tableSet,
+        RedisKeys.table(tenantId, reservation.tableId),
+        tenantId,
+        reservation.id,
+        makesInactive ? '1' : '0',
+        ...flatFields
+      );
+    } catch (err: any) {
+      if (err?.message?.includes('TABLE_NOT_FOUND')) {
+        throw new DomainError('TABLE_NOT_FOUND', `Mesa ${reservation.tableId} no encontrada`);
+      }
+      throw err;
+    }
 
     return reservation;
   }

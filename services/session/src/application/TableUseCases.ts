@@ -19,6 +19,7 @@ import {
   parseAndValidateTableStatus,
 } from '../domain/tableBatch';
 import { SessionEventPublisherPort } from '../domain/events';
+import { isReservationActive } from '../domain/reservationRules';
 
 export { VALID_TABLE_STATUSES, parseAndValidateTableStatus };
 
@@ -262,17 +263,7 @@ export class DeleteTablesBatchUseCaseImpl {
     for (const tableId of tableIds) {
       if (this.reservationRepo) {
         const reservations = await this.reservationRepo.listByTable(input.tenantId, tableId);
-        const now = Date.now();
-        const twoHoursAgo = now - 2 * 60 * 60 * 1000;
-        const hasActiveReservations = reservations.some((r) => {
-          const s = (r.status || '').toLowerCase();
-          if (s === 'cancelled' || s === 'seated') return false;
-          const resTime = new Date(r.reservedFor).getTime();
-          if (!isNaN(resTime)) {
-            return resTime >= twoHoursAgo;
-          }
-          return true;
-        });
+        const hasActiveReservations = reservations.some((r) => isReservationActive(r, Date.now()));
 
         if (hasActiveReservations) {
           failed.push({ tableId, code: 'TABLE_HAS_RESERVATIONS' });
