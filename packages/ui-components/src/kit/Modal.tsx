@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Button } from '../bento/Button';
 import { BottomSheet } from './BottomSheet';
+import { useModalLock } from './useModalLock';
 
 export interface ModalProps {
   open: boolean;
@@ -54,6 +55,8 @@ export function Modal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
+  const backdropRef = useRef<HTMLDivElement | null>(null);
+  const getBackdrop = useRef(() => backdropRef.current).current;
   const stackId = useRef(Symbol('modal'));
   onCloseRef.current = onClose;
 
@@ -67,8 +70,14 @@ export function Modal({
   }, []);
 
   useEffect(() => {
+    if (open) previousFocus.current = document.activeElement as HTMLElement | null;
+  }, [open]);
+
+  // Declarado antes del efecto de foco: su cleanup libera el inert antes de devolver el foco.
+  useModalLock(open && scrim, getBackdrop);
+
+  useEffect(() => {
     if (!open) return undefined;
-    previousFocus.current = document.activeElement as HTMLElement | null;
     const first = dialogRef.current?.querySelector<HTMLElement>(FOCUSABLE);
     (first ?? dialogRef.current)?.focus();
     return () => {
@@ -167,6 +176,7 @@ export function Modal({
     <AnimatePresence>
     {open && <motion.div
       key="modal-backdrop"
+      ref={backdropRef}
       initial={false}
       exit={isSheet && !reducedMotion ? { opacity: 0 } : undefined}
       transition={{ duration: reducedMotion ? 0 : 0.2 }}
