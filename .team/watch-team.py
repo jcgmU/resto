@@ -1,5 +1,5 @@
 import os,re,subprocess,json,time,glob
-H=os.path.join(os.path.dirname(os.path.abspath(__file__)),"..","brain","Handoffs")
+H=os.environ.get("WATCH_HANDOFFS") or os.path.join(os.path.dirname(os.path.abspath(__file__)),"..","brain","Handoffs")
 PANES={"planner":"w3:pF","executor":"w3:pQ","claude":"w3:pE"}
 STATE="/tmp/watch-team.state.json"
 seen=json.load(open(STATE)) if os.path.exists(STATE) else {}
