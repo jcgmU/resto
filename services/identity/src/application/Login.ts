@@ -31,6 +31,18 @@ export class LoginUseCaseImpl implements LoginUseCase {
     password: string;
     tenantSlug?: string;
   }): Promise<{ user: UserDTO; tokens: AuthTokens }> {
+    if (
+      !input ||
+      !input.email ||
+      !input.password ||
+      typeof input.email !== 'string' ||
+      typeof input.password !== 'string' ||
+      !input.email.trim() ||
+      !input.password.trim()
+    ) {
+      throw new DomainError('VALIDATION_ERROR', 'Email y contraseña requeridos');
+    }
+
     let tenantId = '';
     if (input.tenantSlug) {
       const tenant = await this.tenantRepo.findBySlug(input.tenantSlug);
@@ -60,6 +72,7 @@ export class LoginUseCaseImpl implements LoginUseCase {
       tenantId: userWithHash.tenantId,
       role: userWithHash.role,
       email: userWithHash.email,
+      displayName: userWithHash.displayName || userWithHash.email,
     });
 
     const refresh = this.tokenIssuer.generateRefreshToken();

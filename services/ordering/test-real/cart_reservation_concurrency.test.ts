@@ -36,7 +36,9 @@ describe('Ordering Real - Cart Reservation & Concurrency (U9)', () => {
       sessionId: s,
       tenantId: t,
       tableId,
-      status: 'active',
+      status: 'active' as const,
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 3600000).toISOString(),
     }),
   };
 

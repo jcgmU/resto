@@ -43,6 +43,10 @@ export function validateAndPriceCart(
       throw new ProductNotFoundError(`Producto con id ${item.productId} no existe en catálogo`);
     }
 
+    if (product.price < 0) {
+      throw new ValidationError(`El precio del producto ${product.name} no puede ser negativo`);
+    }
+
     if (!product.isAvailable) {
       throw new ProductUnavailableError(`El producto ${product.name} no está disponible`);
     }
@@ -137,8 +141,13 @@ export function validateAndPriceCart(
       unitPrice: product.price,
       quantity: item.quantity,
       notes: item.notes,
+      destination: product.destination || 'kitchen',
       modifiers: itemModifiers,
     });
+  }
+
+  if (totalCents < 0) {
+    throw new ValidationError('El total de la orden no puede ser negativo');
   }
 
   return {

@@ -45,13 +45,13 @@ export function PagosView({ initialLoading = false, initialError = null }: Pagos
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <BentoCard
         style={{
-          backgroundColor: 'var(--bento-papel)',
+          backgroundColor: 'var(--bento-card-bg-solid)',
           padding: '24px',
         }}
       >
         <EmptyState
           title="Sin historial de pagos"
-          description="Actualmente los cobros se realizan en efectivo (CASH) directamente desde la mesa o checkout. El historial de transacciones estará disponible próximamente."
+          description="Los cobros se registran en efectivo o tarjeta desde Checkout o la Terminal de Caja. El historial de transacciones estará disponible próximamente."
         />
       </BentoCard>
     </div>

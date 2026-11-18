@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { FOCUSABLE_SELECTOR, TableItem } from './types';
+import { Modal } from '@packages/ui-components';
+import React, { useEffect, useState } from 'react';
+import { TableItem } from './types';
 import { updateTable } from '../../lib/tablesApi';
 
 export interface EditTableModalProps {
@@ -23,7 +24,6 @@ function formatConflictList(conflicts: unknown): string {
 }
 
 export function EditTableModal({ table, onClose, onSuccess }: EditTableModalProps) {
-  const modalRef = useRef<HTMLDivElement>(null);
   const [label, setLabel] = useState<string>(table?.label ?? '');
   const [status, setStatus] = useState<'active' | 'inactive'>(
     table?.status === 'inactive' ? 'inactive' : 'active'
@@ -38,47 +38,6 @@ export function EditTableModal({ table, onClose, onSuccess }: EditTableModalProp
     setError(null);
     setSaving(false);
   }, [table]);
-
-  useEffect(() => {
-    if (!table) return;
-    const prevFocus = document.activeElement as HTMLElement | null;
-    modalRef.current?.focus();
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
-        return;
-      }
-      if (e.key === 'Tab') {
-        if (!modalRef.current) return;
-        const nodes = Array.from(
-          modalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-        );
-        if (nodes.length === 0) {
-          e.preventDefault();
-          return;
-        }
-        const first = nodes[0];
-        const last = nodes[nodes.length - 1];
-        const active = document.activeElement;
-        if (e.shiftKey && (active === first || active === modalRef.current)) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && active === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      prevFocus?.focus?.();
-    };
-  }, [table, onClose]);
 
   if (!table) return null;
 
@@ -115,109 +74,13 @@ export function EditTableModal({ table, onClose, onSuccess }: EditTableModalProp
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="edit-table-modal-title"
-      ref={modalRef}
-      tabIndex={-1}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          e.stopPropagation();
-          onClose();
-          return;
-        }
-        if (e.key === 'Tab') {
-          if (!modalRef.current) return;
-          const nodes = Array.from(
-            modalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-          );
-          if (nodes.length === 0) {
-            e.preventDefault();
-            return;
-          }
-          const first = nodes[0];
-          const last = nodes[nodes.length - 1];
-          const active = document.activeElement;
-          if (e.shiftKey && (active === first || active === modalRef.current)) {
-            e.preventDefault();
-            last.focus();
-          } else if (!e.shiftKey && active === last) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'color-mix(in srgb, var(--bento-tinta) 45%, transparent)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 50,
-        padding: '16px',
-      }}
-    >
-      <div
-        style={{
-          backgroundColor: 'var(--bento-papel)',
-          color: 'var(--bento-text)',
-          padding: '24px',
-          borderRadius: 'var(--bento-card-radius)',
-          width: '100%',
-          maxWidth: '440px',
-          boxShadow: 'var(--bento-card-shadow)',
-          border: '1px solid var(--bento-border)',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '16px',
-          }}
-        >
-          <h2
-            id="edit-table-modal-title"
-            style={{
-              margin: 0,
-              fontSize: '1.25rem',
-              fontWeight: 700,
-              fontFamily: 'var(--bento-font-heading)',
-              color: 'var(--bento-text)',
-            }}
-          >
-            Editar Mesa — {table.label}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar modal"
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '1.25rem',
-              cursor: 'pointer',
-              color: 'var(--bento-text-muted)',
-              padding: '4px',
-            }}
-          >
-            ✕
-          </button>
-        </div>
-
+    <Modal open={true} title={`Editar Mesa — ${table.label}`} onClose={onClose} maxWidth="440px" footer={<></>}>
         {error && (
           <div
             role="alert"
             style={{
               padding: '10px 14px',
-              backgroundColor: 'var(--bento-papel)',
+              backgroundColor: 'var(--bento-card-bg-solid)',
               color: 'var(--bento-destructive)',
               border: '1px solid var(--bento-destructive)',
               borderRadius: 'var(--bento-inner-radius)',
@@ -255,8 +118,8 @@ export function EditTableModal({ table, onClose, onSuccess }: EditTableModalProp
                 width: '100%',
                 padding: '10px 14px',
                 borderRadius: 'var(--bento-inner-radius)',
-                border: '1px solid var(--bento-border)',
-                backgroundColor: 'var(--bento-papel)',
+                border: '1px solid var(--bento-field-border)',
+                backgroundColor: 'var(--bento-field-bg)',
                 color: 'var(--bento-text)',
                 fontSize: '0.95rem',
                 boxSizing: 'border-box',
@@ -290,12 +153,12 @@ export function EditTableModal({ table, onClose, onSuccess }: EditTableModalProp
                   borderRadius: 'var(--bento-inner-radius)',
                   border:
                     status === 'active'
-                      ? '2px solid var(--bento-tinta)'
+                      ? '2px solid var(--bento-border)'
                       : '1px solid var(--bento-border)',
                   backgroundColor:
-                    status === 'active' ? 'var(--bento-tinta)' : 'var(--bento-papel)',
+                    status === 'active' ? 'var(--bento-primary)' : 'var(--bento-card-bg-solid)',
                   color:
-                    status === 'active' ? 'var(--bento-papel)' : 'var(--bento-text)',
+                    status === 'active' ? 'var(--bento-card-bg-solid)' : 'var(--bento-text)',
                   fontWeight: 600,
                   cursor: 'pointer',
                   fontSize: '0.85rem',
@@ -315,12 +178,12 @@ export function EditTableModal({ table, onClose, onSuccess }: EditTableModalProp
                   borderRadius: 'var(--bento-inner-radius)',
                   border:
                     status === 'inactive'
-                      ? '2px solid var(--bento-tinta)'
+                      ? '2px solid var(--bento-border)'
                       : '1px solid var(--bento-border)',
                   backgroundColor:
-                    status === 'inactive' ? 'var(--bento-tinta)' : 'var(--bento-papel)',
+                    status === 'inactive' ? 'var(--bento-primary)' : 'var(--bento-card-bg-solid)',
                   color:
-                    status === 'inactive' ? 'var(--bento-papel)' : 'var(--bento-text)',
+                    status === 'inactive' ? 'var(--bento-card-bg-solid)' : 'var(--bento-text)',
                   fontWeight: 600,
                   cursor: 'pointer',
                   fontSize: '0.85rem',
@@ -356,9 +219,9 @@ export function EditTableModal({ table, onClose, onSuccess }: EditTableModalProp
               style={{
                 minHeight: '44px',
                 padding: '0 20px',
-                backgroundColor: 'var(--bento-tinta)',
-                color: 'var(--bento-papel)',
-                border: '1px solid var(--bento-tinta)',
+                backgroundColor: 'var(--bento-primary)',
+                color: 'var(--bento-card-bg-solid)',
+                border: '1px solid var(--bento-border)',
                 borderRadius: 'var(--bento-pill-radius)',
                 cursor: saving ? 'not-allowed' : 'pointer',
                 fontWeight: 600,
@@ -369,7 +232,6 @@ export function EditTableModal({ table, onClose, onSuccess }: EditTableModalProp
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

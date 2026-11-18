@@ -5,7 +5,7 @@ export interface SessionInfo {
   sessionId: string;
   tenantId: string;
   tableId?: string;
-  status: 'active' | 'closed';
+  status: 'active' | 'closed' | 'billRequested';
 }
 
 export interface OrderingSessionPort {

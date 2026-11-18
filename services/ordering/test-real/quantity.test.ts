@@ -40,6 +40,14 @@ describe('Ordering Real - Quantities, Pricing & Precision (U1)', () => {
 
   const sessionService: SessionServicePort = {
     closeSession: async () => {},
+    getSession: async (t, s) => ({
+      sessionId: s,
+      tenantId: t,
+      tableId: '*',
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 3600000).toISOString(),
+    }),
   };
 
   beforeAll(async () => {
@@ -189,6 +197,12 @@ describe('Ordering Real - Quantities, Pricing & Precision (U1)', () => {
     expect(orderInDb).toBeDefined();
     expect(Number(orderInDb!.total)).toBe(62.5);
     expect(orderInDb!.items[0].quantity).toBe(5);
+
+    // Mark delivered so it can be checked out
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { status: 'DELIVERED' },
+    });
 
     // Checkout payment
     const checkoutResult = await confirmCheckout.execute({

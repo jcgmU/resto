@@ -1,15 +1,48 @@
 import React, { useState } from 'react';
-import { BillDTO, PaymentMethod, TableSessionDTO, TableDTO } from '@packages/shared-types';
+import { BillDTO, OrderDTO, OrderHistoryEventDTO, PaymentMethod, TableSessionDTO, TableDTO, PendingOrderSummaryDTO } from '@packages/shared-types';
 import {
   BentoCard,
   KpiValue,
   ModalConfirm,
+  Modal,
+  Button,
   Skeleton,
+  ORDER_STATUS_LABELS,
   formatOrderNumber,
   getTableDisplayName,
   PAYMENT_METHOD_LABELS,
   shortId,
+  OrderRoute,
 } from '@packages/ui-components';
+import { fetchOrderHistory } from '../../lib/api/kds';
+import { useMoney } from '../../lib/money';
+
+export function dedupeSessions(sessions: TableSessionDTO[]): TableSessionDTO[] {
+  const seen = new Set<string>();
+  return sessions.filter((s) => {
+    if (seen.has(s.sessionId)) return false;
+    seen.add(s.sessionId);
+    return true;
+  });
+}
+
+export interface TableSessionGroup {
+  tableId: string;
+  sessions: TableSessionDTO[];
+  primary: TableSessionDTO;
+}
+
+/** Una entrada por mesa; la sesión principal es la más reciente (el resto es legado). */
+export function groupSessionsByTable(sessions: TableSessionDTO[]): TableSessionGroup[] {
+  const groups = new Map<string, TableSessionDTO[]>();
+  for (const session of dedupeSessions(sessions)) {
+    groups.set(session.tableId, [...(groups.get(session.tableId) ?? []), session]);
+  }
+  return Array.from(groups, ([tableId, list]) => {
+    const sorted = [...list].sort((x, y) => Date.parse(y.createdAt ?? '') - Date.parse(x.createdAt ?? '') || 0);
+    return { tableId, sessions: sorted, primary: sorted[0] };
+  });
+}
 
 export interface ActiveTablesGridProps {
   sessions: TableSessionDTO[];
@@ -71,22 +104,24 @@ export function ActiveTablesGrid({
         gap: 'var(--bento-grid-gap)',
       }}
     >
-      {sessions.map((session) => {
-        const isSelected = selectedSessionId === session.sessionId;
+      {groupSessionsByTable(sessions).map((group) => {
+        const session = group.primary;
+        const isSelected = group.sessions.some((s) => s.sessionId === selectedSessionId);
         const displayName = getTableDisplayName(session.tableId, tables);
         return (
           <BentoCard
-            key={session.sessionId}
-            interactive={Boolean(onSelectSession)}
-            onClick={() => onSelectSession?.(session)}
+            key={group.tableId}
+            data-selected={isSelected ? 'true' : undefined}
+            interactive={Boolean(onSelectSession) && group.sessions.length === 1}
+            onClick={group.sessions.length === 1 ? () => onSelectSession?.(session) : undefined}
             style={{
               padding: '16px',
               minHeight: '44px',
               border: isSelected
-                ? '2px solid var(--bento-tinta)'
+                ? '2px solid var(--bento-primary)'
                 : '1px solid var(--bento-border)',
               backgroundColor: isSelected
-                ? 'var(--bento-hueso)'
+                ? 'var(--bento-page-bg)'
                 : 'var(--bento-card-bg)',
             }}
           >
@@ -117,12 +152,44 @@ export function ActiveTablesGrid({
                 gap: '2px',
               }}
             >
-              <span>
-                Abierta: {session.createdAt ? new Date(session.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
-              </span>
-              <span>
-                Sesión #{shortId(session.sessionId)}
-              </span>
+              {group.sessions.length === 1 ? (
+                <>
+                  <span>
+                    Abierta: {session.createdAt ? new Date(session.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                  </span>
+                  <span>
+                    Sesión #{shortId(session.sessionId)}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span data-testid="grouped-sessions" style={{ color: 'var(--bento-status-reserved-text)', fontWeight: 600 }}>
+                    {group.sessions.length} sesiones activas
+                  </span>
+                  {group.sessions.map((s) => (
+                    <button
+                      key={s.sessionId}
+                      type="button"
+                      aria-pressed={s.sessionId === selectedSessionId}
+                      onClick={() => onSelectSession?.(s)}
+                      style={{
+                        textAlign: 'left',
+                        padding: '6px 8px',
+                        minHeight: '36px',
+                        borderRadius: 'var(--bento-inner-radius)',
+                        border: s.sessionId === selectedSessionId ? '2px solid var(--bento-primary)' : '1px solid var(--bento-border)',
+                        background: 'var(--bento-card-bg-solid)',
+                        color: 'var(--bento-text)',
+                        cursor: onSelectSession ? 'pointer' : 'default',
+                        fontFamily: 'var(--bento-font-body)',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      Sesión #{shortId(s.sessionId)} · {s.createdAt ? new Date(s.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                    </button>
+                  ))}
+                </>
+              )}
             </div>
           </BentoCard>
         );
@@ -136,10 +203,117 @@ export interface BillSummaryCardProps {
   tables?: TableDTO[];
   error?: string;
   onRetry?: () => void;
+  pendingOrders?: PendingOrderSummaryDTO[];
+  canOverridePendingOrders?: boolean;
+  onOverridePendingOrders?: () => void;
+  onFetchHistory?: (orderId: string) => Promise<OrderHistoryEventDTO[]>;
 }
 
-export function BillSummaryCard({ bill, tables, error, onRetry }: BillSummaryCardProps) {
+const PENDING_STATUS_LABELS: Record<string, string> = {
+  PLACED: 'Por preparar',
+  IN_KITCHEN: 'En preparación',
+  READY: 'Listo para entregar',
+  DELIVERED: 'Entregado',
+  CANCELLED: 'Cancelado',
+};
+
+function formatPendingOrderStatus(status?: string | null): string {
+  if (!status) return '';
+  return PENDING_STATUS_LABELS[status] || ORDER_STATUS_LABELS[status] || status;
+}
+
+function OrderRouteToggle({
+  order,
+  onFetchHistory,
+}: {
+  order: OrderDTO;
+  onFetchHistory?: (orderId: string) => Promise<OrderHistoryEventDTO[]>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [events, setEvents] = useState<OrderHistoryEventDTO[] | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setEvents((await (onFetchHistory ?? fetchOrderHistory)(order.id)) || []);
+    } catch (err: any) {
+      setError(err?.message || 'No se pudo cargar la ruta');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggle = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
+    if (events === null) void load();
+  };
+
+  return (
+    <div style={{ marginTop: '4px' }}>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={toggle}
+        style={{
+          background: 'none',
+          border: 'none',
+          padding: '2px 0',
+          minHeight: '28px',
+          color: 'var(--bento-primary)',
+          fontSize: '0.8rem',
+          fontWeight: 600,
+          textDecoration: 'underline',
+          cursor: 'pointer',
+          fontFamily: 'var(--bento-font-body)',
+        }}
+      >
+        {open ? 'Ocultar ruta' : 'Ver ruta'}
+      </button>
+      {open && (
+        <div style={{ marginTop: '6px', marginBottom: '8px' }}>
+          {loading ? (
+            <span style={{ fontSize: '0.8rem', color: 'var(--bento-text-muted)' }}>Cargando ruta…</span>
+          ) : error ? (
+            <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: 'var(--bento-destructive)' }}>
+              <span>{error}</span>
+              <button
+                type="button"
+                onClick={() => void load()}
+                style={{ background: 'none', border: 'none', color: 'var(--bento-primary)', fontWeight: 600, textDecoration: 'underline', cursor: 'pointer', minHeight: '28px' }}
+              >
+                Reintentar
+              </button>
+            </div>
+          ) : (
+            <OrderRoute status={order.status} events={events ?? []} createdAt={order.createdAt} mode="detail" />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function BillSummaryCard({
+  bill,
+  tables,
+  error,
+  onRetry,
+  pendingOrders = [],
+  canOverridePendingOrders = false,
+  onOverridePendingOrders,
+  onFetchHistory,
+}: BillSummaryCardProps) {
+  const { format: formatMoney } = useMoney();
+  const [isOverrideConfirmOpen, setIsOverrideConfirmOpen] = useState(false);
   const activeOrders = (bill.orders || []).filter((o) => o.status !== 'CANCELLED');
+  const isOrdersNotDelivered = error === 'ORDERS_NOT_DELIVERED' || pendingOrders.length > 0;
 
   return (
     <BentoCard
@@ -175,64 +349,188 @@ export function BillSummaryCard({ bill, tables, error, onRetry }: BillSummaryCar
           </svg>
           Cuenta — {getTableDisplayName(bill.tableId, tables)}
         </h3>
-        <KpiValue label="Total a cobrar" value={`$${bill.total}`} tone="accent" />
+        <KpiValue label="Total a cobrar" value={formatMoney(bill.total)} tone="accent" />
       </div>
 
       {error && (
         <div
           role="alert"
+          data-testid={isOrdersNotDelivered ? 'pending-orders-alert' : 'payment-error-alert'}
           tabIndex={-1}
-          style={{
-            padding: '12px',
-            borderRadius: 'var(--bento-inner-radius)',
-            background: 'color-mix(in srgb, var(--bento-destructive) 10%, transparent)',
-            color: 'var(--bento-destructive)',
-            border: '1px solid var(--bento-destructive)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '8px',
-          }}
+          style={
+            isOrdersNotDelivered
+              ? {
+                  padding: '12px',
+                  borderRadius: 'var(--bento-inner-radius)',
+                  backgroundColor: 'var(--bento-card-bg-solid)',
+                  color: 'var(--bento-status-occupied-text)',
+                  border: '1px solid var(--bento-status-occupied-text)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }
+              : {
+                  padding: '12px',
+                  borderRadius: 'var(--bento-inner-radius)',
+                  background: 'color-mix(in srgb, var(--bento-destructive) 10%, transparent)',
+                  color: 'var(--bento-destructive)',
+                  border: '1px solid var(--bento-destructive)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }
+          }
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <svg
-              aria-hidden="true"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <span style={{ fontFamily: 'var(--bento-font-body)' }}>
-              {error === 'SESSION_CLOSE_FAILED' ? 'Error al cerrar la sesión en el servidor' : error}
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <svg
+                aria-hidden="true"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span
+                style={{
+                  fontFamily: 'var(--bento-font-body)',
+                  fontWeight: 600,
+                  color: isOrdersNotDelivered ? 'var(--bento-status-occupied-text)' : undefined,
+                }}
+              >
+                {error === 'SESSION_CLOSE_FAILED'
+                  ? 'Error al cerrar la sesión en el servidor'
+                  : error === 'BILL_EMPTY'
+                  ? 'La mesa no tiene pedidos registrados para cobrar'
+                  : error === 'SESSION_NOT_FOUND'
+                  ? 'La sesión no existe o ya fue cerrada'
+                  : error === 'BILL_NOT_FOUND'
+                  ? 'No se encontró cuenta para esta sesión'
+                  : error === 'ORDERS_NOT_DELIVERED'
+                  ? 'Hay pedidos pendientes de entregar en cocina o bar.'
+                  : error}
+              </span>
+            </div>
+            {onRetry && !isOrdersNotDelivered && (
+              <button
+                type="button"
+                onClick={onRetry}
+                style={{
+                  minHeight: '44px',
+                  minWidth: '44px',
+                  padding: '0 16px',
+                  borderRadius: 'var(--bento-pill-radius)',
+                  background: 'var(--bento-destructive)',
+                  color: 'var(--bento-card-bg-solid)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--bento-font-body)',
+                  fontWeight: 600,
+                }}
+              >
+                {error === 'SESSION_CLOSE_FAILED' ? 'Reintentar cierre' : 'Reintentar'}
+              </button>
+            )}
           </div>
-          {onRetry && (
-            <button
-              type="button"
-              onClick={onRetry}
+
+          {isOrdersNotDelivered && pendingOrders.length > 0 && (
+            <ul
               style={{
-                minHeight: '44px',
-                minWidth: '44px',
-                padding: '0 16px',
-                borderRadius: 'var(--bento-pill-radius)',
-                background: 'var(--bento-destructive)',
-                color: 'var(--bento-papel)',
-                border: 'none',
-                cursor: 'pointer',
+                margin: 0,
+                paddingLeft: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
                 fontFamily: 'var(--bento-font-body)',
-                fontWeight: 600,
+                fontSize: '0.875rem',
+                color: 'var(--bento-status-occupied-text)',
               }}
             >
-              Reintentar cierre
-            </button>
+              {pendingOrders.map((po) => {
+                const subStatuses: string[] = [];
+                if (po.kitchenStatus) {
+                  subStatuses.push(`Cocina: ${formatPendingOrderStatus(po.kitchenStatus)}`);
+                }
+                if (po.barStatus) {
+                  subStatuses.push(`Bar: ${formatPendingOrderStatus(po.barStatus)}`);
+                }
+                return (
+                  <li key={po.orderId}>
+                    <strong>{formatOrderNumber(po.orderId)}</strong> — {formatPendingOrderStatus(po.status)}
+                    {subStatuses.length > 0 ? ` (${subStatuses.join(' • ')})` : ''}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {isOrdersNotDelivered && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginTop: '4px' }}>
+              {canOverridePendingOrders && onOverridePendingOrders ? (
+                <button
+                  type="button"
+                  data-testid="override-pending-orders-btn"
+                  onClick={() => setIsOverrideConfirmOpen(true)}
+                  style={{
+                    minHeight: '44px',
+                    padding: '0 16px',
+                    borderRadius: 'var(--bento-pill-radius)',
+                    backgroundColor: 'var(--bento-card-bg-solid)',
+                    color: 'var(--bento-status-occupied-text)',
+                    border: '1px solid var(--bento-status-occupied-text)',
+                    cursor: 'pointer',
+                    fontFamily: 'var(--bento-font-body)',
+                    fontWeight: 600,
+                  }}
+                >
+                  Cobrar igual y cerrar pedidos
+                </button>
+              ) : (
+                <span
+                  style={{
+                    fontFamily: 'var(--bento-font-body)',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    color: 'var(--bento-status-occupied-text)',
+                  }}
+                >
+                  Avisa a un administrador o encargado para cerrar estos pedidos
+                </span>
+              )}
+            </div>
           )}
         </div>
+      )}
+
+      {isOrdersNotDelivered && canOverridePendingOrders && onOverridePendingOrders && (
+        <ModalConfirm
+          open={isOverrideConfirmOpen}
+          title="Cobrar igual y cerrar pedidos"
+          current={{ label: 'Pedidos pendientes', value: String(pendingOrders.length) }}
+          proposed={{ label: 'Total a cobrar', value: formatMoney(bill.total) }}
+          impacts={[
+            {
+              label: 'Impacto',
+              value:
+                pendingOrders.length === 1
+                  ? 'La orden pendiente se cancelará y se cobrará igual'
+                  : `Las ${pendingOrders.length} órdenes pendientes se cancelarán y se cobrarán igual`,
+            },
+          ]}
+          approveLabel="Confirmar cobro"
+          rejectLabel="Cancelar"
+          onApprove={() => {
+            setIsOverrideConfirmOpen(false);
+            onOverridePendingOrders();
+          }}
+          onReject={() => setIsOverrideConfirmOpen(false)}
+          onClose={() => setIsOverrideConfirmOpen(false)}
+        />
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -245,8 +543,9 @@ export function BillSummaryCard({ bill, tables, error, onRetry }: BillSummaryCar
             }}
           >
             <div style={{ fontSize: '0.85rem', color: 'var(--bento-text-muted)', marginBottom: '4px', fontFamily: 'var(--bento-font-body)' }}>
-              {formatOrderNumber(order.id)} • Subtotal: ${order.total}
+              {formatOrderNumber(order.id)} • Subtotal: {formatMoney(order.total)}
             </div>
+            <OrderRouteToggle order={order} onFetchHistory={onFetchHistory} />
             {order.items.map((item) => (
               <div
                 key={item.id}
@@ -261,7 +560,7 @@ export function BillSummaryCard({ bill, tables, error, onRetry }: BillSummaryCar
                   <span style={{ marginRight: '6px' }}>{item.quantity}x</span>
                   <span>{item.productName}</span>
                 </div>
-                <span style={{ fontVariantNumeric: 'tabular-nums' }}>${item.unitPrice * item.quantity}</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatMoney(item.unitPrice * item.quantity)}</span>
               </div>
             ))}
           </div>
@@ -283,7 +582,6 @@ export function PaymentMethodPicker({
   const options: { method: PaymentMethod; label: string }[] = [
     { method: 'CASH', label: PAYMENT_METHOD_LABELS.CASH || 'Efectivo' },
     { method: 'CARD', label: PAYMENT_METHOD_LABELS.CARD || 'Tarjeta' },
-    { method: 'OTHER', label: PAYMENT_METHOD_LABELS.OTHER || 'Otro' },
   ];
 
   return (
@@ -315,11 +613,11 @@ export function PaymentMethodPicker({
               gap: '8px',
               borderRadius: 'var(--bento-pill-radius)',
               border: isSelected
-                ? '2px solid var(--bento-tinta)'
+                ? '2px solid var(--bento-primary)'
                 : '1px solid var(--bento-border)',
               background: isSelected
-                ? 'var(--bento-hueso)'
-                : 'var(--bento-papel)',
+                ? 'var(--bento-page-bg)'
+                : 'var(--bento-card-bg-solid)',
               color: 'var(--bento-text)',
               cursor: 'pointer',
               fontFamily: 'var(--bento-font-body)',
@@ -363,6 +661,7 @@ export function ConfirmPaymentButton({
   loading = false,
   sessionId,
 }: ConfirmPaymentButtonProps) {
+  const { format: formatMoney } = useMoney();
   const [isConfirming, setIsConfirming] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSubmittingRef = React.useRef(false);
@@ -414,10 +713,10 @@ export function ConfirmPaymentButton({
           borderRadius: 'var(--bento-pill-radius)',
           background: isButtonDisabled
             ? 'var(--bento-border)'
-            : 'var(--bento-tinta)',
+            : 'var(--bento-primary)',
           color: isButtonDisabled
             ? 'var(--bento-text-muted)'
-            : 'var(--bento-papel)',
+            : 'var(--bento-card-bg-solid)',
           border: 'none',
           fontFamily: 'var(--bento-font-body)',
           fontWeight: 600,
@@ -430,8 +729,8 @@ export function ConfirmPaymentButton({
       <ModalConfirm
         open={isConfirming && !isPending}
         title="Confirmar cobro"
-        current={{ label: 'Cuenta actual', value: `$${total}` }}
-        proposed={{ label: 'Total a cobrar', value: `$${total}` }}
+        current={{ label: 'Cuenta actual', value: formatMoney(total) }}
+        proposed={{ label: 'Total a cobrar', value: formatMoney(total) }}
         impacts={[
           { label: 'Método', value: PAYMENT_METHOD_LABELS[method || 'CASH'] || 'Efectivo' },
         ]}
@@ -450,6 +749,11 @@ export interface PaymentSuccessCardProps {
   amount: number;
   method: PaymentMethod;
   tables?: TableDTO[];
+  sessionId?: string;
+  invoiceStatus?: 'none' | 'pending' | 'issued' | 'error';
+  invoiceRef?: string;
+  invoiceError?: string;
+  onRetryInvoice?: () => void;
 }
 
 export function PaymentSuccessCard({
@@ -457,9 +761,15 @@ export function PaymentSuccessCard({
   amount,
   method,
   tables,
+  invoiceStatus,
+  invoiceRef,
+  invoiceError,
+  onRetryInvoice,
 }: PaymentSuccessCardProps) {
+  const { format: formatMoney } = useMoney();
   return (
     <BentoCard
+      data-testid="payment-success-card"
       style={{
         padding: '20px',
         border: '1px solid var(--bento-success)',
@@ -486,8 +796,214 @@ export function PaymentSuccessCard({
         </span>
       </div>
       <div style={{ color: 'var(--bento-text-muted)', fontFamily: 'var(--bento-font-body)' }}>
-        {getTableDisplayName(tableId, tables)} • Total: ${amount} • Medio: {PAYMENT_METHOD_LABELS[method] || method}
+        {getTableDisplayName(tableId, tables)} • Total: {formatMoney(amount)} • Medio: {PAYMENT_METHOD_LABELS[method] || method}
       </div>
+      {invoiceStatus && invoiceStatus !== 'none' && (
+        <div
+          data-testid="invoice-status-section"
+          style={{
+            marginTop: '8px',
+            paddingTop: '8px',
+            borderTop: '1px solid var(--bento-border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--bento-text)' }}>
+              Factura electrónica:
+            </span>
+            <span
+              data-testid="invoice-status-badge"
+              style={{
+                padding: '2px 8px',
+                borderRadius: 'var(--bento-pill-radius)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                backgroundColor:
+                  invoiceStatus === 'issued'
+                    ? 'var(--bento-status-available)'
+                    : invoiceStatus === 'pending'
+                    ? 'var(--bento-note-general-bg)'
+                    : 'var(--bento-note-item-bg)',
+                color:
+                  invoiceStatus === 'issued'
+                    ? 'var(--bento-status-available-text)'
+                    : invoiceStatus === 'pending'
+                    ? 'var(--bento-status-reserved-text)'
+                    : 'var(--bento-status-occupied-text)',
+                border: '1px solid var(--bento-border)',
+              }}
+            >
+              {invoiceStatus === 'issued'
+                ? `Emitida ${invoiceRef ? `(Ref: ${invoiceRef})` : ''}`
+                : invoiceStatus === 'pending'
+                ? 'Pendiente de emisión'
+                : `Error ${invoiceError ? `(${invoiceError})` : ''}`}
+            </span>
+          </div>
+          {(invoiceStatus === 'pending' || invoiceStatus === 'error') && onRetryInvoice && (
+            <button
+              type="button"
+              data-testid="retry-invoice-btn"
+              onClick={onRetryInvoice}
+              style={{
+                padding: '4px 12px',
+                borderRadius: 'var(--bento-pill-radius)',
+                border: '1px solid var(--bento-border)',
+                backgroundColor: 'var(--bento-card-bg-solid)',
+                color: 'var(--bento-text)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Reintentar factura
+            </button>
+          )}
+        </div>
+      )}
     </BentoCard>
   );
 }
+
+export interface ReleaseTableModalProps {
+  open: boolean;
+  tableName: string;
+  pendingAmount: number;
+  loading?: boolean;
+  error?: string | null;
+  onConfirm: () => void;
+  onClose: () => void;
+  onRetry?: () => void;
+}
+
+export function ReleaseTableModal({
+  open,
+  tableName,
+  pendingAmount,
+  loading = false,
+  error = null,
+  onConfirm,
+  onClose,
+  onRetry,
+}: ReleaseTableModalProps) {
+  const { format: formatMoney } = useMoney();
+  if (!open) return null;
+
+  const hasPending = pendingAmount > 0;
+
+  return (
+    <Modal open={open} title="Liberar mesa" onClose={() => { if (!loading) onClose(); }}
+      maxWidth="480px"
+      footer={<>
+        <Button variant="secondary" onClick={onClose} disabled={loading}>Cancelar</Button>
+        <Button disabled={hasPending || loading} onClick={hasPending ? undefined : onConfirm}
+          title={hasPending ? 'Acción bloqueada: saldo pendiente sin cobrar' : 'Confirmar liberación'}>
+          {loading ? 'Liberando...' : 'Confirmar liberación'}
+        </Button>
+      </>}>
+        {hasPending ? (
+          <div
+            role="alert"
+            tabIndex={-1}
+            style={{
+              padding: '14px',
+              borderRadius: 'var(--bento-inner-radius)',
+              background: 'color-mix(in srgb, var(--bento-destructive) 10%, transparent)',
+              color: 'var(--bento-destructive)',
+              border: '1px solid var(--bento-destructive)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
+              <svg
+                aria-hidden="true"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>Acción bloqueada</span>
+            </div>
+            <span style={{ fontSize: '0.9rem' }}>
+              La mesa tiene un consumo pendiente de {formatMoney(pendingAmount)} sin cobrar. No es posible liberar la mesa hasta liquidar la cuenta.
+            </span>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <p style={{ margin: 0, color: 'var(--bento-text)' }}>
+              La mesa <strong>{tableName}</strong> está al día y no tiene consumos pendientes.
+            </p>
+            <p style={{ margin: 0, color: 'var(--bento-text-muted)', fontSize: '0.9rem' }}>
+              ¿Confirmas que deseas cerrar la sesión y liberar la mesa?
+            </p>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid var(--bento-border)', paddingTop: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+            <span style={{ color: 'var(--bento-text-muted)' }}>Mesa</span>
+            <span style={{ fontWeight: 600 }}>{tableName}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+            <span style={{ color: 'var(--bento-text-muted)' }}>Saldo pendiente</span>
+            <span style={{ fontWeight: 700, color: hasPending ? 'var(--bento-destructive)' : 'var(--bento-success)' }}>
+              {formatMoney(pendingAmount)}
+            </span>
+          </div>
+        </div>
+
+        {error && (
+          <div
+            role="alert"
+            tabIndex={-1}
+            style={{
+              padding: '12px',
+              borderRadius: 'var(--bento-inner-radius)',
+              background: 'color-mix(in srgb, var(--bento-destructive) 10%, transparent)',
+              color: 'var(--bento-destructive)',
+              border: '1px solid var(--bento-destructive)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+            }}
+          >
+            <span>{error === 'SESSION_CLOSE_FAILED' ? 'Error al cerrar la sesión en el servidor' : error}</span>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                style={{
+                  minHeight: '36px',
+                  padding: '0 12px',
+                  borderRadius: 'var(--bento-pill-radius)',
+                  background: 'var(--bento-destructive)',
+                  color: 'var(--bento-card-bg-solid)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                Reintentar cierre
+              </button>
+            )}
+          </div>
+        )}
+
+    </Modal>
+  );
+}
+

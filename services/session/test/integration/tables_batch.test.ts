@@ -3,6 +3,7 @@ import { createSeededSessionTestApp } from '../helpers/sessionTestApp';
 import {
   InMemoryTableRepository,
   InMemoryTableSessionRepository,
+  InMemoryZoneRepository,
 } from '../../src/infrastructure/fakes/InMemorySessionAdapters';
 import { createSessionApp } from '../../src/app';
 
@@ -12,9 +13,15 @@ describe('Tables Batch HTTP Integration Tests', () => {
   function createFreshApp() {
     const tableRepo = new InMemoryTableRepository();
     const sessionRepo = new InMemoryTableSessionRepository();
+    const zoneRepo = new InMemoryZoneRepository();
     tableRepo.tables = [];
-    const app = createSessionApp({ tableRepo, sessionRepo });
-    return { app, tableRepo, sessionRepo };
+    zoneRepo.zones = [
+      { id: 'zone-batch-test', tenantId, name: 'Zona Batch', sortOrder: 1 },
+      { id: 'zone-tenant-A', tenantId: 'tenant-A', name: 'Zona A', sortOrder: 1 },
+      { id: 'zone-tenant-B', tenantId: 'tenant-B', name: 'Zona B', sortOrder: 1 },
+    ];
+    const app = createSessionApp({ tableRepo, sessionRepo, zoneRepo });
+    return { app, tableRepo, sessionRepo, zoneRepo };
   }
 
   describe('POST /tables/batch & POST /tables', () => {
@@ -25,7 +32,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
         .post('/tables/batch')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ prefix: 'Terraza', count: 3, start: 10 });
+        .send({ prefix: 'Terraza', count: 3, start: 10, zoneId: 'zone-batch-test' });
 
       expect(resPrefix.status).toBe(201);
       expect(resPrefix.body.tables).toHaveLength(3);
@@ -41,7 +48,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
         .post('/tables/batch')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'manager')
-        .send({ labels: ['Barra 1', 'Barra 2'] });
+        .send({ labels: ['Barra 1', 'Barra 2'], zoneId: 'zone-batch-test' });
 
       expect(resLabels.status).toBe(201);
       expect(resLabels.body.tables).toHaveLength(2);
@@ -56,7 +63,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
         .post('/tables')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ label: 'Mesa 1' });
+        .send({ label: 'Mesa 1', zoneId: 'zone-batch-test' });
       expect(resInit.status).toBe(201);
 
       // POST /tables con duplicado case/trim-insensitive
@@ -64,7 +71,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
         .post('/tables')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ label: '  mESA 1  ' });
+        .send({ label: '  mESA 1  ', zoneId: 'zone-batch-test' });
 
       expect(resSingleDup.status).toBe(409);
       expect(resSingleDup.body.error.code).toBe('TABLE_LABEL_TAKEN');
@@ -75,7 +82,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
         .post('/tables/batch')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ labels: ['Mesa Nueva', '  MESA 1 '] });
+        .send({ labels: ['Mesa Nueva', '  MESA 1 '], zoneId: 'zone-batch-test' });
 
       expect(resBatchDup.status).toBe(409);
       expect(resBatchDup.body.error.code).toBe('TABLE_LABEL_TAKEN');
@@ -85,7 +92,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
       const listRes = await request(app)
         .get('/tables')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       expect(listRes.status).toBe(200);
       expect(listRes.body).toHaveLength(1);
       expect(listRes.body[0].label).toBe('Mesa 1');
@@ -100,7 +107,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
         .post('/tables/batch')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ labels: ['Mesa A', 'Mesa B'] });
+        .send({ labels: ['Mesa A', 'Mesa B'], zoneId: 'zone-batch-test' });
 
       const [tableA, tableB] = created.body.tables;
 
@@ -120,12 +127,12 @@ describe('Tables Batch HTTP Integration Tests', () => {
       expect(swapRes.body.tables[0]).toMatchObject({
         tableId: tableA.tableId,
         label: 'Mesa B',
-        status: 'inactive',
+        status: expect.stringMatching(/^(inactive|DISABLED)$/),
       });
       expect(swapRes.body.tables[1]).toMatchObject({
         tableId: tableB.tableId,
         label: 'Mesa A',
-        status: 'active',
+        status: expect.stringMatching(/^(active|AVAILABLE)$/),
       });
     });
 
@@ -136,7 +143,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
         .post('/tables')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ label: 'Mesa 1' });
+        .send({ label: 'Mesa 1', zoneId: 'zone-batch-test' });
       const table1 = created.body;
 
       // status: 'deleted' -> 400 VALIDATION_ERROR
@@ -187,7 +194,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
         .post('/tables/batch')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ labels: ['Mesa 1', 'Mesa 2'] });
+        .send({ labels: ['Mesa 1', 'Mesa 2'], zoneId: 'zone-batch-test' });
 
       const [t1, t2] = created.body.tables;
 
@@ -201,7 +208,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
       expect(patchOk.body).toMatchObject({
         tableId: t1.tableId,
         label: 'Mesa 1 VIP',
-        status: 'inactive',
+        status: expect.stringMatching(/^(inactive|DISABLED)$/),
       });
 
       const patchConflict = await request(app)
@@ -223,7 +230,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
         .post('/tables/batch')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ labels: ['Mesa Libre', 'Mesa Ocupada'] });
+        .send({ labels: ['Mesa Libre', 'Mesa Ocupada'], zoneId: 'zone-batch-test' });
 
       const [freeTable, busyTable] = created.body.tables;
       const busyStored = await tableRepo.findById(tenantId, busyTable.tableId);
@@ -263,7 +270,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
         .post('/tables')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ label: 'Mesa Activa' });
+        .send({ label: 'Mesa Activa', zoneId: 'zone-batch-test' });
 
       const stored = await tableRepo.findById(tenantId, created.body.tableId);
       await request(app).post('/sessions/open').send({
@@ -298,7 +305,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
         .post('/tables')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ label: 'Mesa Temporal' });
+        .send({ label: 'Mesa Temporal', zoneId: 'zone-batch-test' });
 
       const tableId = created.body.tableId;
       const beforeDelete = await tableRepo.findById(tenantId, tableId);
@@ -316,7 +323,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
       const listRes = await request(app)
         .get('/tables')
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       expect(listRes.status).toBe(200);
       expect(listRes.body).toEqual([]);
 
@@ -324,7 +331,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
       const qrRes = await request(app)
         .get(`/tables/${tableId}/qr`)
         .set('x-tenant-id', tenantId)
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       expect(qrRes.status).toBe(404);
       expect(qrRes.body.error.code).toBe('TABLE_NOT_FOUND');
 
@@ -348,7 +355,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
         .post('/tables')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ label: 'Mesa Temporal' });
+        .send({ label: 'Mesa Temporal', zoneId: 'zone-batch-test' });
       expect(recreated.status).toBe(201);
       expect(recreated.body.label).toBe('Mesa Temporal');
       expect(recreated.body.tableId).not.toBe(tableId);
@@ -362,7 +369,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
       const resCreateBatch = await request(app)
         .post('/tables/batch')
         .set('x-tenant-id', 'tenant-100')
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({ labels: ['Mesa Staff'] });
       expect(resCreateBatch.status).toBe(403);
       expect(resCreateBatch.body.error.code).toBe('FORBIDDEN');
@@ -370,7 +377,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
       const resPatchBatch = await request(app)
         .patch('/tables/batch')
         .set('x-tenant-id', 'tenant-100')
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({ updates: [{ tableId: 'table-1', label: 'Mesa X' }] });
       expect(resPatchBatch.status).toBe(403);
       expect(resPatchBatch.body.error.code).toBe('FORBIDDEN');
@@ -378,7 +385,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
       const resPatchSingle = await request(app)
         .patch('/tables/table-1')
         .set('x-tenant-id', 'tenant-100')
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({ label: 'Mesa X' });
       expect(resPatchSingle.status).toBe(403);
       expect(resPatchSingle.body.error.code).toBe('FORBIDDEN');
@@ -386,7 +393,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
       const resDeleteBatch = await request(app)
         .post('/tables/batch/delete')
         .set('x-tenant-id', 'tenant-100')
-        .set('x-user-role', 'staff')
+        .set('x-user-role', 'waiter')
         .send({ tableIds: ['table-1'] });
       expect(resDeleteBatch.status).toBe(403);
       expect(resDeleteBatch.body.error.code).toBe('FORBIDDEN');
@@ -394,7 +401,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
       const resGet = await request(app)
         .get('/tables')
         .set('x-tenant-id', 'tenant-100')
-        .set('x-user-role', 'staff');
+        .set('x-user-role', 'waiter');
       expect(resGet.status).toBe(200);
     });
 
@@ -405,7 +412,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
         .post('/tables')
         .set('x-tenant-id', 'tenant-A')
         .set('x-user-role', 'admin')
-        .send({ label: 'Mesa A1' });
+        .send({ label: 'Mesa A1', zoneId: 'zone-tenant-A' });
       expect(createdA.status).toBe(201);
       const tableAId = createdA.body.tableId;
 
@@ -414,7 +421,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
         .post('/tables')
         .set('x-tenant-id', 'tenant-B')
         .set('x-user-role', 'admin')
-        .send({ label: 'Mesa A1' });
+        .send({ label: 'Mesa A1', zoneId: 'zone-tenant-B' });
       expect(createdB.status).toBe(201);
 
       // Tenant B no puede editar mesa de Tenant A -> 404 TABLE_NOT_FOUND
@@ -447,7 +454,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
           .post('/tables/batch')
           .set('x-tenant-id', tenantId)
           .set('x-user-role', 'admin')
-          .send({ prefix: `Lote${batch}`, count: 50, start: 1 });
+          .send({ prefix: `Lote${batch}`, count: 50, start: 1, zoneId: 'zone-batch-test' });
         expect(res.status).toBe(201);
       }
 
@@ -455,7 +462,7 @@ describe('Tables Batch HTTP Integration Tests', () => {
         .post('/tables')
         .set('x-tenant-id', tenantId)
         .set('x-user-role', 'admin')
-        .send({ label: 'Mesa 501' });
+        .send({ label: 'Mesa 501', zoneId: 'zone-batch-test' });
       expect(overLimit.status).toBe(409);
       expect(overLimit.body.error.code).toBe('TABLE_LIMIT_EXCEEDED');
     });

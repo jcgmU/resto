@@ -1,5 +1,10 @@
 import React from 'react';
-import { OrderDTO, OrderStatus, TableDTO } from '@packages/shared-types';
+import {
+  OrderDTO,
+  OrderStatus,
+  OrderHistoryEventDTO,
+  TableDTO,
+} from '@packages/shared-types';
 import { KdsOrderCard } from './KdsOrderCard';
 
 export interface KdsColumnProps {
@@ -9,6 +14,10 @@ export interface KdsColumnProps {
   tables?: TableDTO[];
   onAdvanceStatus?: (orderId: string, nextStatus: OrderStatus) => void;
   updatingOrderId?: string | null;
+  tenantSlaMinutes?: number;
+  onUpdateDelay?: (orderId: string, delayMinutes: number) => void;
+  onFetchHistory?: (orderId: string) => Promise<OrderHistoryEventDTO[]>;
+  monitorKind?: 'kitchen' | 'bar' | null;
 }
 
 export function KdsColumn({
@@ -18,8 +27,27 @@ export function KdsColumn({
   tables,
   onAdvanceStatus,
   updatingOrderId,
+  tenantSlaMinutes,
+  onUpdateDelay,
+  onFetchHistory,
+  monitorKind,
 }: KdsColumnProps) {
-  const columnOrders = orders.filter((o) => o.status === status);
+  // Ordenadas siempre por más tiempo transcurrido primero (createdAt asc)
+  const columnOrders = orders
+    .filter((o) => {
+      const orderEffectiveStatus = monitorKind === 'kitchen'
+        ? (o.kitchenStatus || o.status)
+        : monitorKind === 'bar'
+        ? (o.barStatus || o.status)
+        : o.status;
+      return orderEffectiveStatus === status;
+    })
+    .sort((a, b) => {
+      const timeA = new Date(a.createdAt).getTime();
+      const timeB = new Date(b.createdAt).getTime();
+      return timeA - timeB;
+    });
+
   const countText = `${columnOrders.length} orden${columnOrders.length === 1 ? '' : 'es'}`;
 
   return (
@@ -64,7 +92,7 @@ export function KdsColumn({
             fontSize: '12px',
             fontWeight: 600,
             color: 'var(--bento-text-muted)',
-            backgroundColor: 'var(--bento-hueso)',
+            backgroundColor: 'var(--bento-page-bg)',
             padding: '2px 10px',
             borderRadius: 'var(--bento-pill-radius)',
             border: '1px solid var(--bento-border)',
@@ -105,6 +133,10 @@ export function KdsColumn({
               tables={tables}
               onAdvanceStatus={onAdvanceStatus}
               isUpdating={updatingOrderId === order.id}
+              tenantSlaMinutes={tenantSlaMinutes}
+              onUpdateDelay={onUpdateDelay}
+              onFetchHistory={onFetchHistory}
+              monitorKind={monitorKind}
             />
           ))
         )}

@@ -1,5 +1,7 @@
+import { Button } from '@packages/ui-components';
 import React from 'react';
 import { KpiValue } from '@packages/ui-components';
+import { useMoney } from '../../lib/money';
 
 export interface CartSummaryBarProps {
   total: number;
@@ -14,6 +16,7 @@ export function CartSummaryBar({
   isConfirming,
   disabled,
 }: CartSummaryBarProps) {
+  const { format } = useMoney();
   return (
     <div
       data-component="cart-summary-bar"
@@ -28,11 +31,11 @@ export function CartSummaryBar({
     >
       <KpiValue
         label="Total"
-        value={`$${total.toFixed(2)}`}
+        value={format(total)}
         tone="accent"
       />
 
-      <button
+      <Button
         type="button"
         disabled={disabled || isConfirming}
         aria-busy={isConfirming}
@@ -49,8 +52,8 @@ export function CartSummaryBar({
           opacity: disabled || isConfirming ? 0.6 : 1,
         }}
       >
-        {isConfirming ? 'Enviando...' : 'Enviar pedido'}
-      </button>
+        {isConfirming ? 'Enviando...' : `Enviar Pedido • ${format(total)}`}
+      </Button>
     </div>
   );
 }

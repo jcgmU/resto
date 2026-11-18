@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BentoCard } from '@packages/ui-components';
 import { ApiClient } from '../../../lib/api';
+import { terminalHomeForRole } from '../../../lib/auth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,15 +23,19 @@ export default function LoginPage() {
       if (tenantSlug.trim()) {
         payload.tenantSlug = tenantSlug.trim();
       }
-      await ApiClient.login(payload);
+      const res = await ApiClient.login(payload);
+      const user = res?.data?.user;
+      const role = user?.role?.toLowerCase();
+      const targetPath = terminalHomeForRole(role) ?? '/menu';
+
       // Fallback for tests or non-Next environments
       if (typeof window !== 'undefined' && window.location) {
-        window.history.pushState({}, '', '/menu');
+        window.history.pushState({}, '', targetPath);
       }
-      router.push('/menu');
+      router.push(targetPath);
     } catch (err: any) {
       if (err.status === 401 || err.code === 'UNAUTHORIZED') {
-        setError('Credenciales inválidas. Verifica tu correo y contraseña.');
+        setError('Credenciales inválidas. Verifica tu usuario y contraseña.');
       } else {
         setError(err.message || 'Error al iniciar sesión');
       }
@@ -46,7 +51,7 @@ export default function LoginPage() {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        backgroundColor: 'var(--bento-hueso)',
+        backgroundColor: 'var(--bento-page-bg)',
         padding: '24px 16px',
         boxSizing: 'border-box',
         fontFamily: 'var(--bento-font-body)',
@@ -61,7 +66,7 @@ export default function LoginPage() {
       <div style={{ width: '100%', maxWidth: '400px' }}>
         <BentoCard
           style={{
-            backgroundColor: 'var(--bento-papel)',
+            backgroundColor: 'var(--bento-card-bg-solid)',
             border: '1px solid var(--bento-border)',
             borderRadius: 'var(--bento-card-radius)',
             boxShadow: 'var(--bento-card-shadow)',
@@ -70,25 +75,13 @@ export default function LoginPage() {
           }}
         >
           <div>
-            <div
-              style={{
-                fontSize: '0.6875rem',
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                color: 'var(--bento-text-muted)',
-                marginBottom: '4px',
-              }}
-            >
-              Resto Admin
-            </div>
             <h1
               style={{
                 margin: '0 0 8px 0',
-                fontSize: '1.625rem',
+                fontSize: '1.75rem',
                 fontWeight: 700,
                 fontFamily: 'var(--bento-font-heading)',
-                color: 'var(--bento-tinta)',
+                color: 'var(--bento-text-strong)',
                 letterSpacing: '-0.02em',
               }}
             >
@@ -98,7 +91,7 @@ export default function LoginPage() {
               style={{
                 margin: '0 0 24px 0',
                 color: 'var(--bento-text-muted)',
-                fontSize: '0.875rem',
+                fontSize: '0.9375rem',
                 fontFamily: 'var(--bento-font-body)',
                 lineHeight: 1.4,
               }}
@@ -113,10 +106,10 @@ export default function LoginPage() {
                   padding: '12px 14px',
                   marginBottom: '20px',
                   borderRadius: 'var(--bento-inner-radius)',
-                  backgroundColor: 'var(--bento-papel)',
-                  border: '1px solid var(--bento-destructive)',
-                  color: 'var(--bento-destructive)',
-                  fontSize: '0.875rem',
+                  backgroundColor: 'var(--bento-note-item-bg, #fbeaea)',
+                  border: '1px solid var(--bento-status-occupied)',
+                  color: 'var(--bento-status-occupied-text)',
+                  fontSize: '0.9375rem',
                   fontWeight: 500,
                   display: 'flex',
                   alignItems: 'center',
@@ -147,29 +140,30 @@ export default function LoginPage() {
                 <label
                   htmlFor="email"
                   style={{
-                    fontSize: '0.875rem',
+                    fontSize: '0.8125rem',
                     fontWeight: 600,
-                    color: 'var(--bento-tinta)',
+                    color: 'var(--bento-text)',
                     fontFamily: 'var(--bento-font-body)',
                   }}
                 >
-                  Correo Electrónico
+                  Usuario o Correo
                 </label>
                 <input
                   id="email"
-                  type="email"
+                  type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ejemplo@resto.com"
+                  placeholder="admin o ejemplo@resto.com"
                   required
                   disabled={loading}
                   style={{
+                    minHeight: 'var(--bento-touch-target, 44px)',
                     padding: '10px 14px',
                     borderRadius: 'var(--bento-inner-radius)',
                     border: '1px solid var(--bento-border)',
-                    backgroundColor: 'var(--bento-papel)',
-                    color: 'var(--bento-tinta)',
-                    fontSize: '0.95rem',
+                    backgroundColor: 'var(--bento-card-bg-solid)',
+                    color: 'var(--bento-text)',
+                    fontSize: '0.9375rem',
                     fontFamily: 'var(--bento-font-body)',
                     boxSizing: 'border-box',
                     width: '100%',
@@ -181,9 +175,9 @@ export default function LoginPage() {
                 <label
                   htmlFor="password"
                   style={{
-                    fontSize: '0.875rem',
+                    fontSize: '0.8125rem',
                     fontWeight: 600,
-                    color: 'var(--bento-tinta)',
+                    color: 'var(--bento-text)',
                     fontFamily: 'var(--bento-font-body)',
                   }}
                 >
@@ -192,18 +186,20 @@ export default function LoginPage() {
                 <input
                   id="password"
                   type="password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
                   disabled={loading}
                   style={{
+                    minHeight: 'var(--bento-touch-target, 44px)',
                     padding: '10px 14px',
                     borderRadius: 'var(--bento-inner-radius)',
                     border: '1px solid var(--bento-border)',
-                    backgroundColor: 'var(--bento-papel)',
-                    color: 'var(--bento-tinta)',
-                    fontSize: '0.95rem',
+                    backgroundColor: 'var(--bento-card-bg-solid)',
+                    color: 'var(--bento-text)',
+                    fontSize: '0.9375rem',
                     fontFamily: 'var(--bento-font-body)',
                     boxSizing: 'border-box',
                     width: '100%',
@@ -215,9 +211,9 @@ export default function LoginPage() {
                 <label
                   htmlFor="tenantSlug"
                   style={{
-                    fontSize: '0.875rem',
+                    fontSize: '0.8125rem',
                     fontWeight: 600,
-                    color: 'var(--bento-tinta)',
+                    color: 'var(--bento-text)',
                     fontFamily: 'var(--bento-font-body)',
                   }}
                 >
@@ -231,12 +227,13 @@ export default function LoginPage() {
                   placeholder="mi-restaurante"
                   disabled={loading}
                   style={{
+                    minHeight: 'var(--bento-touch-target, 44px)',
                     padding: '10px 14px',
                     borderRadius: 'var(--bento-inner-radius)',
                     border: '1px solid var(--bento-border)',
-                    backgroundColor: 'var(--bento-papel)',
-                    color: 'var(--bento-tinta)',
-                    fontSize: '0.95rem',
+                    backgroundColor: 'var(--bento-card-bg-solid)',
+                    color: 'var(--bento-text)',
+                    fontSize: '0.9375rem',
                     fontFamily: 'var(--bento-font-body)',
                     boxSizing: 'border-box',
                     width: '100%',
@@ -251,11 +248,12 @@ export default function LoginPage() {
                 style={{
                   marginTop: '8px',
                   padding: '12px 20px',
-                  backgroundColor: 'var(--bento-tinta)',
-                  color: 'var(--bento-papel)',
-                  border: '1px solid var(--bento-tinta)',
+                  backgroundColor: 'var(--bento-primary)',
+                  color: 'var(--bento-card-bg-solid)',
+                  border: '1px solid var(--bento-primary)',
                   borderRadius: 'var(--bento-pill-radius)',
                   fontSize: '0.95rem',
+                  minHeight: 'var(--bento-touch-target, 44px)',
                   fontWeight: 600,
                   fontFamily: 'var(--bento-font-body)',
                   cursor: loading ? 'not-allowed' : 'pointer',
@@ -290,7 +288,7 @@ export default function LoginPage() {
                 style={{
                   textAlign: 'center',
                   marginTop: '12px',
-                  fontSize: '0.875rem',
+                  fontSize: '0.8125rem',
                   color: 'var(--bento-text-muted)',
                   fontFamily: 'var(--bento-font-body)',
                 }}
@@ -299,7 +297,7 @@ export default function LoginPage() {
                 <a
                   href="/register"
                   style={{
-                    color: 'var(--bento-tinta)',
+                    color: 'var(--bento-primary)',
                     fontWeight: 600,
                     textDecoration: 'underline',
                     textUnderlineOffset: '3px',

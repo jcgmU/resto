@@ -1,9 +1,7 @@
 import {
   CategoryRepository,
-  ProductRepository,
   ModifierGroupRepository,
   CategoryDTO,
-  ProductDTO,
   ModifierGroupDTO,
   ModifierOptionDTO,
 } from '@packages/shared-types';
@@ -34,7 +32,9 @@ export class InMemoryCategoryRepository implements CategoryRepository {
   ];
 
   async listByTenant(tenantId: string): Promise<CategoryDTO[]> {
-    return this.categories.filter((c) => c.tenantId === tenantId);
+    return this.categories
+      .filter((c) => c.tenantId === tenantId)
+      .sort((a, b) => (a.sortOrder - b.sortOrder) || a.name.localeCompare(b.name));
   }
 
   async findById(tenantId: string, id: string): Promise<CategoryDTO | null> {

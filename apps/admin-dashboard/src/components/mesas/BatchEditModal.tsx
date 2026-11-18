@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FOCUSABLE_SELECTOR, TableItem } from './types';
+import { Modal } from '@packages/ui-components';
+import React, { useEffect, useMemo, useState } from 'react';
+import { TableItem } from './types';
 import { TableUpdatePatch, updateTablesBatch } from '../../lib/tablesApi';
 
 export interface BatchEditModalProps {
@@ -29,7 +30,6 @@ export function BatchEditModal({
   onClose,
   onSuccess,
 }: BatchEditModalProps) {
-  const modalRef = useRef<HTMLDivElement>(null);
   const [rows, setRows] = useState<RowDraft[]>([]);
   const [prefix, setPrefix] = useState('Mesa');
   const [startNumber, setStartNumber] = useState('1');
@@ -37,6 +37,8 @@ export function BatchEditModal({
   const [serverError, setServerError] = useState<string | null>(null);
   const [conflictIds, setConflictIds] = useState<Set<string>>(new Set());
   const [conflictLabelKeys, setConflictLabelKeys] = useState<Set<string>>(new Set());
+
+  const tablesKey = tables.map((t) => t.tableId).join('|');
 
   useEffect(() => {
     if (!open || tables.length === 0) return;
@@ -55,48 +57,7 @@ export function BatchEditModal({
     setServerError(null);
     setConflictIds(new Set());
     setConflictLabelKeys(new Set());
-  }, [open, tables, initialMode]);
-
-  useEffect(() => {
-    if (!open || tables.length === 0) return;
-    const prevFocus = document.activeElement as HTMLElement | null;
-    modalRef.current?.focus();
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
-        return;
-      }
-      if (e.key === 'Tab') {
-        if (!modalRef.current) return;
-        const nodes = Array.from(
-          modalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-        );
-        if (nodes.length === 0) {
-          e.preventDefault();
-          return;
-        }
-        const first = nodes[0];
-        const last = nodes[nodes.length - 1];
-        const active = document.activeElement;
-        if (e.shiftKey && (active === first || active === modalRef.current)) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && active === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      prevFocus?.focus?.();
-    };
-  }, [open, tables.length, onClose]);
+  }, [open, tablesKey, initialMode]);
 
   const validation = useMemo(() => {
     const counts = new Map<string, number>();
@@ -249,111 +210,13 @@ export function BatchEditModal({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="batch-edit-modal-title"
-      ref={modalRef}
-      tabIndex={-1}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          e.stopPropagation();
-          onClose();
-          return;
-        }
-        if (e.key === 'Tab') {
-          if (!modalRef.current) return;
-          const nodes = Array.from(
-            modalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-          );
-          if (nodes.length === 0) {
-            e.preventDefault();
-            return;
-          }
-          const first = nodes[0];
-          const last = nodes[nodes.length - 1];
-          const active = document.activeElement;
-          if (e.shiftKey && (active === first || active === modalRef.current)) {
-            e.preventDefault();
-            last.focus();
-          } else if (!e.shiftKey && active === last) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'color-mix(in srgb, var(--bento-tinta) 45%, transparent)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 50,
-        padding: '16px',
-      }}
-    >
-      <div
-        style={{
-          backgroundColor: 'var(--bento-papel)',
-          color: 'var(--bento-text)',
-          padding: '24px',
-          borderRadius: 'var(--bento-card-radius)',
-          width: '100%',
-          maxWidth: '640px',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          boxShadow: 'var(--bento-card-shadow)',
-          border: '1px solid var(--bento-border)',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '16px',
-          }}
-        >
-          <h2
-            id="batch-edit-modal-title"
-            style={{
-              margin: 0,
-              fontSize: '1.25rem',
-              fontWeight: 700,
-              fontFamily: 'var(--bento-font-heading)',
-              color: 'var(--bento-text)',
-            }}
-          >
-            Editar {tables.length} {tables.length === 1 ? 'mesa' : 'mesas'} en lote
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar modal"
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '1.25rem',
-              cursor: 'pointer',
-              color: 'var(--bento-text-muted)',
-              padding: '4px',
-            }}
-          >
-            ✕
-          </button>
-        </div>
-
+    <Modal open={true} title={`Editar ${tables.length} ${tables.length === 1 ? 'mesa' : 'mesas'} en lote`} onClose={onClose} maxWidth="640px" footer={<></>}>
         {serverError && (
           <div
             role="alert"
             style={{
               padding: '10px 14px',
-              backgroundColor: 'var(--bento-papel)',
+              backgroundColor: 'var(--bento-card-bg-solid)',
               color: 'var(--bento-destructive)',
               border: '1px solid var(--bento-destructive)',
               borderRadius: 'var(--bento-inner-radius)',
@@ -370,7 +233,7 @@ export function BatchEditModal({
           <div
             style={{
               padding: '14px',
-              backgroundColor: 'var(--bento-hueso)',
+              backgroundColor: 'var(--bento-panel-bg)',
               borderRadius: 'var(--bento-inner-radius)',
               border: '1px solid var(--bento-border)',
               marginBottom: '14px',
@@ -416,8 +279,8 @@ export function BatchEditModal({
                     width: '100%',
                     padding: '8px 10px',
                     borderRadius: 'var(--bento-inner-radius)',
-                    border: '1px solid var(--bento-border)',
-                    backgroundColor: 'var(--bento-papel)',
+                    border: '1px solid var(--bento-field-border)',
+                    backgroundColor: 'var(--bento-field-bg)',
                     color: 'var(--bento-text)',
                     boxSizing: 'border-box',
                   }}
@@ -447,8 +310,8 @@ export function BatchEditModal({
                     width: '100%',
                     padding: '8px 10px',
                     borderRadius: 'var(--bento-inner-radius)',
-                    border: '1px solid var(--bento-border)',
-                    backgroundColor: 'var(--bento-papel)',
+                    border: '1px solid var(--bento-field-border)',
+                    backgroundColor: 'var(--bento-field-bg)',
                     color: 'var(--bento-text)',
                     boxSizing: 'border-box',
                   }}
@@ -461,9 +324,9 @@ export function BatchEditModal({
                 style={{
                   minHeight: '38px',
                   padding: '0 14px',
-                  backgroundColor: 'var(--bento-tinta)',
-                  color: 'var(--bento-papel)',
-                  border: '1px solid var(--bento-tinta)',
+                  backgroundColor: 'var(--bento-primary)',
+                  color: 'var(--bento-card-bg-solid)',
+                  border: '1px solid var(--bento-border)',
                   borderRadius: 'var(--bento-pill-radius)',
                   cursor: 'pointer',
                   fontWeight: 600,
@@ -500,7 +363,7 @@ export function BatchEditModal({
               style={{
                 minHeight: '34px',
                 padding: '0 12px',
-                backgroundColor: 'var(--bento-papel)',
+                backgroundColor: 'var(--bento-card-bg-solid)',
                 color: 'var(--bento-text)',
                 border: '1px solid var(--bento-border)',
                 borderRadius: 'var(--bento-pill-radius)',
@@ -517,7 +380,7 @@ export function BatchEditModal({
               style={{
                 minHeight: '34px',
                 padding: '0 12px',
-                backgroundColor: 'var(--bento-papel)',
+                backgroundColor: 'var(--bento-card-bg-solid)',
                 color: 'var(--bento-text)',
                 border: '1px solid var(--bento-border)',
                 borderRadius: 'var(--bento-pill-radius)',
@@ -557,7 +420,7 @@ export function BatchEditModal({
                     border: hasIssue
                       ? '1px solid var(--bento-destructive)'
                       : '1px solid var(--bento-border)',
-                    backgroundColor: 'var(--bento-papel)',
+                    backgroundColor: 'var(--bento-card-bg-solid)',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '6px',
@@ -594,8 +457,8 @@ export function BatchEditModal({
                           width: '100%',
                           padding: '8px 10px',
                           borderRadius: 'var(--bento-inner-radius)',
-                          border: '1px solid var(--bento-border)',
-                          backgroundColor: 'var(--bento-papel)',
+                          border: '1px solid var(--bento-field-border)',
+                          backgroundColor: 'var(--bento-field-bg)',
                           color: 'var(--bento-text)',
                           boxSizing: 'border-box',
                         }}
@@ -627,8 +490,8 @@ export function BatchEditModal({
                           width: '100%',
                           padding: '8px 10px',
                           borderRadius: 'var(--bento-inner-radius)',
-                          border: '1px solid var(--bento-border)',
-                          backgroundColor: 'var(--bento-papel)',
+                          border: '1px solid var(--bento-field-border)',
+                          backgroundColor: 'var(--bento-field-bg)',
                           color: 'var(--bento-text)',
                           boxSizing: 'border-box',
                         }}
@@ -680,9 +543,9 @@ export function BatchEditModal({
               style={{
                 minHeight: '44px',
                 padding: '0 20px',
-                backgroundColor: 'var(--bento-tinta)',
-                color: 'var(--bento-papel)',
-                border: '1px solid var(--bento-tinta)',
+                backgroundColor: 'var(--bento-primary)',
+                color: 'var(--bento-card-bg-solid)',
+                border: '1px solid var(--bento-border)',
                 borderRadius: 'var(--bento-pill-radius)',
                 cursor: !validation.isValid || saving ? 'not-allowed' : 'pointer',
                 opacity: !validation.isValid || saving ? 0.6 : 1,
@@ -694,7 +557,6 @@ export function BatchEditModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

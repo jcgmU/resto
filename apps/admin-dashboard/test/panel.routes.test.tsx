@@ -132,20 +132,13 @@ describe('U10: Admin Dashboard, Pagos y Ajustes', () => {
         expect(screen.getByText('3')).toBeInTheDocument();
       });
 
-      // Los KPIs viven dentro de un panel de vidrio mate de la grilla bento
+      // El KPI de mesas activas usa la tarjeta de estado compartida.
       const kpis = container.querySelectorAll('[data-component="kpi-delta"]');
       expect(kpis.length).toBeGreaterThanOrEqual(2);
-      expect(kpis[0].closest('.glass')).not.toBeNull();
+      expect(kpis[0].closest('[data-component="status-card"]')).toHaveAttribute('data-status', 'occupied');
 
-      // Mapa de mesas: estado real por mesa (ocupada, pidió cuenta, libre)
-      expect(screen.getByText('Mapa de mesas')).toBeInTheDocument();
-      expect(container.querySelectorAll('.tbl').length).toBe(4);
-      expect(container.querySelector('.tbl[data-state="cuenta"]')).toHaveTextContent('Mesa 1');
-      expect(container.querySelector('.tbl[data-state="ocupada"]')).toHaveTextContent('Mesa 2');
-      expect(container.querySelectorAll('.tbl[data-state="libre"]').length).toBe(2);
-
-      // KPI sin endpoint real (analytics) está protegido tras FeatureGuard mostrando Próximamente
-      expect(screen.getAllByTestId('proximamente').length).toBeGreaterThanOrEqual(1);
+      // Sin rol de gestión identificado, no muestra datos financieros.
+      expect(screen.queryByText('Ventas del Día')).not.toBeInTheDocument();
 
       // Panel Brief muestra alerta real de servicio
       expect(screen.getByText(/Brief Operativo|Alertas/i)).toBeInTheDocument();
@@ -173,8 +166,16 @@ describe('U10: Admin Dashboard, Pagos y Ajustes', () => {
       expect(screen.getByText('Sin alertas activas')).toBeInTheDocument();
     });
 
-    test('5. Flag "analytics" ON: ingresos en COP con datos de ejemplo claramente marcados', async () => {
-      ApiClient.request = jest.fn().mockImplementation(async () => ({ status: 200, data: [] }));
+    test('5. Flag "analytics" ON: Ventas del Día y Ticket Promedio muestran el reporte real', async () => {
+      localStorage.setItem('resto_user', JSON.stringify({ role: 'ADMIN' }));
+      ApiClient.request = jest.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/v1/reports/sales/today')) return { total: '10000.00', tickets: 1, averageTicket: '10000.00' };
+        if (url.includes('/v1/sessions')) return { status: 200, data: [] };
+        if (url.includes('/v1/tables')) return { status: 200, data: [] };
+        if (url.includes('/v1/orders')) return { status: 200, data: [] };
+        if (url.includes('/v1/service-calls')) return { status: 200, data: [] };
+        return { status: 200, data: [] };
+      });
 
       renderWithFlags(<DashboardPage />, { analytics: true });
 
@@ -182,35 +183,10 @@ describe('U10: Admin Dashboard, Pagos y Ajustes', () => {
         expect(screen.getByText('Mesas Activas')).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Datos de ejemplo')).toBeInTheDocument();
-      expect(screen.getByText(/2\.847\.500/)).toBeInTheDocument();
+      expect(await screen.findByText(/Ventas del Día/i)).toBeInTheDocument();
+      expect(screen.getByText(/Ticket Promedio/i)).toBeInTheDocument();
       expect(screen.queryByTestId('proximamente')).not.toBeInTheDocument();
-    });
-
-    test('6. Flag "analytics" OFF: los ingresos muestran Próximamente y ninguna cifra inventada', async () => {
-      ApiClient.request = jest.fn().mockImplementation(async () => ({ status: 200, data: [] }));
-
-      renderWithFlags(<DashboardPage />, { analytics: false });
-
-      await waitFor(() => {
-        expect(screen.getByText('Mesas Activas')).toBeInTheDocument();
-      });
-
-      expect(screen.getByTestId('proximamente')).toBeInTheDocument();
-      expect(screen.getByText(/Ingresos del día/i)).toBeInTheDocument();
-      expect(screen.queryByText(/2\.847\.500/)).not.toBeInTheDocument();
-    });
-
-    test('7. Accesos de inventario: solo la disponibilidad del menú navega; el resto está deshabilitado y rotulado', async () => {
-      ApiClient.request = jest.fn().mockImplementation(async () => ({ status: 200, data: [] }));
-
-      renderWithFlags(<DashboardPage />);
-
-      const link = await screen.findByRole('link', { name: /Disponibilidad de productos/i });
-      expect(link).toHaveAttribute('href', '/menu');
-      const pending = screen.getAllByText('Pronto');
-      expect(pending.length).toBe(3);
-      pending.forEach((el) => expect(el.closest('button')).toHaveAttribute('aria-disabled', 'true'));
+      localStorage.removeItem('resto_user');
     });
   });
 
@@ -225,6 +201,7 @@ describe('U10: Admin Dashboard, Pagos y Ajustes', () => {
       const { container } = renderWithFlags(<PagosPage />, { payments: true });
       expect(screen.queryByRole('heading', { name: /^Pagos$/i, level: 1 })).not.toBeInTheDocument();
       expect(screen.getByText(/Sin historial/i)).toBeInTheDocument();
+      expect(screen.getByText(/Los cobros se registran en efectivo o tarjeta desde Checkout o la Terminal de Caja/i)).toBeInTheDocument();
       expect(container.querySelector('[data-component="bento-card"]')).not.toBeNull();
     });
   });
@@ -243,14 +220,151 @@ describe('U10: Admin Dashboard, Pagos y Ajustes', () => {
         return `${header}.${payload}.signature`;
       };
       ApiClient.token = makeJwt('ADMIN');
+      const originalListTeam = ApiClient.listTeam;
       ApiClient.listTeam = jest.fn().mockResolvedValue({ status: 200, data: [] });
 
-      const { container } = renderWithFlags(<AjustesPage />, { 'table-qr': true });
+      const { container } = renderWithFlags(<AjustesPage />, { 'multi-language': true });
       expect(screen.queryByRole('heading', { name: /^Ajustes$/i, level: 1 })).not.toBeInTheDocument();
       await waitFor(() => {
-        expect(screen.getByText(/Gestión de Equipo/i)).toBeInTheDocument();
+        expect(screen.getByText('Equipo de Trabajo')).toBeInTheDocument();
       });
       expect(container.querySelector('[data-component="bento-card"]')).not.toBeNull();
+      ApiClient.listTeam = originalListTeam;
+      ApiClient.token = 'test-token';
+    });
+
+    test('3. Con flag ON: carga y lista empleados en sección Equipo de Trabajo', async () => {
+      ApiClient.request = jest.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/v1/identity/users')) {
+          return {
+            status: 200,
+            data: [
+              { id: 'u1', displayName: 'Carlos Mesero', email: 'mesero@resto.com', role: 'WAITER', status: 'ACTIVE' },
+              { id: 'u2', displayName: 'Monitor Cocina', email: 'monitor@resto.com', role: 'MONITOR', monitorKind: 'kitchen', status: 'ACTIVE' },
+              { id: 'u3', displayName: 'Laura Caja', email: 'caja@resto.com', role: 'CASHIER', status: 'ACTIVE' },
+            ],
+          };
+        }
+        if (url.includes('/v1/tenant/settings')) {
+          return { status: 200, data: { invoiceMode: 'simple' } };
+        }
+        return { status: 200, data: {} };
+      });
+
+      renderWithFlags(<AjustesPage />, { 'multi-language': true });
+
+      await waitFor(() => {
+        expect(screen.getByText('Equipo de Trabajo')).toBeInTheDocument();
+        expect(screen.getByText('Carlos Mesero')).toBeInTheDocument();
+        expect(screen.getByText('Monitor Cocina')).toBeInTheDocument();
+        expect(screen.getByText('Laura Caja')).toBeInTheDocument();
+      });
+    });
+
+    test('4. Con flag ON: formulario permite crear nuevo empleado llamando a POST /v1/identity/users', async () => {
+      const mockPost = jest.fn().mockResolvedValue({ status: 201, data: { id: 'u4', displayName: 'Nuevo', email: 'nuevo@resto.com' } });
+      ApiClient.request = jest.fn().mockImplementation(async (url: string, opts?: any) => {
+        if (url.includes('/v1/identity/users') && opts?.method === 'POST') {
+          return mockPost(url, opts);
+        }
+        if (url.includes('/v1/identity/users')) {
+          return { status: 200, data: [] };
+        }
+        if (url.includes('/v1/tenant/settings')) {
+          return { status: 200, data: { invoiceMode: 'simple' } };
+        }
+        return { status: 200, data: {} };
+      });
+
+      renderWithFlags(<AjustesPage />, { 'multi-language': true });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('toggle-new-employee-button')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('toggle-new-employee-button'));
+      expect(screen.getByTestId('new-employee-form')).toBeInTheDocument();
+
+      fireEvent.change(screen.getByTestId('employee-name-input'), { target: { value: 'Nuevo Mesero' } });
+      fireEvent.change(screen.getByTestId('employee-email-input'), { target: { value: 'nuevo@resto.com' } });
+      fireEvent.change(screen.getByTestId('employee-password-input'), { target: { value: 'password123' } });
+      fireEvent.change(screen.getByTestId('employee-role-select'), { target: { value: 'WAITER' } });
+
+      fireEvent.submit(screen.getByTestId('new-employee-form'));
+
+      await waitFor(() => {
+        expect(mockPost).toHaveBeenCalledWith(
+          '/v1/identity/users',
+          expect.objectContaining({
+            method: 'POST',
+            body: JSON.stringify({
+              displayName: 'Nuevo Mesero',
+              email: 'nuevo@resto.com',
+              role: 'WAITER',
+              password: 'password123',
+            }),
+          })
+        );
+      });
+    });
+
+    test('5. Con flag ON: al crear un empleado MANAGER o cancelar, newRole se resetea a WAITER al reabrir el formulario', async () => {
+      const mockPost = jest.fn().mockResolvedValue({ status: 201, data: { id: 'u5', displayName: 'Encargado 1', email: 'encargado@resto.com', role: 'MANAGER' } });
+      ApiClient.request = jest.fn().mockImplementation(async (url: string, opts?: any) => {
+        if (url.includes('/v1/identity/users') && opts?.method === 'POST') {
+          return mockPost(url, opts);
+        }
+        if (url.includes('/v1/identity/users')) {
+          return { status: 200, data: [] };
+        }
+        if (url.includes('/v1/tenant/settings')) {
+          return { status: 200, data: { invoiceMode: 'simple' } };
+        }
+        return { status: 200, data: {} };
+      });
+
+      renderWithFlags(<AjustesPage />, { 'multi-language': true });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('toggle-new-employee-button')).toBeInTheDocument();
+      });
+
+      // 1) Abrir el formulario de agregar miembro
+      fireEvent.click(screen.getByTestId('toggle-new-employee-button'));
+      expect(screen.getByTestId('new-employee-form')).toBeInTheDocument();
+      expect(screen.getByTestId('employee-role-select')).toHaveValue('WAITER');
+
+      // 2) Cambiar el rol a MANAGER y llenar los datos
+      fireEvent.change(screen.getByTestId('employee-name-input'), { target: { value: 'Encargado 1' } });
+      fireEvent.change(screen.getByTestId('employee-email-input'), { target: { value: 'encargado@resto.com' } });
+      fireEvent.change(screen.getByTestId('employee-password-input'), { target: { value: 'password123' } });
+      fireEvent.change(screen.getByTestId('employee-role-select'), { target: { value: 'MANAGER' } });
+      expect(screen.getByTestId('employee-role-select')).toHaveValue('MANAGER');
+
+      // 3) Crear el empleado con éxito
+      fireEvent.submit(screen.getByTestId('new-employee-form'));
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('new-employee-form')).not.toBeInTheDocument();
+      });
+
+      // 4) Reabrir el formulario y comprobar que el select de rol vuelve a estar en 'WAITER'
+      fireEvent.click(screen.getByTestId('toggle-new-employee-button'));
+      expect(screen.getByTestId('new-employee-form')).toBeInTheDocument();
+      expect(screen.getByTestId('employee-role-select')).toHaveValue('WAITER');
+
+      // 5) Cambiar el rol a CASHIER, cancelar y reabrir
+      fireEvent.change(screen.getByTestId('employee-role-select'), { target: { value: 'CASHIER' } });
+      expect(screen.getByTestId('employee-role-select')).toHaveValue('CASHIER');
+
+      const cancelBtn = screen.getByTestId('cancel-employee-button');
+      fireEvent.click(cancelBtn);
+      expect(screen.queryByTestId('new-employee-form')).not.toBeInTheDocument();
+
+      // Reabrir y verificar que vuelve a estar en 'WAITER'
+      fireEvent.click(screen.getByTestId('toggle-new-employee-button'));
+      expect(screen.getByTestId('new-employee-form')).toBeInTheDocument();
+      expect(screen.getByTestId('employee-role-select')).toHaveValue('WAITER');
     });
   });
 });

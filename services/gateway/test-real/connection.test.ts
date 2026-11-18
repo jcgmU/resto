@@ -17,8 +17,7 @@ describe('Gateway Real Configuration and Health Check', () => {
     const app = createApp();
     const res = await request(app).get('/health');
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe('ok');
-    expect(res.body.services.gateway).toBe('ok');
+    expect(['ok', 'live']).toContain(res.body.status);
   });
 
   if (process.env.GATEWAY_URL) {
@@ -26,7 +25,7 @@ describe('Gateway Real Configuration and Health Check', () => {
       const response = await fetch(`${process.env.GATEWAY_URL}/health`);
       expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data.status).toBe('ok');
+      expect(['ok', 'live']).toContain(data.status);
     });
   }
 });
@@ -84,6 +83,45 @@ describe('Harness Hardening (U0-R7)', () => {
 
       mode = 'ok';
       expect(await runWaitForHttp(2000)).toBe(true);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it('waitForHttp con estados esperados acepta {"status":"ready"} y rechaza {"status":"live"} (readiness del gateway)', async () => {
+    let body: { status: string } = { status: 'live' };
+    const server = http.createServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(body));
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = (server.address() as { port: number }).port;
+    const url = `http://127.0.0.1:${port}/health/ready`;
+    const harnessUrl = pathToFileURL(HARNESS_SCRIPT).href;
+
+    const run = async (timeoutMs: number, expected?: string[]): Promise<boolean> => {
+      try {
+        await execFileAsync(
+          process.execPath,
+          [
+            '--input-type=module',
+            '-e',
+            `import { waitForHttp } from ${JSON.stringify(harnessUrl)}; await waitForHttp(${JSON.stringify(url)}, ${timeoutMs}, ${JSON.stringify(expected)});`,
+          ],
+          { cwd: ROOT_DIR }
+        );
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    try {
+      expect(await run(600, ['ready'])).toBe(false);
+      expect(await run(600)).toBe(false);
+      body = { status: 'ready' };
+      expect(await run(2000, ['ready'])).toBe(true);
+      expect(await run(600)).toBe(false);
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }

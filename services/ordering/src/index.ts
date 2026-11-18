@@ -8,7 +8,6 @@ import { wireRealtimeEvents } from './infrastructure/realtime/realtimeWiring';
 const app = createOrderingApp();
 export * from './application/CartUseCases';
 export * from './application/OrderUseCases';
-export * from './infrastructure/fakes/InMemoryOrderingAdapters';
 export * from './app';
 
 if (process.env.NODE_ENV !== 'test') {

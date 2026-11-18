@@ -1,5 +1,11 @@
 import { Router } from 'express';
 import { OrderUseCases } from '../../application/OrderUseCases';
+import {
+  ORDER_STATUS_ROLES,
+  ORDER_CANCEL_ROLES,
+  ORDER_STAFF_ROLES,
+  hasRole,
+} from './authzRoles';
 
 export function createOrdersRouter(orderUseCases: OrderUseCases): Router {
   const router = Router();
@@ -25,7 +31,7 @@ export function createOrdersRouter(orderUseCases: OrderUseCases): Router {
   router.get('/', async (req, res, next) => {
     try {
       const { tenantId, role, sessionId } = req.auth!;
-      const isStaff = role && ['staff', 'manager', 'admin'].includes(role.toLowerCase());
+      const isStaff = hasRole(role, ORDER_STAFF_ROLES);
 
       if (!isStaff) {
         if (!sessionId) {
@@ -75,10 +81,71 @@ export function createOrdersRouter(orderUseCases: OrderUseCases): Router {
     }
   });
 
+  router.get('/:id/history', async (req, res, next) => {
+    try {
+      const { tenantId, role, sessionId } = req.auth!;
+      const { id } = req.params;
+
+      const history = await orderUseCases.getOrderHistory.execute({
+        tenantId,
+        orderId: id,
+        requester: {
+          role: role || 'guest',
+          sessionId,
+        },
+      });
+
+      res.json(history);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.patch('/:id/delay', async (req, res, next) => {
+    try {
+      const { tenantId, role } = req.auth!;
+      const isStaff = hasRole(role, ORDER_STATUS_ROLES);
+
+      if (!isStaff) {
+        return res.status(403).json({
+          error: { code: 'FORBIDDEN', message: 'Solo personal autorizado puede asignar demora' },
+        });
+      }
+
+      const { id } = req.params;
+      const { delayMinutes } = req.body;
+
+      if (
+        delayMinutes === undefined ||
+        typeof delayMinutes !== 'number' ||
+        !Number.isInteger(delayMinutes) ||
+        delayMinutes < 1 ||
+        delayMinutes > 120
+      ) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'delayMinutes debe ser un número entero entre 1 y 120',
+          },
+        });
+      }
+
+      const updated = await orderUseCases.updateOrderDelay.execute({
+        tenantId,
+        orderId: id,
+        delayMinutes,
+      });
+
+      res.json(updated);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   const handleCancelOrder = async (req: any, res: any, next: any) => {
     try {
       const { tenantId, role } = req.auth!;
-      const isAuthorized = role && ['manager', 'admin'].includes(role.toLowerCase());
+      const isAuthorized = hasRole(role, ORDER_CANCEL_ROLES);
 
       if (!isAuthorized) {
         return res.status(403).json({
@@ -104,8 +171,7 @@ export function createOrdersRouter(orderUseCases: OrderUseCases): Router {
   router.patch('/:id/status', async (req, res, next) => {
     try {
       const { tenantId, role } = req.auth!;
-      const normalizedRole = (role || '').toLowerCase();
-      const isStaff = ['staff', 'manager', 'admin'].includes(normalizedRole);
+      const isStaff = hasRole(role, ORDER_STATUS_ROLES);
 
       if (!isStaff) {
         return res.status(403).json({
@@ -114,7 +180,7 @@ export function createOrdersRouter(orderUseCases: OrderUseCases): Router {
       }
 
       const { id } = req.params;
-      const { status } = req.body;
+      const { status, destination } = req.body;
 
       if (!status) {
         return res.status(400).json({
@@ -122,8 +188,8 @@ export function createOrdersRouter(orderUseCases: OrderUseCases): Router {
         });
       }
 
-      // STAFF no puede cancelar pedidos eludiendo el endpoint /cancel
-      if (status === 'CANCELLED' && normalizedRole === 'staff') {
+      // Solo manager o admin pueden cancelar pedidos
+      if (status === 'CANCELLED' && !hasRole(role, ORDER_CANCEL_ROLES)) {
         return res.status(403).json({
           error: { code: 'FORBIDDEN', message: 'Solo manager o admin pueden cancelar pedidos' },
         });
@@ -133,6 +199,7 @@ export function createOrdersRouter(orderUseCases: OrderUseCases): Router {
         tenantId,
         orderId: id,
         status,
+        destination,
       });
 
       res.json(updated);

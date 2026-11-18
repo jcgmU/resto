@@ -3,28 +3,109 @@ import {
   CartDTO,
   CartItemDTO,
   CartRepository,
+  CatalogValidationPort,
   GetCartUseCase,
   OrderRepository,
   PaymentRepository,
   RemoveCartItemUseCase,
+  SessionServicePort,
   UpdateCartItemQuantityUseCase,
+  IdentitySettingsPort,
 } from '@packages/shared-types';
 import { canMergeCartLines, canonicalModifierKey } from '../domain/merge';
-import { CartBusyError, SessionNotActiveError, ValidationError } from '../domain/errors';
+import {
+  CartBusyError,
+  ProductUnavailableError,
+  SessionNotActiveError,
+  SessionNotOrderableError,
+  ValidationError,
+} from '../domain/errors';
 import { MAX_ITEM_QUANTITY, validateQuantity } from '../domain/validation';
-import { assertSessionActive, OrderingSessionPort } from '../domain/sessionValidation';
+import { OrderingSessionPort } from '../domain/sessionValidation';
 import { config } from '../config';
 import { isOperationInFlight } from './ports/CartReservationPort';
 import { TransactionCoordinator } from './ports/TransactionCoordinator';
 
 export class CartUseCases {
+  private readonly paymentRepo?: PaymentRepository;
+  private readonly sessionService?: SessionServicePort | OrderingSessionPort;
+  private readonly orderRepo?: OrderRepository;
+  private readonly txCoordinator?: TransactionCoordinator;
+  private readonly catalogValidation?: CatalogValidationPort;
+  private readonly identitySettings?: IdentitySettingsPort;
+
   constructor(
     private readonly cartRepo: CartRepository,
-    private readonly paymentRepo?: PaymentRepository,
-    private readonly sessionService?: OrderingSessionPort,
-    private readonly orderRepo?: OrderRepository,
-    private readonly txCoordinator?: TransactionCoordinator
-  ) {}
+    arg2?: PaymentRepository | SessionServicePort | OrderingSessionPort,
+    arg3?: OrderingSessionPort | SessionServicePort | CatalogValidationPort,
+    arg4?: OrderRepository | IdentitySettingsPort,
+    arg5?: TransactionCoordinator,
+    arg6?: CatalogValidationPort,
+    arg7?: IdentitySettingsPort
+  ) {
+    if (arg2) {
+      if ('findBySession' in arg2) {
+        this.paymentRepo = arg2 as PaymentRepository;
+      } else if ('getSession' in arg2 || 'closeSession' in arg2) {
+        this.sessionService = arg2 as any;
+      }
+    }
+
+    if (arg3) {
+      if ('getOrderableProducts' in arg3) {
+        this.catalogValidation = arg3 as CatalogValidationPort;
+      } else if ('getSession' in arg3 || 'closeSession' in arg3) {
+        this.sessionService = arg3 as any;
+      }
+    }
+
+    if (arg4) {
+      if ('getOperatingMode' in arg4 || 'getEstimatedPrepTime' in arg4) {
+        this.identitySettings = arg4 as IdentitySettingsPort;
+      } else if ('save' in arg4 || 'findById' in arg4 || 'listBySession' in arg4) {
+        this.orderRepo = arg4 as OrderRepository;
+      }
+    }
+
+    if (arg5 && 'runInSessionLock' in arg5) {
+      this.txCoordinator = arg5 as TransactionCoordinator;
+    }
+
+    if (arg6 && 'getOrderableProducts' in arg6) {
+      this.catalogValidation = arg6 as CatalogValidationPort;
+    }
+
+    if (arg7 && ('getOperatingMode' in arg7 || 'getEstimatedPrepTime' in arg7)) {
+      this.identitySettings = arg7 as IdentitySettingsPort;
+    }
+  }
+
+  private async assertSessionOrderable(tenantId: string, sessionId: string): Promise<void> {
+    if (this.sessionService?.getSession) {
+      let session: any;
+      try {
+        session = await this.sessionService.getSession(tenantId, sessionId);
+      } catch (err: any) {
+        if (err instanceof SessionNotOrderableError || err instanceof SessionNotActiveError) throw err;
+      }
+
+      if (session) {
+        if (session.status !== 'active') {
+          throw new SessionNotOrderableError('La sesión no admite pedidos en su estado actual');
+        }
+        if (session.tenantId && session.tenantId !== tenantId) {
+          throw new ValidationError('El tenant de la sesión no coincide');
+        }
+      }
+    }
+
+    if (this.paymentRepo) {
+      const existingPayment = await (this.paymentRepo as any).findBySession(tenantId, sessionId);
+      if (existingPayment) {
+        throw new SessionNotActiveError('La sesión ya ha sido pagada');
+      }
+    }
+  }
 
   private async recoverOrphanReservationIfNeeded(tenantId: string, sessionId: string): Promise<void> {
     if (!('findReservation' in this.cartRepo) || typeof (this.cartRepo as any).findReservation !== 'function') {
@@ -121,18 +202,31 @@ export class CartUseCases {
     execute: async (input) => {
       validateQuantity(input.quantity);
 
-      // Chequeo previo con session service fuera del transaction lock para no bloquear conexiones
-      if (this.sessionService) {
-        await assertSessionActive(input.tenantId, input.sessionId, {
-          sessionService: this.sessionService,
-        });
+      await this.assertSessionOrderable(input.tenantId, input.sessionId);
+
+      if (this.identitySettings) {
+        const isStaff = ['ADMIN', 'MANAGER', 'WAITER'].includes((input.userRole || '').toUpperCase());
+        if (!isStaff) {
+          const mode = await this.identitySettings.getOperatingMode(input.tenantId);
+          if (mode === 'waiter_only') {
+            throw new SessionNotOrderableError('El autoservicio por QR está inactivo en modo solo meseros');
+          }
+        }
+      }
+
+      if (this.catalogValidation) {
+        const products = await this.catalogValidation.getOrderableProducts(input.tenantId, [input.productId]);
+        const product = products.find((p) => p.productId === input.productId);
+        if (product && product.isAvailable === false) {
+          throw new ProductUnavailableError(`El producto '${product.name}' no está disponible`);
+        }
       }
 
       await this.recoverOrphanReservationIfNeeded(input.tenantId, input.sessionId);
 
       const cartItemId = `ci-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-      const modifiers = input.modifiers.map((m) => {
-        const foundName = (input.display.modifierNames || []).find(
+      const modifiers = (input.modifiers || []).map((m) => {
+        const foundName = (input.display?.modifierNames || []).find(
           (dn) => dn.optionName
         );
         return {
@@ -145,13 +239,14 @@ export class CartUseCases {
       });
 
       const lineDeltas = modifiers.reduce((acc, m) => acc + (m.priceDelta || 0), 0);
-      const lineTotal = (input.display.unitPrice + lineDeltas) * input.quantity;
+      const unitPrice = input.display?.unitPrice || 0;
+      const lineTotal = (unitPrice + lineDeltas) * input.quantity;
 
       const newItem: CartItemDTO = {
         cartItemId,
         productId: input.productId,
-        productName: input.display.productName,
-        unitPrice: input.display.unitPrice,
+        productName: input.display?.productName || 'Producto',
+        unitPrice,
         modifiers,
         quantity: input.quantity,
         notes: input.notes,
@@ -161,7 +256,6 @@ export class CartUseCases {
       };
 
       const persistItemWork = async (tx?: any): Promise<CartDTO> => {
-        // Doble verificación dentro del lock de sesión: si ya fue pagada, rechazar antes de mutar Redis
         if (this.paymentRepo) {
           const existingPayment = await (this.paymentRepo as any).findBySession(
             input.tenantId,
@@ -185,6 +279,15 @@ export class CartUseCases {
             config.cartTtlSeconds
           );
           return res.cart;
+        }
+
+        if (this.cartRepo.addItem) {
+          return this.cartRepo.addItem(
+            input.tenantId,
+            input.sessionId,
+            newItem,
+            config.cartTtlSeconds
+          );
         }
 
         // Fallback para repositorios sin soporte atómico
@@ -237,9 +340,13 @@ export class CartUseCases {
     execute: async (input) => {
       validateQuantity(input.quantity);
 
-      if (this.sessionService) {
-        await assertSessionActive(input.tenantId, input.sessionId, {
-          sessionService: this.sessionService,
+      await this.assertSessionOrderable(input.tenantId, input.sessionId);
+
+      if (input.quantity <= 0) {
+        return this.removeCartItem.execute({
+          tenantId: input.tenantId,
+          sessionId: input.sessionId,
+          cartItemId: input.cartItemId,
         });
       }
 
@@ -276,11 +383,7 @@ export class CartUseCases {
 
   removeCartItem: RemoveCartItemUseCase = {
     execute: async (input) => {
-      if (this.sessionService) {
-        await assertSessionActive(input.tenantId, input.sessionId, {
-          sessionService: this.sessionService,
-        });
-      }
+      await this.assertSessionOrderable(input.tenantId, input.sessionId);
 
       await this.recoverOrphanReservationIfNeeded(input.tenantId, input.sessionId);
 

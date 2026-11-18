@@ -39,12 +39,14 @@ export class InMemoryProductRepository implements ProductRepository {
   public productModifiers: { tenantId: string; productId: string; groupId: string }[] = [];
 
   async listByTenant(tenantId: string, filter?: { categoryId?: string; onlyAvailable?: boolean }): Promise<ProductDTO[]> {
-    return this.products.filter((p) => {
-      if (p.tenantId !== tenantId) return false;
-      if (filter?.categoryId && p.categoryId !== filter.categoryId) return false;
-      if (filter?.onlyAvailable && !p.isAvailable) return false;
-      return true;
-    });
+    return this.products
+      .filter((p) => {
+        if (p.tenantId !== tenantId) return false;
+        if (filter?.categoryId && p.categoryId !== filter.categoryId) return false;
+        if (filter?.onlyAvailable && !p.isAvailable) return false;
+        return true;
+      })
+      .sort((a, b) => (a.sortOrder - b.sortOrder) || a.name.localeCompare(b.name));
   }
 
   async findById(tenantId: string, id: string): Promise<ProductDTO | null> {

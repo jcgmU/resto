@@ -8,10 +8,18 @@
     "test": "pnpm -r run test",
     "test:gateway": "pnpm --filter @services/gateway test",
     "test:ui": "pnpm --filter @packages/ui-components test",
-    "test:hardening": "node scripts/test-hardening.mjs",
-    "lint": "pnpm -r run lint"
+    "lint": "pnpm -r run lint",
+    "check:a4": "node scripts/check-a4-tokens.mjs",
+    "seed:demo": "node scripts/seed-demo.mjs",
+    "demo": "node scripts/start-demo.mjs",
+    "test:e2e": "node scripts/e2e-demo.mjs",
+    "test:hardening": "node scripts/test-hardening.mjs"
   },
   "devDependencies": {
-    "typescript": "^5.6.3"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.12.0",
+    "socket.io-client": "^4",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.71.2"
   }
 }

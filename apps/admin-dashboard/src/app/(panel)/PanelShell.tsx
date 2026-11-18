@@ -4,10 +4,24 @@ import { useRouter, usePathname } from 'next/navigation';
 import { SidebarRail, PageHeader, ErrorState, BentoCard } from '@packages/ui-components';
 import type { SidebarRailItem } from '@packages/ui-components';
 import { ApiClient } from '../../lib/api';
-import { getUserRole, isRouteAllowedForRole } from '../../lib/auth';
+import { MoneyProvider } from '../../lib/money';
+import { logout } from '../../lib/auth/logout';
+import { getUserRole, isRouteAllowedForRole, terminalHomeForRole } from '../../lib/auth';
+import type { UserRole } from '../../lib/auth';
 
 const Svg = ({ children }: { children: React.ReactNode }) => (
-  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.75}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width="100%"
+    height="100%"
+    aria-hidden="true"
+    focusable="false"
+  >
     {children}
   </svg>
 );
@@ -22,7 +36,7 @@ interface NavDef {
 const NAV: NavDef[] = [
   {
     id: 'dashboard',
-    label: 'Dashboard',
+    label: 'Resumen y Mesas',
     href: '/dashboard',
     icon: (
       <Svg>
@@ -34,36 +48,36 @@ const NAV: NavDef[] = [
     ),
   },
   {
-    id: 'menu',
-    label: 'Menu',
-    href: '/menu',
-    icon: (
-      <Svg>
-        <path d="M4 6h16M4 12h16M4 18h10" />
-      </Svg>
-    ),
-  },
-  {
-    id: 'mesas',
-    label: 'Mesas',
-    href: '/mesas',
-    icon: (
-      <Svg>
-        <rect x="3" y="3" width="8" height="8" rx="1.5" />
-        <rect x="13" y="3" width="8" height="8" rx="1.5" />
-        <rect x="3" y="13" width="8" height="8" rx="1.5" />
-        <rect x="13" y="13" width="8" height="8" rx="1.5" />
-      </Svg>
-    ),
-  },
-  {
     id: 'kds',
-    label: 'KDS',
+    label: 'Monitor de Cocina',
     href: '/kds',
     icon: (
       <Svg>
         <rect x="3" y="4" width="18" height="13" rx="2" />
         <path d="M8 21h8M12 17v4" />
+      </Svg>
+    ),
+  },
+  {
+    id: 'meseros',
+    label: 'Terminal de Meseros',
+    href: '/meseros',
+    icon: (
+      <Svg>
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </Svg>
+    ),
+  },
+  {
+    id: 'menu',
+    label: 'Gestión del Menú',
+    href: '/menu',
+    icon: (
+      <Svg>
+        <path d="M4 6h16M4 12h16M4 18h10" />
       </Svg>
     ),
   },
@@ -75,16 +89,6 @@ const NAV: NavDef[] = [
       <Svg>
         <rect x="3" y="6" width="18" height="12" rx="2" />
         <circle cx="12" cy="12" r="2.5" />
-      </Svg>
-    ),
-  },
-  {
-    id: 'pagos',
-    label: 'Pagos',
-    href: '/pagos',
-    icon: (
-      <Svg>
-        <path d="M4 7h16v10H4zM4 11h16" />
       </Svg>
     ),
   },
@@ -101,9 +105,24 @@ const NAV: NavDef[] = [
   },
 ];
 
+
 function activeIdFor(pathname: string | null | undefined): string | undefined {
   if (!pathname) return undefined;
+  if (pathname === '/mesas' || pathname.startsWith('/mesas/')) return 'dashboard';
+  if (pathname === '/pagos' || pathname.startsWith('/pagos/')) return 'checkout';
   return NAV.find((n) => pathname === n.href || pathname.startsWith(`${n.href}/`))?.id;
+}
+
+function titleFor(pathname: string | null | undefined, activeId: string | undefined): string {
+  if (pathname === '/checkout') return 'Checkout';
+  if (pathname === '/kds') return 'Monitor de Cocina';
+  if (pathname === '/menu') return 'Gestión del Menú';
+  if (pathname === '/dashboard') return 'Resumen y Mesas';
+  if (pathname === '/mesas') return 'Resumen y Mesas';
+  if (pathname === '/meseros') return 'Terminal de Meseros';
+  if (pathname === '/ajustes') return 'Ajustes';
+  if (pathname === '/pagos') return 'Pagos';
+  return NAV.find((n) => n.id === activeId)?.label ?? 'Panel';
 }
 
 export default function PanelShell({
@@ -114,6 +133,13 @@ export default function PanelShell({
   const router = useRouter();
   const pathname = usePathname();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [currentUser, setCurrentUser] = useState<{
+    id?: string;
+    email?: string;
+    displayName?: string;
+    role?: string;
+    monitorKind?: string;
+  } | null>(null);
 
   useEffect(() => {
     const token = ApiClient.token;
@@ -124,23 +150,42 @@ export default function PanelShell({
         window.history.pushState({}, '', '/login');
       }
       router.replace('/login');
-    } else {
-      setIsAuthenticated(true);
+      return;
     }
-  }, [router]);
+
+    try {
+      const rawUser = typeof window !== 'undefined' ? localStorage.getItem('resto_user') : null;
+      if (rawUser) {
+        const u = JSON.parse(rawUser);
+        setCurrentUser(u);
+        const role = String(u.role || '').toUpperCase();
+        const home = terminalHomeForRole(role);
+        if (home) {
+          router.replace(home);
+          return;
+        }
+      }
+    } catch {
+      // ignore json parse error
+    }
+
+    setIsAuthenticated(true);
+  }, [router, pathname]);
+
+  const handleLogout = () => {
+    logout();
+    router.replace('/login');
+  };
 
   if (!isAuthenticated) {
     return null;
   }
 
-  const role = getUserRole(ApiClient.token);
-  const visibleNav = NAV.filter((n) => {
-    if (role === 'STAFF') {
-      return n.id === 'kds' || n.id === 'mesas' || n.id === 'checkout';
-    }
-    return true;
-  });
-
+  const storedRole = String(currentUser?.role || '').toUpperCase();
+  const role: UserRole | null =
+    getUserRole(ApiClient.token) ??
+    (storedRole === 'ADMIN' || storedRole === 'MANAGER' ? storedRole : null);
+  const visibleNav = NAV;
   const activeId = activeIdFor(pathname);
   const items: SidebarRailItem[] = visibleNav.map((n) => ({
     id: n.id,
@@ -148,43 +193,283 @@ export default function PanelShell({
     href: n.href,
     icon: n.icon,
   }));
-  const title = NAV.find((n) => n.id === activeId)?.label ?? 'Panel';
+  const title = titleFor(pathname, activeId);
 
   const isAllowed = isRouteAllowedForRole(pathname || '', role);
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bento-hueso)' }}>
-      <SidebarRail items={items} activeId={activeId} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ padding: 'var(--bento-grid-gap)' }}>
-          <PageHeader greeting={title} />
-        </div>
-        <main
+    <div
+      className="panel-shell-root"
+      style={{
+        display: 'flex',
+        minHeight: '100vh',
+        backgroundColor: 'var(--bento-page-bg)',
+        color: 'var(--bento-text)',
+        fontFamily: 'var(--bento-font-body)',
+        padding: '1.5rem',
+        gap: '1.5rem',
+        boxSizing: 'border-box',
+      }}
+    >
+      <style>{`
+        @media (max-width: 1024px) {
+          .panel-shell-root {
+            padding: 0.75rem !important;
+            gap: 0.75rem !important;
+          }
+          .panel-inner-sidebar {
+            display: none !important;
+          }
+        }
+      `}</style>
+      {/* 1. Rail lateral flotante oscuro */}
+      <SidebarRail
+        items={items}
+        activeId={activeId}
+        ariaLabel="Navegación principal"
+        header={
+          <div
+            style={{
+              marginBottom: '1rem',
+              width: '2.5rem',
+              height: '2.5rem',
+              borderRadius: 'var(--bento-pill-radius)',
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'rgba(255, 255, 255, 0.9)',
+            }}
+          >
+            <Svg>
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            </Svg>
+          </div>
+        }
+      />
+
+      {/* 2. Contenedor principal glass con sombras neumorfas y radio 2rem */}
+      <div
+        data-component="panel-main-container"
+        style={{
+          flex: 1,
+          minWidth: 0,
+          backgroundColor: 'rgba(224, 227, 229, 0.5)',
+          borderRadius: 'var(--bento-card-radius)',
+          border: '1px solid var(--bento-border)',
+          boxShadow: 'var(--bento-card-shadow)',
+          display: 'flex',
+          overflow: 'hidden',
+          position: 'relative',
+          minHeight: 'calc(100vh - 3rem)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+        }}
+      >
+        {/* Panel interior lateral (w-[280px]) con 3 puntos pastel y nombres visibles */}
+        <div
+          data-component="panel-inner-sidebar"
+          className="panel-inner-sidebar"
           style={{
-            maxWidth: pathname === '/kds' ? '100%' : '1200px',
-            margin: '0 auto',
-            width: '100%',
-            padding: '24px',
+            width: '280px',
+            backgroundColor: 'rgba(255, 255, 255, 0.3)',
+            borderRight: '1px solid rgba(255, 255, 255, 0.4)',
+            padding: '1.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            flexShrink: 0,
             boxSizing: 'border-box',
           }}
         >
-          {isAllowed ? (
-            children
-          ) : (
-            <BentoCard
+          {/* Perfil de usuario */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div
+                style={{
+                  width: '2.5rem',
+                  height: '2.5rem',
+                  borderRadius: 'var(--bento-pill-radius)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.6)',
+                  border: '1px solid rgba(255, 255, 255, 0.6)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  color: 'var(--bento-text)',
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                }}
+              >
+                {(currentUser?.displayName || 'Admin').slice(0, 2).toUpperCase()}
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--bento-text)' }}>
+                  {currentUser?.displayName || 'Admin'}
+                </p>
+                <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--bento-text-muted)' }}>
+                  Restaurante • {currentUser?.role ? (currentUser.role === 'ADMIN' ? 'Administrador' : currentUser.role) : 'Panel'}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              aria-label="Cerrar sesión"
+              onClick={handleLogout}
               style={{
-                backgroundColor: 'var(--bento-papel)',
-                padding: '32px',
-                textAlign: 'center',
+                minHeight: '44px',
+                width: '100%',
+                padding: '0.5rem 0.75rem',
+                borderRadius: 'var(--bento-inner-radius)',
+                border: '1px solid var(--bento-border)',
+                backgroundColor: 'var(--bento-card-bg-solid)',
+                color: 'var(--bento-status-occupied-text)',
+                fontFamily: 'var(--bento-font-body)',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxSizing: 'border-box',
               }}
             >
-              <ErrorState
-                title="Sin permiso"
-                message="No tienes los permisos requeridos para acceder a esta sección."
-              />
-            </BentoCard>
-          )}
-        </main>
+              Cerrar sesión
+            </button>
+          </div>
+
+          {/* Título de navegación Módulos */}
+          <p
+            style={{
+              fontSize: '0.6875rem',
+              fontWeight: 600,
+              color: 'var(--bento-text-muted)',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              margin: '0 0 0.75rem 0.5rem',
+            }}
+          >
+            Módulos
+          </p>
+
+          {/* Navegación con nombres de sección visibles (N19) */}
+          <nav
+            data-component="panel-nav"
+            aria-label="Módulos del panel"
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', flex: 1 }}
+          >
+            {visibleNav.map((item) => {
+              const active = item.id === activeId;
+              return (
+                <a
+                  key={item.id}
+                  href={item.href}
+                  aria-current={active ? 'page' : undefined}
+                  data-active={active ? 'true' : undefined}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '0.625rem 0.875rem',
+                    borderRadius: 'var(--bento-inner-radius)',
+                    fontSize: '0.875rem',
+                    textDecoration: 'none',
+                    transition: 'all 0.2s ease',
+                    backgroundColor: active ? 'rgba(255, 255, 255, 0.65)' : 'transparent',
+                    color: active ? 'var(--bento-text)' : 'var(--bento-text-muted)',
+                    fontWeight: active ? 600 : 400,
+                    boxShadow: active ? 'inset 1px 1px 2px rgba(255, 255, 255, 0.8)' : 'none',
+                  }}
+                >
+                  <span
+                    style={{
+                      color: active ? 'var(--bento-primary)' : 'var(--bento-text-muted)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      width: '1.25rem',
+                      height: '1.25rem',
+                    }}
+                  >
+                    {item.icon}
+                  </span>
+                  <span>{item.label}</span>
+                </a>
+              );
+            })}
+          </nav>
+
+          {/* Modo de operación en el pie del panel interior */}
+          <div
+            style={{
+              marginTop: 'auto',
+              paddingTop: '1.5rem',
+              borderTop: '1px solid rgba(255, 255, 255, 0.4)',
+            }}
+          >
+            <p style={{ margin: '0 0 0.5rem 0.25rem', fontSize: '0.75rem', fontWeight: 500, color: 'var(--bento-text-muted)' }}>
+              Modo de Operación
+            </p>
+            <div
+              style={{
+                width: '100%',
+                padding: '0.625rem 0.75rem',
+                borderRadius: 'var(--bento-inner-radius)',
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                textAlign: 'center',
+                backgroundColor: 'rgba(255, 255, 255, 0.6)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                color: 'var(--bento-text)',
+                boxSizing: 'border-box',
+              }}
+            >
+              Híbrido (QR + Meseros)
+            </div>
+          </div>
+        </div>
+
+        {/* Contenedor de contenido */}
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
+          <div style={{ padding: 'var(--bento-grid-gap)' }}>
+            <PageHeader greeting={title} />
+          </div>
+          <main
+            style={{
+              maxWidth: pathname === '/kds' ? '100%' : '1200px',
+              margin: '0 auto',
+              width: '100%',
+              padding: '24px',
+              boxSizing: 'border-box',
+              overflowY: 'auto',
+              flex: 1,
+            }}
+          >
+            {isAllowed ? (
+              <MoneyProvider>{children}</MoneyProvider>
+            ) : (
+              <BentoCard
+                style={{
+                  backgroundColor: 'var(--bento-card-bg-solid)',
+                  padding: '32px',
+                  textAlign: 'center',
+                }}
+              >
+                <ErrorState
+                  title="Sin permiso"
+                  message="No tienes los permisos requeridos para acceder a esta sección."
+                />
+              </BentoCard>
+            )}
+          </main>
+        </div>
       </div>
     </div>
   );

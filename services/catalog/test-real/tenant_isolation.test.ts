@@ -7,6 +7,7 @@ import { PrismaProductRepository } from '../src/infrastructure/persistence/Prism
 import { PrismaModifierGroupRepository } from '../src/infrastructure/persistence/PrismaModifierGroupRepository';
 
 const TEST_JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key-hardening-test';
+process.env.JWT_SECRET = TEST_JWT_SECRET;
 
 function signTestJwt(payload: {
   tenantId: string;

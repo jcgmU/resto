@@ -9,7 +9,7 @@ describe('B. Ordering — integración checkout (Tests 9-12)', () => {
     const res = await request(app)
       .get('/checkout/session-checkout-test')
       .set('x-tenant-id', 't-1')
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
 
     expect(res.status).toBe(200);
     expect(res.body.sessionId).toBe('session-checkout-test');
@@ -22,14 +22,14 @@ describe('B. Ordering — integración checkout (Tests 9-12)', () => {
       .patch('/sessions/session-checkout-test/close')
       .matchHeader('x-tenant-id', 't-1')
       .matchHeader('x-user-id', 'staff-1')
-      .matchHeader('x-user-role', 'staff')
+      .matchHeader('x-user-role', 'cashier')
       .reply(200, { sessionId: 'session-checkout-test', status: 'closed' });
 
     const res = await request(app)
       .post('/checkout/confirm')
       .set('x-tenant-id', 't-1')
       .set('x-user-id', 'staff-1')
-      .set('x-user-role', 'staff')
+      .set('x-user-role', 'waiter')
       .send({
         sessionId: 'session-checkout-test',
         tableId: 'T-1',
@@ -52,7 +52,7 @@ describe('B. Ordering — integración checkout (Tests 9-12)', () => {
       .post('/checkout/confirm')
       .set('x-tenant-id', 't-1')
       .set('x-user-id', 'staff-1')
-      .set('x-user-role', 'staff')
+      .set('x-user-role', 'waiter')
       .send({
         sessionId: 'session-double',
         tableId: 'T-2',
@@ -63,7 +63,7 @@ describe('B. Ordering — integración checkout (Tests 9-12)', () => {
       .post('/checkout/confirm')
       .set('x-tenant-id', 't-1')
       .set('x-user-id', 'staff-1')
-      .set('x-user-role', 'staff')
+      .set('x-user-role', 'waiter')
       .send({
         sessionId: 'session-double',
         tableId: 'T-2',
@@ -96,7 +96,7 @@ describe('B. Ordering — integración checkout (Tests 9-12)', () => {
       .post('/checkout/confirm')
       .set('x-tenant-id', 't-1')
       .set('x-user-id', 'staff-1')
-      .set('x-user-role', 'staff')
+      .set('x-user-role', 'waiter')
       .send({
         sessionId: 'session-fail',
         tableId: 'T-4',

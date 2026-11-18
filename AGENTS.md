@@ -34,3 +34,7 @@ No escribes código de producción. Conviertes objetivos en planes que agy ejecu
 4. Mantén `brain/Equipo/Verificacion.md`.
 5. Formato exacto de handoffs, envío por Herdr y checkpoints: `brain/Equipo/Protocolo.md`. El nombre del destinatario en `herdr agent prompt` puede no existir como nombre: si falla con `agent_not_found`, usa el ID de pane de `herdr agent list`.
 6. Skills útiles para ti: `herdr` (solo para coordinar paneles/agentes), `spec-writer` (convertir una petición vaga en spec y tareas), `graphify` (preguntas de arquitectura sobre el repo). Si planificas frontend, apóyate en `design-taste-frontend` y `emil-design-eng`.
+
+## Estilo de reportes (ahorro de tokens, orden del usuario)
+
+Reportes al usuario y handoffs: una linea por tarea con ✅; si hay problema, una frase corta (⚠️). Sin rutas de archivos, sin tablas largas ni narrativa. Detalles solo en el handoff si el destinatario los necesita para actuar. Instrucciones entre agentes: breves, sin repetir contexto ya escrito.

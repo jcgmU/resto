@@ -20,7 +20,17 @@ export function errorHandler(
       code === 'BILL_NOT_FOUND'
     )
       statusCode = 404;
-    else if (code === 'INVALID_STATUS_TRANSITION' || code === 'SESSION_NOT_ACTIVE' || code === 'CART_BUSY') statusCode = 409;
+    else if (
+      code === 'INVALID_STATUS_TRANSITION' ||
+      code === 'SESSION_NOT_ORDERABLE' ||
+      code === 'SESSION_NOT_ACTIVE' ||
+      code === 'CART_BUSY' ||
+      code === 'TABLE_MISMATCH' ||
+      code === 'PRODUCT_UNAVAILABLE' ||
+      code === 'ORDER_ALREADY_TERMINAL' ||
+      code === 'ORDERS_NOT_DELIVERED'
+    )
+      statusCode = 409;
     else if (
       code === 'CATALOG_UNREACHABLE' ||
       code === 'SESSION_CLOSE_FAILED' ||
@@ -30,7 +40,6 @@ export function errorHandler(
     else if (
       code === 'CART_EMPTY' ||
       code === 'BILL_EMPTY' ||
-      code === 'PRODUCT_UNAVAILABLE' ||
       code === 'MODIFIER_REQUIRED' ||
       code === 'MODIFIER_INVALID' ||
       code === 'VALIDATION_ERROR'
@@ -38,11 +47,16 @@ export function errorHandler(
       statusCode = 400;
     }
 
+    const errorBody: any = {
+      code,
+      message: err.message ? err.message.replace(/^[^:]+:\s*/, '') : err.message,
+    };
+    if (err.details !== undefined) {
+      errorBody.details = err.details;
+    }
+
     return res.status(statusCode).json({
-      error: {
-        code,
-        message: err.message ? err.message.replace(/^[^:]+:\s*/, '') : err.message,
-      },
+      error: errorBody,
     });
   }
 

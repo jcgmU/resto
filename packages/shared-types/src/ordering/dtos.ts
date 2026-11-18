@@ -19,6 +19,7 @@ export interface CartItemDTO {
   modifiers: CartItemModifierDTO[];
   quantity: number;
   notes?: string;
+  destination?: 'kitchen' | 'bar';
   addedBy?: string;
   addedAt: string;
   lineTotal: number;
@@ -46,6 +47,7 @@ export interface OrderItemDTO {
   unitPrice: number;
   quantity: number;
   notes?: string;
+  destination?: 'kitchen' | 'bar';
   modifiers: OrderModifierDTO[];
 }
 
@@ -59,16 +61,88 @@ export const ORDER_STATUS_TRANSITIONS: Readonly<Record<OrderStatus, readonly Ord
   CANCELLED: [],
 };
 
+export interface OrderHistoryEventDTO {
+  id: string;
+  orderId: string;
+  fromStatus: string;
+  toStatus: string;
+  occurredAt: string;
+  reason?: string;
+}
+
+export type OrderDestinationStatus = OrderStatus;
+
+export interface PendingOrderSummaryDTO {
+  orderId: string;
+  tableId: string;
+  status: OrderStatus;
+  kitchenStatus?: OrderDestinationStatus | null;
+  barStatus?: OrderDestinationStatus | null;
+  createdAt: string;
+  itemsCount: number;
+}
+
+export function computeEffectiveSlaMinutes(
+  order: {
+    estimatedMinutes?: number | null;
+    delayMinutes?: number | null;
+  },
+  defaultSlaMinutes: number = 18
+): number {
+  const baseMinutes = order.estimatedMinutes ?? defaultSlaMinutes;
+  return baseMinutes + (order.delayMinutes || 0);
+}
+
+export function computeOrderOverdue(
+  order: {
+    status: OrderStatus;
+  kitchenStatus?: OrderStatus;
+  barStatus?: OrderStatus;
+  destinationStatus?: { kitchen?: OrderStatus; bar?: OrderStatus };
+    createdAt: string | Date;
+    estimatedMinutes?: number | null;
+    delayMinutes?: number | null;
+  },
+  now: number = Date.now(),
+  defaultSlaMinutes?: number
+): boolean {
+  const activeStatuses: OrderStatus[] = ['PLACED', 'IN_KITCHEN', 'READY'];
+  if (!activeStatuses.includes(order.status)) {
+    return false;
+  }
+  const baseMinutes = order.estimatedMinutes ?? defaultSlaMinutes;
+  if (baseMinutes == null) {
+    return false;
+  }
+  const createdTime =
+    order.createdAt instanceof Date ? order.createdAt.getTime() : new Date(order.createdAt).getTime();
+  const totalMinutes = baseMinutes + (order.delayMinutes || 0);
+  const allowedMs = totalMinutes * 60000;
+  return now - createdTime > allowedMs;
+}
+
 export interface OrderDTO {
   id: string;
   tenantId: string;
   sessionId: string;
   tableId: string;
   status: OrderStatus;
+  kitchenStatus?: OrderStatus;
+  barStatus?: OrderStatus;
+  destinationStatus?: { kitchen?: OrderStatus; bar?: OrderStatus };
   total: number;
   items: OrderItemDTO[];
+  notes?: string;
+  destination?: 'kitchen' | 'bar';
+  estimatedMinutes?: number;
+  delayMinutes?: number;
+  overdue?: boolean;
   createdAt: string;
+  invoiceStatus?: InvoiceStatus;
+  invoiceRef?: string;
+  invoiceError?: string;
   cancelledAt?: string;
+  cancelReason?: 'checkout' | string;
 }
 
 export type OrderEventType = 'order.created' | 'order.status-changed';
@@ -76,15 +150,19 @@ export interface OrderEvent {
   type: OrderEventType;
   order: OrderDTO;
   previousStatus?: OrderStatus;
+  destination?: 'kitchen' | 'bar';
   occurredAt: string;
 }
 
 export type ServiceCallStatus = 'pending' | 'resolved';
+export type ServiceCallType = 'WAITER_CALL' | 'BILL_REQUEST' | 'GENERIC';
+
 export interface ServiceCallDTO {
   callId: string;
   tenantId: string;
   sessionId: string;
   tableId: string;
+  type?: ServiceCallType;
   note?: string;
   status: ServiceCallStatus;
   createdAt: string;
@@ -100,6 +178,8 @@ export interface ServiceCallEvent {
 
 export type PaymentMethod = 'CASH' | 'CARD' | 'OTHER';
 
+export type InvoiceStatus = 'none' | 'pending' | 'issued' | 'error';
+
 export interface PaymentDTO {
   id: string;
   tenantId: string;
@@ -110,6 +190,9 @@ export interface PaymentDTO {
   ordersCount: number;
   recordedBy: string;
   createdAt: string;
+  invoiceStatus?: InvoiceStatus;
+  invoiceRef?: string;
+  invoiceError?: string;
 }
 
 export interface BillDTO {
@@ -128,4 +211,19 @@ export interface CheckoutCompletedEvent {
   payment: PaymentDTO;
   occurredAt: string;
 }
+
+export interface ConfirmCheckoutRequestDTO {
+  sessionId: string;
+  tableId?: string;
+  method: PaymentMethod;
+  closePendingOrders?: boolean;
+  invoiceMode?: 'simple' | 'dian';
+  invoiceCustomer?: {
+    type?: 'final_consumer' | 'business';
+    taxId?: string;
+    legalName?: string;
+    email?: string;
+  };
+}
+
 

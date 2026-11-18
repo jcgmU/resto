@@ -2,6 +2,7 @@ import { Server as HttpServer } from 'http';
 import { Server as SocketIoServer, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { RealtimeEmitter } from '@packages/shared-types';
+import { REALTIME_STAFF_ROLES, hasRole } from '../../interfaces/http/authzRoles';
 
 interface DecodedToken {
   sub?: string;
@@ -38,7 +39,9 @@ export class SocketIoRealtimeEmitter implements RealtimeEmitter {
         const tenantId = decoded.tenantId;
         const sessionId = decoded.sessionId;
 
-        if (role === 'staff' || role === 'manager' || role === 'admin') {
+        const isStaff = hasRole(role, REALTIME_STAFF_ROLES);
+
+        if (isStaff) {
           if (tenantId) {
             socket.join(`tenant:${tenantId}`);
           }

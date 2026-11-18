@@ -1,5 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
-import { DomainError, TenantRepository, UserRepository, RefreshTokenRepository } from '@packages/shared-types';
+import { DomainError, isValidCurrency, isValidLocale, TenantRepository, UserRepository, RefreshTokenRepository, PasswordHasher, TokenIssuer } from '@packages/shared-types';
 import { RegisterTenantUseCaseImpl } from './application/RegisterTenant';
 import { LoginUseCaseImpl } from './application/Login';
 import { RefreshSessionUseCaseImpl } from './application/RefreshSession';
@@ -12,11 +12,15 @@ import { PrismaClient } from './generated/client';
 import { PrismaTenantRepository } from './infrastructure/prisma/PrismaTenantRepository';
 import { PrismaUserRepository } from './infrastructure/prisma/PrismaUserRepository';
 import { PrismaRefreshTokenRepository } from './infrastructure/prisma/PrismaRefreshTokenRepository';
+import { internalAuthMiddleware } from './interfaces/http/internalAuth.middleware';
 
 export interface IdentityAppDeps {
   tenantRepo?: TenantRepository;
   userRepo?: UserRepository;
   refreshTokenRepo?: RefreshTokenRepository;
+  passwordHasher?: PasswordHasher;
+  tokenIssuer?: TokenIssuer;
+  prisma?: PrismaClient;
 }
 
 let prismaClient: PrismaClient | null = null;
@@ -32,13 +36,13 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
   app.use(express.json());
 
   const usePrisma = !deps?.tenantRepo || !deps?.userRepo || !deps?.refreshTokenRepo;
-  const prisma = usePrisma ? getPrisma() : null;
+  const prisma = deps?.prisma || (usePrisma ? getPrisma() : null);
 
   const tenantRepo = deps?.tenantRepo || new PrismaTenantRepository(prisma!);
   const userRepo = deps?.userRepo || new PrismaUserRepository(prisma!);
   const refreshTokenRepo = deps?.refreshTokenRepo || new PrismaRefreshTokenRepository(prisma!);
-  const sharedPasswordHasher = new BcryptPasswordHasher();
-  const sharedTokenIssuer = new JwtTokenIssuer();
+  const sharedPasswordHasher = deps?.passwordHasher || new BcryptPasswordHasher();
+  const sharedTokenIssuer = deps?.tokenIssuer || new JwtTokenIssuer();
 
   const registerTenant = new RegisterTenantUseCaseImpl(
     tenantRepo,
@@ -67,9 +71,18 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
   const changePassword = new ChangePasswordUseCaseImpl(userRepo, refreshTokenRepo, sharedPasswordHasher);
 
   // Health
-  app.get('/health', (_req: Request, res: Response) => {
-    res.status(200).json({ status: 'ok' });
+  app.get('/health', async (_req: Request, res: Response) => {
+    try {
+      if (prisma) {
+        await prisma.$queryRaw`SELECT 1`;
+      }
+      res.status(200).json({ status: 'ok', postgres: 'up' });
+    } catch {
+      res.status(503).json({ status: 'error', postgres: 'down' });
+    }
   });
+
+  app.use(internalAuthMiddleware);
 
   // Auth routes
   app.post('/auth/register', async (req: Request, res: Response, next: NextFunction) => {
@@ -83,6 +96,22 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
 
   app.post('/auth/login', async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const { email, password } = req.body || {};
+      if (
+        !email ||
+        !password ||
+        typeof email !== 'string' ||
+        typeof password !== 'string' ||
+        !email.trim() ||
+        !password.trim()
+      ) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Email y contraseña requeridos',
+          },
+        });
+      }
       const result = await login.execute(req.body);
       res.status(200).json(result);
     } catch (err) {
@@ -101,7 +130,7 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
 
   app.post('/auth/change-password', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = (req.headers['x-user-id'] as string) || req.body.userId;
+      const userId = (req.headers['x-user-id'] as string) || req.body?.userId;
       if (!userId) {
         return res.status(401).json({
           error: {
@@ -113,8 +142,8 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
 
       await changePassword.execute({
         userId,
-        currentPassword: req.body.currentPassword,
-        newPassword: req.body.newPassword,
+        currentPassword: req.body?.currentPassword,
+        newPassword: req.body?.newPassword,
       });
 
       res.status(200).json({ message: 'Contraseña actualizada exitosamente' });
@@ -154,10 +183,11 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
     }
   });
 
-  app.get('/identity/users', async (req: Request, res: Response, next: NextFunction) => {
+  // D1: GET /v1/identity/users la leen admin y manager (case-insensitive)
+  app.get(['/identity/users', '/v1/identity/users'], async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const role = req.headers['x-user-role'] as string;
+      const role = ((req.headers['x-user-role'] as string) || '').toUpperCase();
 
       if (!tenantId) {
         return res.status(401).json({
@@ -168,11 +198,11 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
         });
       }
 
-      if (role !== 'ADMIN') {
+      if (role !== 'ADMIN' && role !== 'MANAGER') {
         return res.status(403).json({
           error: {
             code: 'FORBIDDEN',
-            message: 'Permiso denegado. Se requiere rol ADMIN',
+            message: 'Permiso denegado. Se requiere rol ADMIN o MANAGER',
           },
         });
       }
@@ -184,10 +214,11 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
     }
   });
 
-  app.post('/identity/users', async (req: Request, res: Response, next: NextFunction) => {
+  // D1: POST /v1/identity/users crear/invitar solo admin
+  app.post(['/identity/users', '/v1/identity/users'], async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const role = req.headers['x-user-role'] as string;
+      const role = ((req.headers['x-user-role'] as string) || '').toUpperCase();
 
       if (!tenantId) {
         return res.status(401).json({
@@ -209,10 +240,12 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
 
       const invited = await inviteUser.execute({
         tenantId,
-        email: req.body.email,
-        displayName: req.body.displayName,
-        password: req.body.password,
-        role: req.body.role || 'STAFF',
+        email: req.body?.email,
+        displayName: req.body?.displayName,
+        password: req.body?.password,
+        role: req.body?.role || 'WAITER',
+        monitorKind: req.body?.monitorKind,
+        avatarUrl: req.body?.avatarUrl,
       });
 
       res.status(201).json(invited);
@@ -221,10 +254,11 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
     }
   });
 
-  app.patch('/identity/users/:id', async (req: Request, res: Response, next: NextFunction) => {
+  // D1: PATCH /v1/identity/users/:id editar solo admin
+  app.patch(['/identity/users/:id', '/v1/identity/users/:id'], async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const role = req.headers['x-user-role'] as string;
+      const role = ((req.headers['x-user-role'] as string) || '').toUpperCase();
       const userId = req.headers['x-user-id'] as string;
 
       if (!tenantId) {
@@ -249,8 +283,9 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
         tenantId,
         currentUserId: userId,
         targetUserId: req.params.id,
-        displayName: req.body.displayName,
-        role: req.body.role,
+        displayName: req.body?.displayName,
+        role: req.body?.role,
+        avatarUrl: req.body?.avatarUrl,
       });
 
       res.status(200).json(updated);
@@ -259,10 +294,11 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
     }
   });
 
-  app.post('/identity/users/:id/disable', async (req: Request, res: Response, next: NextFunction) => {
+  // D1: POST /v1/identity/users/:id/disable desactivar solo admin
+  app.post(['/identity/users/:id/disable', '/v1/identity/users/:id/disable'], async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const role = req.headers['x-user-role'] as string;
+      const role = ((req.headers['x-user-role'] as string) || '').toUpperCase();
       const userId = req.headers['x-user-id'] as string;
 
       if (!tenantId) {
@@ -296,10 +332,11 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
     }
   });
 
-  app.post('/identity/users/:id/enable', async (req: Request, res: Response, next: NextFunction) => {
+  // D1: POST /v1/identity/users/:id/enable activar solo admin
+  app.post(['/identity/users/:id/enable', '/v1/identity/users/:id/enable'], async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const role = req.headers['x-user-role'] as string;
+      const role = ((req.headers['x-user-role'] as string) || '').toUpperCase();
       const userId = req.headers['x-user-id'] as string;
 
       if (!tenantId) {
@@ -333,10 +370,11 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
     }
   });
 
-  app.post('/identity/users/:id/reset-password', async (req: Request, res: Response, next: NextFunction) => {
+  // D1: POST /v1/identity/users/:id/reset-password resetear solo admin
+  app.post(['/identity/users/:id/reset-password', '/v1/identity/users/:id/reset-password'], async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.headers['x-tenant-id'] as string;
-      const role = req.headers['x-user-role'] as string;
+      const role = ((req.headers['x-user-role'] as string) || '').toUpperCase();
 
       if (!tenantId) {
         return res.status(401).json({
@@ -359,10 +397,278 @@ export function createIdentityApp(deps?: IdentityAppDeps): express.Application {
       const result = await manageTeam.resetPassword({
         tenantId,
         targetUserId: req.params.id,
-        newPassword: req.body.password,
+        newPassword: req.body?.password,
       });
 
       res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Tenant Settings routes
+  const getTenantSettings = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const headerTenantId = req.headers['x-tenant-id'] as string | undefined;
+      const queryTenantId = req.query.tenantId as string | undefined;
+
+      if (queryTenantId && (!headerTenantId || queryTenantId !== headerTenantId)) {
+        return res.status(400).json({
+          error: {
+            code: 'TENANT_MISMATCH',
+            message: 'El parámetro tenantId no coincide con la cabecera x-tenant-id',
+          },
+        });
+      }
+
+      const tenantId = headerTenantId;
+      if (!tenantId) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Cabecera x-tenant-id requerida',
+          },
+        });
+      }
+
+      const tenant = await tenantRepo.findById(tenantId);
+      if (!tenant) {
+        return res.status(404).json({
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Tenant no encontrado',
+          },
+        });
+      }
+
+      const role = ((req.headers['x-user-role'] as string) || '').toUpperCase();
+      const isStaff = ['ADMIN', 'MANAGER', 'WAITER', 'CASHIER', 'MONITOR'].includes(role);
+
+      if (isStaff) {
+        return res.status(200).json({
+          operatingMode: tenant.operatingMode ?? 'hybrid',
+          estimatedPrepMinutes: tenant.estimatedPrepMinutes ?? 18,
+          invoiceMode: tenant.invoiceMode ?? 'simple',
+          currency: tenant.currency ?? 'COP',
+          locale: tenant.locale ?? 'es-CO',
+        });
+      }
+
+      // Guest o no-staff: únicamente campos públicos permitidos. GUEST NUNCA DEBE VER estimatedPrepMinutes ni invoiceMode
+      return res.status(200).json({
+        operatingMode: tenant.operatingMode ?? 'hybrid',
+        currency: tenant.currency ?? 'COP',
+        locale: tenant.locale ?? 'es-CO',
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  const patchTenantSettings = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const headerTenantId = req.headers['x-tenant-id'] as string | undefined;
+      const queryTenantId = req.query.tenantId as string | undefined;
+
+      if (queryTenantId && (!headerTenantId || queryTenantId !== headerTenantId)) {
+        return res.status(400).json({
+          error: {
+            code: 'TENANT_MISMATCH',
+            message: 'El parámetro tenantId no coincide con la cabecera x-tenant-id',
+          },
+        });
+      }
+
+      const tenantId = headerTenantId;
+      if (!tenantId) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Cabecera x-tenant-id requerida',
+          },
+        });
+      }
+
+      const role = ((req.headers['x-user-role'] as string) || '').toUpperCase();
+      if (role !== 'ADMIN' && role !== 'MANAGER') {
+        return res.status(403).json({
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Permiso denegado. Se requiere rol ADMIN o MANAGER',
+          },
+        });
+      }
+
+      const tenant = await tenantRepo.findById(tenantId);
+      if (!tenant) {
+        return res.status(404).json({
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Tenant no encontrado',
+          },
+        });
+      }
+
+      const { operatingMode, estimatedPrepMinutes, invoiceMode, currency, locale } = req.body || {};
+
+      if (
+        operatingMode === undefined &&
+        estimatedPrepMinutes === undefined &&
+        invoiceMode === undefined &&
+        currency === undefined &&
+        locale === undefined
+      ) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Se requiere al menos un campo a actualizar: operatingMode, estimatedPrepMinutes, invoiceMode, currency o locale',
+          },
+        });
+      }
+
+      if (operatingMode !== undefined) {
+        if (operatingMode !== 'hybrid' && operatingMode !== 'waiter_only') {
+          return res.status(400).json({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: "operatingMode debe ser 'hybrid' o 'waiter_only'",
+            },
+          });
+        }
+      }
+
+      if (estimatedPrepMinutes !== undefined) {
+        if (
+          typeof estimatedPrepMinutes !== 'number' ||
+          !Number.isInteger(estimatedPrepMinutes) ||
+          estimatedPrepMinutes < 5 ||
+          estimatedPrepMinutes > 120
+        ) {
+          return res.status(400).json({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'estimatedPrepMinutes debe ser un entero entre 5 y 120',
+            },
+          });
+        }
+      }
+
+      if (invoiceMode !== undefined) {
+        if (invoiceMode !== 'simple' && invoiceMode !== 'dian') {
+          return res.status(400).json({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: "invoiceMode debe ser 'simple' o 'dian'",
+            },
+          });
+        }
+      }
+
+      if (currency !== undefined && !isValidCurrency(currency)) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'currency debe ser un código ISO 4217 válido en mayúsculas (p. ej. COP, USD)',
+          },
+        });
+      }
+
+      if (locale !== undefined && !isValidLocale(locale)) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'locale debe ser una etiqueta BCP 47 válida (p. ej. es-CO, en-US)',
+          },
+        });
+      }
+
+      const updated = await tenantRepo.updateSettings(tenantId, {
+        operatingMode,
+        estimatedPrepMinutes,
+        invoiceMode,
+        currency,
+        locale,
+      });
+
+      return res.status(200).json({
+        operatingMode: updated.operatingMode ?? 'hybrid',
+        estimatedPrepMinutes: updated.estimatedPrepMinutes ?? 18,
+        invoiceMode: updated.invoiceMode ?? 'simple',
+        currency: updated.currency ?? 'COP',
+        locale: updated.locale ?? 'es-CO',
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  app.get('/tenant/settings', getTenantSettings);
+  app.get('/v1/tenant/settings', getTenantSettings);
+  app.patch('/tenant/settings', patchTenantSettings);
+  app.patch('/v1/tenant/settings', patchTenantSettings);
+
+  // Public endpoint for guest settings
+  app.get(['/v1/public/tenants/:tenantId/settings', '/public/tenants/:tenantId/settings'], async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = req.params.tenantId;
+      if (!tenantId) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'tenantId requerido',
+          },
+        });
+      }
+
+      const tenant = await tenantRepo.findById(tenantId);
+      if (!tenant) {
+        return res.status(404).json({
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Tenant no encontrado',
+          },
+        });
+      }
+
+      return res.status(200).json({
+        operatingMode: tenant.operatingMode ?? 'hybrid',
+        currency: tenant.currency ?? 'COP',
+        locale: tenant.locale ?? 'es-CO',
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Internal endpoint: returns complete settings without role filtering
+  app.get('/internal/tenant/:tenantId/settings', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = req.params.tenantId;
+      if (!tenantId) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'tenantId requerido',
+          },
+        });
+      }
+
+      const tenant = await tenantRepo.findById(tenantId);
+      if (!tenant) {
+        return res.status(404).json({
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Tenant no encontrado',
+          },
+        });
+      }
+
+      return res.status(200).json({
+        operatingMode: tenant.operatingMode ?? 'hybrid',
+        estimatedPrepMinutes: tenant.estimatedPrepMinutes ?? 18,
+        currency: tenant.currency ?? 'COP',
+        locale: tenant.locale ?? 'es-CO',
+      });
     } catch (err) {
       next(err);
     }

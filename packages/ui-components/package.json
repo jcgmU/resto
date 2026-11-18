@@ -9,15 +9,24 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./bento": {
+      "types": "./dist/bento/index.d.ts",
+      "default": "./dist/bento/index.js"
+    },
+    "./bento/tokens": {
+      "types": "./dist/bento/tokens.d.ts",
+      "default": "./dist/bento/tokens.js"
+    },
     "./bento.css": "./src/bento/bento.css",
     "./src/bento/bento.css": "./src/bento/bento.css"
   },
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "lint": "echo linting ui-components"
+    "lint": "eslint ."
   },
   "dependencies": {
+    "framer-motion": "^14.14.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

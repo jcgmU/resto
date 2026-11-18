@@ -1,3 +1,5 @@
+import { PendingOrderSummaryDTO } from '@packages/shared-types';
+
 export class DomainError extends Error {
   constructor(public readonly code: string, message: string) {
     super(`${code}: ${message}`);
@@ -96,6 +98,36 @@ export class SessionCloseFailedError extends DomainError {
   }
 }
 
+export class SessionNotOrderableError extends DomainError {
+  constructor(message = 'La sesión no admite pedidos en su estado actual') {
+    super('SESSION_NOT_ORDERABLE', message);
+  }
+}
+
+export class TableMismatchError extends DomainError {
+  constructor(message = 'La mesa indicada no coincide con la mesa de la sesión') {
+    super('TABLE_MISMATCH', message);
+  }
+}
+
+export class OrderAlreadyTerminalError extends DomainError {
+  constructor(message = 'No se puede actualizar una orden en estado terminal') {
+    super('ORDER_ALREADY_TERMINAL', message);
+  }
+}
+
+export class OrdersNotDeliveredError extends DomainError {
+  public readonly details: { pendingOrders: PendingOrderSummaryDTO[] };
+
+  constructor(
+    pendingOrders: PendingOrderSummaryDTO[],
+    message = 'Hay órdenes sin entregar en la sesión'
+  ) {
+    super('ORDERS_NOT_DELIVERED', message);
+    this.details = { pendingOrders };
+  }
+}
+
 export class SessionNotActiveError extends DomainError {
   constructor(message = 'La sesión no está activa o ya ha sido pagada') {
     super('SESSION_NOT_ACTIVE', message);
@@ -113,4 +145,3 @@ export class CartBusyError extends DomainError {
     super('CART_BUSY', message);
   }
 }
-

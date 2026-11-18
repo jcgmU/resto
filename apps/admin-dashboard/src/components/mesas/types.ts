@@ -9,6 +9,14 @@ export interface TableItem {
   updatedAt?: string;
   deletedAt?: string;
   tenantId?: string;
+  zoneId?: string;
+  capacity?: number;
+}
+
+export interface ZoneItem {
+  id: string;
+  name: string;
+  active?: boolean;
 }
 
 export interface TableQrData {

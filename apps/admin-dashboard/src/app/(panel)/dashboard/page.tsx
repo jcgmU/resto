@@ -1,26 +1,66 @@
 "use client";
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import {
-  KpiDelta,
-  FeatureGuard,
-  Proximamente,
+  BentoCard,
+  StatusCard,
+  Modal,
+  Avatar,
+  Button,
+  BentoGrid,
+  StatusChip,
+  TabsPill,
+  Skeleton,
   EmptyState,
   ErrorState,
-  Skeleton,
+  KpiDelta,
+  FeatureGuard,
+  getTableDisplayName,
+  formatOrderNumber,
+  tableDisplayName,
 } from '@packages/ui-components';
+import {
+  TableDTO,
+  TableStatus,
+  ZoneDTO,
+  ReservationDTO,
+  OperatingMode,
+  OrderDTO,
+  computeOrderOverdue,
+} from '@packages/shared-types';
 import { ApiClient } from '../../../lib/api';
-import { DASHBOARD_CSS } from '../../../components/dashboard/dashboardStyles';
+import { SalesSummary } from '../../../components/SalesSummary';
+import { resolveMediaUrl } from '../../../lib/media';
+import {
+  fetchTables,
+  createTable,
+  updateTable,
+  deleteTable,
+  staffOpenTableSession,
+  fetchZones,
+  createZone,
+  updateZone,
+  deleteZone,
+  fetchTableQr,
+  rotateTableQr,
+} from '../../../lib/api/tables';
+import {
+  fetchReservations,
+  createReservation,
+  cancelReservation,
+  seatReservation,
+} from '../../../lib/api/reservations';
+import {
+  fetchTenantSettings,
+  updateTenantSettings,
+} from '../../../lib/api/settings';
+import * as realtime from '../../../lib/realtime';
+import { useMoney } from '../../../lib/money';
 
 interface SessionItem {
-  id: string;
+  id?: string;
   sessionId?: string;
   tableId: string;
-  status: string;
-}
-
-interface TableItem {
-  tableId: string;
-  label?: string;
   status: string;
 }
 
@@ -30,6 +70,9 @@ interface OrderItem {
   total?: number;
   tableId?: string;
   createdAt?: string;
+  estimatedMinutes?: number | null;
+  delayMinutes?: number | null;
+  overdue?: boolean;
 }
 
 interface ServiceCallItem {
@@ -40,294 +83,2650 @@ interface ServiceCallItem {
   createdAt?: string;
 }
 
-type TableState = 'libre' | 'ocupada' | 'cuenta' | 'mesero';
-
-const TABLE_STATE_LABEL: Record<TableState, string> = {
-  libre: 'Libre',
-  ocupada: 'Ocupada',
-  cuenta: 'Pidió la cuenta',
-  mesero: 'Llamó al mesero',
-};
-
-const cop = new Intl.NumberFormat('es-CO', {
-  style: 'currency',
-  currency: 'COP',
-  maximumFractionDigits: 0,
-});
-
-// Datos de ejemplo: todavía no existe un servicio de ingresos que los alimente.
-const SAMPLE_WEEK: ReadonlyArray<{ day: string; total: number }> = [
-  { day: 'Lun', total: 1920000 },
-  { day: 'Mar', total: 2140000 },
-  { day: 'Mié', total: 1780000 },
-  { day: 'Jue', total: 2410000 },
-  { day: 'Vie', total: 3350000 },
-  { day: 'Sáb', total: 4180000 },
-  { day: 'Dom', total: 2847500 },
-];
-
-function RevenueChart() {
-  const w = 360;
-  const h = 150;
-  const top = 8;
-  const base = h - 22;
-  const max = 4500000;
-  const slot = w / SAMPLE_WEEK.length;
-  const barW = Math.min(30, slot - 12);
-  const ticks = [0, 2000000, 4000000];
-  const y = (v: number) => base - (v / max) * (base - top);
-  return (
-    <svg
-      className="rev-chart"
-      viewBox={`0 0 ${w} ${h}`}
-      role="img"
-      aria-label="Ingresos de los últimos 7 días en pesos colombianos. Ejemplo: el domingo suma 2.847.500 pesos."
-    >
-      {ticks.map((t) => (
-        <g key={t}>
-          <line className="grid" x1={0} x2={w} y1={y(t)} y2={y(t)} />
-          <text x={0} y={y(t) - 4}>{t === 0 ? '0' : `${t / 1000000} M`}</text>
-        </g>
-      ))}
-      {SAMPLE_WEEK.map((d, i) => {
-        const x = i * slot + (slot - barW) / 2;
-        const isToday = i === SAMPLE_WEEK.length - 1;
-        return (
-          <g key={d.day}>
-            <rect
-              className={isToday ? 'bar today' : 'bar'}
-              x={x}
-              y={y(d.total)}
-              width={barW}
-              height={base - y(d.total)}
-              rx={8}
-            />
-            <text x={x + barW / 2} y={h - 6} textAnchor="middle">{d.day}</text>
-          </g>
-        );
-      })}
-    </svg>
-  );
+function isDateToday(isoOrDateStr: string): boolean {
+  try {
+    const d = new Date(isoOrDateStr);
+    if (isNaN(d.getTime())) return false;
+    const now = new Date();
+    return (
+      d.getDate() === now.getDate() &&
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear()
+    );
+  } catch {
+    return false;
+  }
 }
 
 export default function DashboardPage() {
+  const { format: formatMoney } = useMoney();
+  const router = useRouter();
+
+  // Datos principales
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [tables, setTables] = useState<TableDTO[]>([]);
+  const [zones, setZones] = useState<ZoneDTO[]>([]);
+  const [reservations, setReservations] = useState<ReservationDTO[]>([]);
   const [activeSessions, setActiveSessions] = useState<SessionItem[]>([]);
-  const [tables, setTables] = useState<TableItem[]>([]);
   const [orders, setOrders] = useState<OrderItem[]>([]);
   const [serviceCalls, setServiceCalls] = useState<ServiceCallItem[]>([]);
 
-  const fetchDashboardData = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
+  // Settings de tenant
+  const [operatingMode, setOperatingMode] = useState<OperatingMode>('hybrid');
+  const [estimatedPrepMinutes, setEstimatedPrepMinutes] = useState<number>(18);
+  const lastPersistedSlaRef = useRef<number>(18);
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  // Filtros
+  const [tableFilter, setTableFilter] = useState<'TODAS' | 'LIBRES' | 'OCUPADAS' | 'RESERVADAS'>('TODAS');
+  const [zoneFilter, setZoneFilter] = useState<string>('TODAS');
+  const [inspectedTableId, setInspectedTableId] = useState<string | null>(null);
+
+  // Notificaciones / Toast
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Modal Crear Mesa
+  const [showCreateTableModal, setShowCreateTableModal] = useState(false);
+  const [newTableLabel, setNewTableLabel] = useState('');
+  const [newTableCapacity, setNewTableCapacity] = useState<number>(4);
+  const [newTableZoneId, setNewTableZoneId] = useState<string>('');
+  const [createTableError, setCreateTableError] = useState<string | null>(null);
+  const [submittingTable, setSubmittingTable] = useState(false);
+
+  // Modal Editar Mesa
+  const [editingTable, setEditingTable] = useState<TableDTO | null>(null);
+  const [editTableLabel, setEditTableLabel] = useState('');
+  const [editTableCapacity, setEditTableCapacity] = useState<number>(4);
+  const [editTableZoneId, setEditTableZoneId] = useState<string>('');
+  const [editTableStatus, setEditTableStatus] = useState<TableStatus>('AVAILABLE');
+  const [editTableError, setEditTableError] = useState<string | null>(null);
+  const [submittingEditTable, setSubmittingEditTable] = useState(false);
+
+  // Modal Eliminar Mesa
+  const [deletingTable, setDeletingTable] = useState<TableDTO | null>(null);
+  const [deleteTableError, setDeleteTableError] = useState<string | null>(null);
+  const [submittingDelete, setSubmittingDelete] = useState(false);
+
+  // Modal Zonas
+  const [showZonesModal, setShowZonesModal] = useState(false);
+  const [newZoneName, setNewZoneName] = useState('');
+  const [newZoneSortOrder, setNewZoneSortOrder] = useState<number>(0);
+  const [newZoneStaffIds, setNewZoneStaffIds] = useState<string[]>([]);
+  const [editingZoneId, setEditingZoneId] = useState<string | null>(null);
+  const [editZoneName, setEditZoneName] = useState('');
+  const [editZoneStaffIds, setEditZoneStaffIds] = useState<string[]>([]);
+  const [zoneActionError, setZoneActionError] = useState<string | null>(null);
+  const [submittingZone, setSubmittingZone] = useState(false);
+  const [availableWaiters, setAvailableWaiters] = useState<Array<{ id: string; displayName?: string; email: string; avatarUrl?: string | null }>>([]);
+
+  // Modal Reservas
+  const [showReservationModal, setShowReservationModal] = useState(false);
+  const [resTableId, setResTableId] = useState('');
+  const [resCustomerName, setResCustomerName] = useState('');
+  const [resPhone, setResPhone] = useState('');
+  const [resPartySize, setResPartySize] = useState<number>(2);
+  const [resTime, setResTime] = useState('19:30');
+  const [resNotes, setResNotes] = useState('');
+  const [reservationError, setReservationError] = useState<string | null>(null);
+  const [submittingReservation, setSubmittingReservation] = useState(false);
+
+  // Modal QR
+  const [activeTableQr, setActiveTableQr] = useState<TableDTO | null>(null);
+  const [qrData, setQrData] = useState<{ url: string; pngDataUrl: string } | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
+
+  // Modal Cambiar Mesa (R12)
+  const [movingTableData, setMovingTableData] = useState<{
+    sessionId: string;
+    sourceTableId: string;
+    sourceTableLabel: string;
+  } | null>(null);
+  const [targetMoveTableId, setTargetMoveTableId] = useState('');
+  const [submittingMove, setSubmittingMove] = useState(false);
+  const [moveError, setMoveError] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
+  };
+
+  const loadAllData = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) {
+      setLoading(true);
+    }
     setError(null);
     try {
-      const [sessionsRes, tablesRes, ordersRes, callsRes] = await Promise.all([
+      const [
+        tablesRes,
+        zonesRes,
+        reservationsRes,
+        sessionsRes,
+        settingsRes,
+        ordersRes,
+        callsRes,
+      ] = await Promise.all([
+        fetchTables(),
+        fetchZones().catch(() => []),
+        fetchReservations().catch(() => []),
         ApiClient.request('/v1/sessions?status=active'),
-        ApiClient.request('/v1/tables'),
-        ApiClient.request('/v1/orders'),
-        ApiClient.request('/v1/service-calls?status=pending'),
+        fetchTenantSettings().catch(() => ({ operatingMode: 'hybrid' as OperatingMode, estimatedPrepMinutes: 18 })),
+        ApiClient.request('/v1/orders').catch(() => []),
+        ApiClient.request('/v1/service-calls?status=pending').catch(() => []),
       ]);
 
-      const sessionsData = Array.isArray(sessionsRes) ? sessionsRes : sessionsRes?.data || [];
-      const tablesData = Array.isArray(tablesRes) ? tablesRes : tablesRes?.data || [];
-      const ordersData = Array.isArray(ordersRes) ? ordersRes : ordersRes?.data || [];
-      const callsData = Array.isArray(callsRes) ? callsRes : callsRes?.data || [];
+      const normalizedTables: TableDTO[] = (Array.isArray(tablesRes) ? tablesRes : (tablesRes as any)?.data || []).map(
+        (t: any) => ({
+          ...t,
+          tableId: t.tableId || t.id,
+          capacity: t.capacity ?? 4,
+        })
+      );
+      setTables(normalizedTables);
 
-      setActiveSessions(Array.isArray(sessionsData) ? sessionsData : []);
-      setTables(Array.isArray(tablesData) ? tablesData : []);
-      setOrders(Array.isArray(ordersData) ? ordersData : []);
-      setServiceCalls(Array.isArray(callsData) ? callsData : []);
+      const normalizedZones: ZoneDTO[] = Array.isArray(zonesRes) ? zonesRes : (zonesRes as any)?.data || [];
+      setZones(normalizedZones);
+
+      const normalizedReservations: ReservationDTO[] = Array.isArray(reservationsRes)
+        ? reservationsRes
+        : (reservationsRes as any)?.data || [];
+      setReservations(normalizedReservations);
+
+      const sessionsData = Array.isArray(sessionsRes) ? sessionsRes : (sessionsRes as any)?.data || [];
+      setActiveSessions(sessionsData);
+
+      const ordersData = Array.isArray(ordersRes) ? ordersRes : (ordersRes as any)?.data || [];
+      setOrders(ordersData);
+
+      const callsData = Array.isArray(callsRes) ? callsRes : (callsRes as any)?.data || [];
+      setServiceCalls(callsData);
+
+      if (settingsRes) {
+        if (settingsRes.operatingMode) setOperatingMode(settingsRes.operatingMode as OperatingMode);
+        if (typeof settingsRes.estimatedPrepMinutes === 'number') {
+          setEstimatedPrepMinutes(settingsRes.estimatedPrepMinutes);
+          lastPersistedSlaRef.current = settingsRes.estimatedPrepMinutes;
+        }
+      }
+
+      ApiClient.request('/v1/identity/users')
+        .then((usersRes) => {
+          const list = Array.isArray(usersRes) ? usersRes : (usersRes as any)?.data || [];
+          setAvailableWaiters(list.filter((u: any) => String(u.role || '').toUpperCase() === 'WAITER'));
+        })
+        .catch(() => {});
     } catch (err: any) {
       setError(err?.message || 'Error al cargar los datos del dashboard');
     } finally {
-      if (!silent) setLoading(false);
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchDashboardData();
-    // Sondeo silencioso: las sesiones nuevas (QR escaneado) no llegan por socket.
-    const timer = setInterval(() => fetchDashboardData(true), 5000);
-    return () => clearInterval(timer);
-  }, [fetchDashboardData]);
+    loadAllData();
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        loadAllData({ silent: true });
+      }
+    };
+
+    const handleFocus = () => {
+      loadAllData({ silent: true });
+    };
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', handleFocus);
+    }
+
+    let socket: any = null;
+    const token = ApiClient.token;
+    if (token) {
+      try {
+        socket = realtime.connectOrdersSocket(token);
+        socket.on('table:status-changed', () => {
+          loadAllData({ silent: true });
+        });
+        socket.on('order:created', () => {
+          loadAllData({ silent: true });
+        });
+        socket.on('order:status-changed', () => {
+          loadAllData({ silent: true });
+        });
+        socket.on('session:checkout-completed', () => {
+          loadAllData({ silent: true });
+        });
+        socket.on('service-call:created', () => {
+          loadAllData({ silent: true });
+        });
+        socket.on('service-call:resolved', () => {
+          loadAllData({ silent: true });
+        });
+      } catch {
+        // Fallback gracefully
+      }
+    }
+
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', handleFocus);
+      }
+      if (socket) {
+        try {
+          socket.disconnect();
+        } catch {}
+      }
+    };
+  }, [loadAllData]);
+
+  // Sesiones activas y Reservas activas de hoy
+  const activeSessionTableIds = useMemo(() => {
+    const s = new Set<string>();
+    activeSessions.forEach((sess) => {
+      if (sess.tableId && (sess.status === 'active' || !sess.status)) s.add(sess.tableId);
+    });
+    return s;
+  }, [activeSessions]);
+
+  const activeReservationsToday = useMemo(() => {
+    return reservations.filter(
+      (r) => r.status === 'active' && isDateToday(r.reservedFor)
+    );
+  }, [reservations]);
+
+  const todayReservedTableIds = useMemo(() => {
+    return new Set(activeReservationsToday.map((r) => r.tableId));
+  }, [activeReservationsToday]);
+
+  // Mapeo y estado de cada mesa
+  const enrichedTables = useMemo(() => {
+    return tables.map((t) => {
+      const isOccupied = activeSessionTableIds.has(t.tableId) || t.status === 'OCCUPIED';
+      const isReserved = !isOccupied && (todayReservedTableIds.has(t.tableId) || t.status === 'RESERVED');
+      const isDisabled = t.status === 'DISABLED' || t.status === 'inactive';
+
+      let effectiveStatus: 'LIBRE' | 'OCUPADA' | 'RESERVADA' | 'DESHABILITADA' = 'LIBRE';
+      if (isDisabled) effectiveStatus = 'DESHABILITADA';
+      else if (isOccupied) effectiveStatus = 'OCUPADA';
+      else if (isReserved) effectiveStatus = 'RESERVADA';
+
+      // Consumo estimado en órdenes activas
+      const tableOrders = orders.filter(
+        (o) => o.tableId === t.tableId && ['PLACED', 'IN_KITCHEN', 'READY'].includes(o.status)
+      );
+      const totalCop = tableOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+
+      const zoneObj = zones.find((z) => z.id === t.zoneId);
+      const zoneName = zoneObj?.name || 'Salón Principal';
+
+      return {
+        ...t,
+        effectiveStatus,
+        capacity: t.capacity ?? 4,
+        zoneName,
+        currentBillCop: totalCop,
+      };
+    });
+  }, [tables, activeSessionTableIds, todayReservedTableIds, zones, orders]);
+  const inspectedTable = enrichedTables.find((table) => table.tableId === inspectedTableId);
+
+  // Métricas para las 3 tarjetas superiores
+  const metrics = useMemo(() => {
+    const occupiedCount = enrichedTables.filter((t) => t.effectiveStatus === 'OCUPADA').length;
+    const reservedCount = enrichedTables.filter((t) => t.effectiveStatus === 'RESERVADA').length;
+    const availableCount = enrichedTables.filter((t) => t.effectiveStatus === 'LIBRE').length;
+    const totalCount = enrichedTables.length || tables.length;
+    return { occupiedCount, reservedCount, availableCount, totalCount };
+  }, [enrichedTables, tables]);
+
+  // Filtro de mesas
+  const filteredTables = useMemo(() => {
+    return enrichedTables.filter((t) => {
+      const matchesStatus =
+        tableFilter === 'TODAS' ||
+        (tableFilter === 'LIBRES' && t.effectiveStatus === 'LIBRE') ||
+        (tableFilter === 'OCUPADAS' && t.effectiveStatus === 'OCUPADA') ||
+        (tableFilter === 'RESERVADAS' && t.effectiveStatus === 'RESERVADA');
+
+      const matchesZone = zoneFilter === 'TODAS' || t.zoneId === zoneFilter || t.zoneName === zoneFilter;
+
+      return matchesStatus && matchesZone;
+    });
+  }, [enrichedTables, tableFilter, zoneFilter]);
+
+  // Active orders count for KPI delta / operational metrics
+  const activeOrders = useMemo(() => {
+    return orders.filter((o) =>
+      ['PLACED', 'IN_KITCHEN', 'READY'].includes(o.status)
+    );
+  }, [orders]);
+
+  const activeOrdersCount = activeOrders.length;
+
+  // Pedidos demorados / overdue (N20)
+  const overdueOrders = useMemo(() => {
+    const now = Date.now();
+    return activeOrders.filter((o) => {
+      if (o.overdue === true) return true;
+      if (!o.createdAt) return false;
+      return computeOrderOverdue(
+        {
+          status: o.status as any,
+          createdAt: o.createdAt,
+          estimatedMinutes: o.estimatedMinutes,
+          delayMinutes: o.delayMinutes,
+        },
+        now,
+        estimatedPrepMinutes
+      );
+    });
+  }, [activeOrders, estimatedPrepMinutes]);
+
+  // Cambiar modo de operación
+  const handleToggleOperatingMode = async () => {
+    const newMode: OperatingMode = operatingMode === 'hybrid' ? 'waiter_only' : 'hybrid';
+    setOperatingMode(newMode);
+    try {
+      setSavingSettings(true);
+      await updateTenantSettings({ operatingMode: newMode });
+      showToast(
+        newMode === 'hybrid'
+          ? 'Modo Híbrido activado (QR + Meseros)'
+          : 'Modo Solo Meseros activado (QR inactivo)'
+      );
+    } catch (err: any) {
+      showToast(err?.message || 'Error al actualizar modo de operación');
+      setOperatingMode(operatingMode);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  // Cambiar SLA
+  const handleSlaChange = (newVal: number) => {
+    setEstimatedPrepMinutes(newVal);
+  };
+
+  const handleSlaCommit = async (newVal: number) => {
+    if (newVal === lastPersistedSlaRef.current) return;
+    try {
+      await updateTenantSettings({ estimatedPrepMinutes: newVal });
+      lastPersistedSlaRef.current = newVal;
+      showToast(`Tiempo SLA actualizado a ${newVal} min`);
+    } catch (err: any) {
+      showToast(err?.message || 'Error al actualizar SLA');
+    }
+  };
+
+  // Acciones de mesa
+  const handleOcuparMesa = async (tableId: string, label: string) => {
+    try {
+      await staffOpenTableSession(tableId);
+      showToast(`Mesa ${label} ocupada correctamente`);
+      await loadAllData();
+    } catch (err: any) {
+      showToast(err?.message || 'Error al ocupar mesa');
+    }
+  };
+
+  const handleClienteLlego = async (tableId: string, label: string) => {
+    try {
+      const res = activeReservationsToday.find((r) => r.tableId === tableId);
+      if (res) {
+        await seatReservation(res.id);
+        showToast(`Cliente llegó: Mesa ${label} ocupada`);
+      } else {
+        await staffOpenTableSession(tableId);
+        showToast(`Mesa ${label} ocupada`);
+      }
+      await loadAllData();
+    } catch (err: any) {
+      showToast(err?.message || 'Error al sentar cliente');
+    }
+  };
+
+  const handleCancelarReserva = async (tableId: string) => {
+    try {
+      const res = activeReservationsToday.find((r) => r.tableId === tableId);
+      if (res) {
+        await cancelReservation(res.id);
+        showToast('Reserva cancelada');
+        await loadAllData();
+      }
+    } catch (err: any) {
+      showToast(err?.message || 'Error al cancelar reserva');
+    }
+  };
+
+  const handleCobrarMesa = (tableId?: string) => {
+    if (tableId) {
+      router.push('/checkout?tableId=' + tableId);
+    } else {
+      router.push('/checkout');
+    }
+  };
+
+  // Cambio de Mesa (R12)
+  const handleOpenMoveTable = (tableId: string, label: string) => {
+    const session = activeSessions.find(
+      (s) => (s.tableId === tableId || (s as any).id === tableId) && (s.status === 'active' || s.status === 'billRequested')
+    );
+    if (!session) {
+      showToast('No se encontró sesión activa en esta mesa');
+      return;
+    }
+    const sId = session.sessionId || session.id;
+    if (!sId) {
+      showToast('No se encontró sesión activa en esta mesa');
+      return;
+    }
+    setMovingTableData({
+      sessionId: sId,
+      sourceTableId: tableId,
+      sourceTableLabel: label,
+    });
+    setTargetMoveTableId('');
+    setMoveError(null);
+  };
+
+  const handleConfirmMoveTable = async () => {
+    if (!movingTableData || !targetMoveTableId) return;
+    setSubmittingMove(true);
+    setMoveError(null);
+    try {
+      await ApiClient.request(`/v1/sessions/${movingTableData.sessionId}/move`, {
+        method: 'POST',
+        body: JSON.stringify({ targetTableId: targetMoveTableId }),
+      });
+      showToast(`${tableDisplayName(movingTableData.sourceTableLabel)} cambiada con éxito`);
+      setMovingTableData(null);
+      setTargetMoveTableId('');
+      await loadAllData();
+    } catch (err: any) {
+      setMoveError(err?.message || 'Error al cambiar mesa');
+    } finally {
+      setSubmittingMove(false);
+    }
+  };
+
+  const availableMoveTables = useMemo(() => {
+    return tables.filter((t) => {
+      const isOccupied = activeSessionTableIds.has(t.tableId) || t.status === 'OCCUPIED';
+      const isCurrent = movingTableData ? t.tableId === movingTableData.sourceTableId : false;
+      const isDisabled = t.status === 'DISABLED' || t.status === 'inactive';
+      return !isOccupied && !isCurrent && !isDisabled;
+    });
+  }, [tables, activeSessionTableIds, movingTableData]);
+
+  // CRUD Mesas
+  const handleOpenCreateTable = () => {
+    setNewTableLabel('');
+    setNewTableCapacity(4);
+    setNewTableZoneId(zones[0]?.id || '');
+    setCreateTableError(null);
+    setShowCreateTableModal(true);
+  };
+
+  const handleSubmitCreateTable = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTableLabel.trim()) {
+      setCreateTableError('Ingresa un número o nombre para la mesa');
+      return;
+    }
+    setSubmittingTable(true);
+    setCreateTableError(null);
+    try {
+      await createTable({
+        label: newTableLabel.trim(),
+        capacity: Number(newTableCapacity) || 4,
+        zoneId: newTableZoneId || undefined,
+        status: 'AVAILABLE',
+      });
+      setShowCreateTableModal(false);
+      showToast(`${tableDisplayName(newTableLabel.trim())} creada`);
+      await loadAllData();
+    } catch (err: any) {
+      setCreateTableError(err?.message || 'Error al crear la mesa');
+    } finally {
+      setSubmittingTable(false);
+    }
+  };
+
+  const handleOpenEditTable = (t: TableDTO) => {
+    setEditingTable(t);
+    setEditTableLabel(t.label);
+    setEditTableCapacity(t.capacity || 4);
+    setEditTableZoneId(t.zoneId || '');
+    setEditTableStatus(t.status || 'AVAILABLE');
+    setEditTableError(null);
+  };
+
+  const handleSubmitEditTable = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTable) return;
+    setSubmittingEditTable(true);
+    setEditTableError(null);
+    try {
+      await updateTable(editingTable.tableId, {
+        label: editTableLabel.trim(),
+        capacity: Number(editTableCapacity) || 4,
+        zoneId: editTableZoneId || undefined,
+        status: editTableStatus,
+      });
+      setEditingTable(null);
+      showToast(`${tableDisplayName(editTableLabel)} actualizada`);
+      await loadAllData();
+    } catch (err: any) {
+      setEditTableError(err?.message || 'Error al actualizar mesa');
+    } finally {
+      setSubmittingEditTable(false);
+    }
+  };
+
+  const handleConfirmDeleteTable = async () => {
+    if (!deletingTable) return;
+    setSubmittingDelete(true);
+    setDeleteTableError(null);
+    try {
+      await deleteTable(deletingTable.tableId);
+      setDeletingTable(null);
+      showToast(`${tableDisplayName(deletingTable.label)} eliminada`);
+      await loadAllData();
+    } catch (err: any) {
+      setDeleteTableError(err?.message || 'Error al eliminar mesa');
+    } finally {
+      setSubmittingDelete(false);
+    }
+  };
+
+  // QR
+  const handleViewQr = async (table: TableDTO) => {
+    setActiveTableQr(table);
+    setQrData(null);
+    setQrError(null);
+    setQrLoading(true);
+    try {
+      const res = await fetchTableQr(table.tableId);
+      setQrData(res);
+    } catch (err: any) {
+      setQrError(err?.message || 'Error al cargar el código QR');
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  const handleRotateQrCode = async (table: TableDTO) => {
+    setQrLoading(true);
+    setQrError(null);
+    try {
+      const res = await rotateTableQr(table.tableId);
+      setQrData(res);
+      showToast('Código QR rotado correctamente');
+    } catch (err: any) {
+      setQrError(err?.message || 'Error al rotar código QR');
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  // CRUD Zonas
+  const handleCreateZone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newZoneName.trim()) return;
+    setSubmittingZone(true);
+    setZoneActionError(null);
+    try {
+      await createZone({
+        name: newZoneName.trim(),
+        sortOrder: Number(newZoneSortOrder) || 0,
+        staffIds: newZoneStaffIds,
+      });
+      setNewZoneName('');
+      setNewZoneSortOrder(0);
+      setNewZoneStaffIds([]);
+      showToast('Zona creada');
+      await loadAllData();
+    } catch (err: any) {
+      setZoneActionError(err?.message || 'Error al crear zona');
+    } finally {
+      setSubmittingZone(false);
+    }
+  };
+
+  const handleUpdateZone = async (zoneId: string) => {
+    if (!editZoneName.trim()) return;
+    setSubmittingZone(true);
+    setZoneActionError(null);
+    try {
+      await updateZone(zoneId, {
+        name: editZoneName.trim(),
+        staffIds: editZoneStaffIds,
+      });
+      setEditingZoneId(null);
+      setEditZoneStaffIds([]);
+      showToast('Zona actualizada');
+      await loadAllData();
+    } catch (err: any) {
+      setZoneActionError(err?.message || 'Error al actualizar zona');
+    } finally {
+      setSubmittingZone(false);
+    }
+  };
+
+  const handleDeleteZone = async (zoneId: string) => {
+    setSubmittingZone(true);
+    setZoneActionError(null);
+    try {
+      await deleteZone(zoneId);
+      showToast('Zona eliminada');
+      await loadAllData();
+    } catch (err: any) {
+      setZoneActionError(err?.message || 'Error al eliminar zona');
+    } finally {
+      setSubmittingZone(false);
+    }
+  };
+
+  // Modal Reserva
+  const handleOpenReservation = (tableId?: string) => {
+    setResTableId(tableId || (tables[0]?.tableId ?? ''));
+    setResCustomerName('');
+    setResPhone('');
+    setResPartySize(2);
+    setResTime('19:30');
+    setResNotes('');
+    setReservationError(null);
+    setShowReservationModal(true);
+  };
+
+  const handleSubmitReservation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resCustomerName.trim() || !resTableId) {
+      setReservationError('Nombre del cliente y mesa son requeridos');
+      return;
+    }
+    setSubmittingReservation(true);
+    setReservationError(null);
+    try {
+      const todayIso = new Date().toISOString().split('T')[0];
+      const reservedFor = `${todayIso}T${resTime}:00Z`;
+
+      await createReservation({
+        tableId: resTableId,
+        customerName: resCustomerName.trim(),
+        phone: resPhone.trim(),
+        partySize: Number(resPartySize) || 2,
+        reservedFor,
+        notes: resNotes.trim() || undefined,
+      });
+
+      setShowReservationModal(false);
+      showToast(`Reserva confirmada para ${resCustomerName}`);
+      await loadAllData();
+    } catch (err: any) {
+      setReservationError(err?.message || 'Error al crear la reserva');
+    } finally {
+      setSubmittingReservation(false);
+    }
+  };
 
   if (loading) {
     return (
-      <div className="dash">
-        <style>{DASHBOARD_CSS}</style>
-        <div className="dash-grid">
-          <div className="glass span-2"><Skeleton height="120px" /></div>
-          <div className="glass span-2 row-2"><Skeleton height="260px" /></div>
-          <div className="glass"><Skeleton height="72px" /></div>
-          <div className="glass"><Skeleton height="72px" /></div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px' }}>
+          <BentoCard style={{ backgroundColor: 'var(--bento-card-bg-solid)', padding: '24px', minHeight: '140px' }}>
+            <Skeleton height="72px" />
+          </BentoCard>
+          <BentoCard style={{ backgroundColor: 'var(--bento-card-bg-solid)', padding: '24px', minHeight: '140px' }}>
+            <Skeleton height="72px" />
+          </BentoCard>
+          <BentoCard style={{ backgroundColor: 'var(--bento-card-bg-solid)', padding: '24px', minHeight: '140px' }}>
+            <Skeleton height="72px" />
+          </BentoCard>
         </div>
+        <BentoCard style={{ backgroundColor: 'var(--bento-card-bg-solid)', padding: '24px' }}>
+          <Skeleton height="28px" width="180px" style={{ marginBottom: '16px' }} />
+          <Skeleton height="180px" />
+        </BentoCard>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div>
-        <ErrorState
-          title="Error al cargar dashboard"
-          message={error}
-          onRetry={() => fetchDashboardData()}
-          retryLabel="Reintentar"
-        />
-      </div>
+      <ErrorState
+        title="Error al cargar dashboard"
+        message={error}
+        onRetry={loadAllData}
+        retryLabel="Reintentar"
+      />
     );
   }
 
-  const activeTables = tables.filter((t) => t.status !== 'deleted');
-  const distinctActiveTableIds = new Set(
-    activeSessions.map((s: any) => s.tableId).filter(Boolean)
-  );
-  const activeTablesCount = distinctActiveTableIds.size;
-  const totalTablesCount = activeTables.length;
-  const activeOrdersCount = orders.filter((o) =>
-    ['PLACED', 'IN_KITCHEN', 'READY'].includes(o.status)
-  ).length;
-
-  const callByTable = new Map<string, ServiceCallItem>();
-  serviceCalls.forEach((c) => {
-    if (!callByTable.has(c.tableId)) callByTable.set(c.tableId, c);
-  });
-
-  const stateOf = (tableId: string): TableState => {
-    const call = callByTable.get(tableId);
-    if (call) return /cuenta/i.test(call.note || '') ? 'cuenta' : 'mesero';
-    return distinctActiveTableIds.has(tableId) ? 'ocupada' : 'libre';
-  };
-
-  const labelOf = (tableId: string) => {
-    const match = tables.find((t) => (t.tableId || (t as any).id) === tableId);
-    return match?.label || `Mesa ${tableId}`;
-  };
-
   return (
-    <div className="dash">
-      <style>{DASHBOARD_CSS}</style>
-      <div className="dash-grid">
-        <section className="glass span-2" aria-label="Ingresos">
-          <FeatureGuard flag="analytics" fallback={<Proximamente featureName="Ingresos del día" />}>
-            <div className="glass-head">
-              <h2>Ingresos de hoy</h2>
-              <span className="tag">Datos de ejemplo</span>
-            </div>
-            <div className="rev-figure">{cop.format(2847500)}</div>
-            <p className="rev-meta">+8,4 % frente al domingo pasado · ticket promedio {cop.format(48300)}</p>
-            <RevenueChart />
-          </FeatureGuard>
-        </section>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+      {/* Toast flotante */}
+      {toastMessage && (
+        <div
+          role="status"
+          style={{
+            position: 'fixed',
+            top: '24px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 100,
+            backgroundColor: 'var(--bento-overlay-dark)',
+            color: 'var(--bento-card-bg-solid)',
+            padding: '10px 24px',
+            borderRadius: '9999px',
+            fontSize: '0.875rem',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            fontWeight: 400,
+          }}
+        >
+          {toastMessage}
+        </div>
+      )}
 
-        <section className="glass span-2 row-2" aria-label="Mapa de mesas">
-          <div className="glass-head">
-            <h2>Mapa de mesas</h2>
-            <span className="tag">{activeTablesCount} de {totalTablesCount} ocupadas</span>
+      {/* Cabecera de Resumen con Toggle de Modo de Operación */}
+      <section
+        aria-label="Cabecera y modo de operación"
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '16px',
+        }}
+      >
+        <div>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: '1.75rem',
+              fontWeight: 300,
+              fontFamily: 'var(--bento-font-heading)',
+              color: 'var(--bento-text)',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Resumen Operativo
+          </h1>
+          <p style={{ margin: '4px 0 0 0', fontSize: '0.875rem', color: 'var(--bento-text-muted)' }}>
+            Estado de mesas en vivo, métricas de atención y reservas del día
+          </p>
+        </div>
+
+        {/* Toggle de Modo de Operación */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-muted)', textTransform: 'uppercase' }}>
+            Modo de Operación:
+          </span>
+          <button
+            type="button"
+            data-testid="operating-mode-toggle"
+            aria-label="Toggle Modo de Operación"
+            onClick={handleToggleOperatingMode}
+            disabled={savingSettings}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 'var(--bento-pill-radius)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              cursor: savingSettings ? 'wait' : 'pointer',
+              transition: 'all 0.2s ease',
+              border: '1px solid',
+              backgroundColor: operatingMode === 'hybrid' ? 'rgba(255, 255, 255, 0.9)' : 'var(--bento-primary)',
+              borderColor: operatingMode === 'hybrid' ? 'var(--bento-border)' : 'var(--bento-primary)',
+              color: operatingMode === 'hybrid' ? 'var(--bento-text)' : 'var(--bento-card-bg-solid)',
+              boxShadow: 'var(--bento-card-shadow)',
+              minHeight: '40px',
+            }}
+          >
+            {operatingMode === 'hybrid' ? 'Híbrido (QR + Meseros)' : 'Solo Meseros (QR Inactivo)'}
+          </button>
+        </div>
+      </section>
+
+      {/* 1. Resumen Operativo: 3 tarjetas métricas superiores */}
+      <section aria-label="Indicadores clave de rendimiento">
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '24px',
+            alignItems: 'stretch',
+          }}
+        >
+          {/* Tarjeta 1: Mesas Ocupadas */}
+          <StatusCard status="occupied"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.65)',
+              padding: '24px',
+              position: 'relative',
+              overflow: 'hidden',
+              minHeight: '140px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--bento-text-muted)' }}>
+                  Mesas Ocupadas
+                </p>
+              </div>
+              <span
+                style={{
+                  backgroundColor: 'rgba(224, 166, 166, 0.25)',
+                  color: 'var(--bento-danger-text)',
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                }}
+              >
+                Activas
+              </span>
+            </div>
+            {/* KPI Delta compatible */}
+            <div style={{ marginTop: '8px' }}>
+              <KpiDelta
+                label="Mesas Activas"
+                value={String(metrics.occupiedCount)}
+                delta={metrics.occupiedCount > 0 ? `${metrics.occupiedCount} en sala` : 'sin mesas'}
+                trend={metrics.occupiedCount > 0 ? 'up' : 'neutral'}
+                context={
+                  metrics.totalCount > 0
+                    ? `de ${metrics.totalCount} mesas configuradas`
+                    : 'sin mesas configuradas'
+                }
+              />
+            </div>
+          </StatusCard>
+
+          {/* Tarjeta 2: Mesas Libres y Reservadas (Disponibilidad) */}
+          <StatusCard status="available"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.65)',
+              padding: '24px',
+              position: 'relative',
+              overflow: 'hidden',
+              minHeight: '140px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--bento-text-muted)' }}>
+              Disponibilidad
+            </p>
+            <div style={{ display: 'flex', gap: '24px', margin: '8px 0' }}>
+              <div>
+                <span style={{ fontSize: '1.25rem', fontWeight: 500, color: 'var(--bento-status-available-text)' }}>
+                  {metrics.availableCount} Libres
+                </span>
+              </div>
+              <div>
+                <span style={{ fontSize: '1.25rem', fontWeight: 500, color: 'var(--bento-status-reserved-soft-text)' }}>
+                  {metrics.reservedCount} Reservas
+                </span>
+              </div>
+            </div>
+            {/* KPI Delta compatible para pedidos activos */}
+            <KpiDelta
+              label="Pedidos Activos"
+              value={String(activeOrdersCount)}
+              delta={activeOrdersCount > 0 ? `${activeOrdersCount} en curso` : 'al día'}
+              trend={activeOrdersCount > 0 ? 'up' : 'neutral'}
+              context="en preparación y sala"
+            />
+          </StatusCard>
+
+          {/* Tarjeta 3: Tiempo Límite Estimado (SLA) interactivo */}
+          <BentoCard
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.65)',
+              padding: '24px',
+              position: 'relative',
+              overflow: 'hidden',
+              minHeight: '140px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--bento-text-muted)' }}>
+                  Tiempo Límite Estimado
+                </p>
+                <p style={{ margin: '2px 0 0 0', fontSize: '0.6875rem', color: 'var(--bento-text-muted)' }}>
+                  Umbral de aviso en cocina y SLA
+                </p>
+              </div>
+              <span
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                  border: '1px solid var(--bento-border)',
+                  color: 'var(--bento-text)',
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                }}
+              >
+                {estimatedPrepMinutes} min
+              </span>
+            </div>
+
+            <div style={{ margin: '16px 0 8px 0' }}>
+              <input
+                type="range"
+                min={5}
+                max={120}
+                value={estimatedPrepMinutes}
+                aria-label="Tiempo Límite Estimado (SLA)"
+                onChange={(e) => handleSlaChange(Number(e.target.value))}
+                onMouseUp={(e) => handleSlaCommit(Number((e.target as HTMLInputElement).value))}
+                onTouchEnd={(e) => handleSlaCommit(Number((e.target as HTMLInputElement).value))}
+                onBlur={(e) => handleSlaCommit(Number((e.target as HTMLInputElement).value))}
+                style={{
+                  width: '100%',
+                  accentColor: 'var(--bento-primary)',
+                  cursor: 'pointer',
+                }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6875rem', color: 'var(--bento-text-muted)' }}>
+                <span>5m</span>
+                <span>60m</span>
+                <span>120m</span>
+              </div>
+            </div>
+          </BentoCard>
+
+          {/* Tarjeta 4: Pedidos Demorados (N20) */}
+          <StatusCard status={overdueOrders.length > 0 ? 'occupied' : 'available'}
+            data-testid="overdue-orders-card"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.65)',
+              padding: '24px',
+              position: 'relative',
+              overflow: 'hidden',
+              minHeight: '140px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--bento-text-muted)' }}>
+                  Pedidos demorados
+                </p>
+                <p style={{ margin: '2px 0 0 0', fontSize: '0.6875rem', color: 'var(--bento-text-muted)' }}>
+                  Exceden el SLA de cocina ({estimatedPrepMinutes}m)
+                </p>
+              </div>
+              <span
+                style={{
+                  backgroundColor: overdueOrders.length > 0 ? 'rgba(224, 166, 166, 0.25)' : 'rgba(166, 224, 186, 0.25)',
+                  color: overdueOrders.length > 0 ? 'var(--bento-danger-text)' : 'var(--bento-status-available-text)',
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {overdueOrders.length}
+              </span>
+            </div>
+
+            <div style={{ marginTop: '12px' }}>
+              {overdueOrders.length === 0 ? (
+                <div style={{ fontSize: '0.8125rem', color: 'var(--bento-text-muted)' }}>
+                  Todos los pedidos marchan a tiempo.
+                </div>
+              ) : (
+                <ul
+                  data-testid="overdue-orders-list"
+                  style={{
+                    listStyle: 'none',
+                    margin: 0,
+                    padding: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    maxHeight: '120px',
+                    overflowY: 'auto',
+                  }}
+                >
+                  {overdueOrders.map((o) => {
+                    const elapsed = o.createdAt
+                      ? Math.max(0, Math.floor((Date.now() - new Date(o.createdAt).getTime()) / 60000))
+                      : 0;
+                    const tableDisplay = getTableDisplayName(o.tableId, tables);
+                    return (
+                      <li
+                        key={o.id}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: '0.75rem',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          backgroundColor: 'rgba(0, 0, 0, 0.03)',
+                        }}
+                      >
+                        <span style={{ fontWeight: 600, color: 'var(--bento-text)' }}>
+                          {tableDisplay} • {formatOrderNumber(o.id)}
+                        </span>
+                        <span style={{ color: 'var(--bento-danger-text)', fontWeight: 600 }}>
+                          +{elapsed}m
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </StatusCard>
+        </div>
+
+        {/* FeatureGuard opcional para analíticas */}
+        <FeatureGuard
+          flag="analytics"
+          fallback={null}
+        >
+          <SalesSummary />
+        </FeatureGuard>
+      </section>
+
+      {/* 2. Plano de Mesas con Filtros y CRUD */}
+      <section aria-label="Plano de mesas">
+        <BentoCard style={{ backgroundColor: 'rgba(255, 255, 255, 0.5)', padding: '24px' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '16px',
+              marginBottom: '20px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: '1.25rem',
+                  fontWeight: 600,
+                  fontFamily: 'var(--bento-font-heading)',
+                  color: 'var(--bento-text)',
+                }}
+              >
+                Plano de Mesas
+              </h2>
+
+              {/* Filtro por Zona */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label htmlFor="zone-filter-select" style={{ fontSize: '0.8125rem', color: 'var(--bento-text-muted)' }}>
+                  Zona:
+                </label>
+                <select
+                  id="zone-filter-select"
+                  aria-label="Filtrar por Zona"
+                  value={zoneFilter}
+                  onChange={(e) => setZoneFilter(e.target.value)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 'var(--bento-inner-radius)',
+                    border: '1px solid var(--bento-border)',
+                    backgroundColor: 'rgba(255,255,255,0.7)',
+                    fontSize: '0.8125rem',
+                    color: 'var(--bento-text)',
+                    outline: 'none',
+                  }}
+                >
+                  <option value="TODAS">Todas las Zonas</option>
+                  {zones.map((z) => (
+                    <option key={z.id} value={z.id}>
+                      {z.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              {/* Filtro de Estado TabsPill */}
+              <TabsPill
+                tabs={[
+                  { id: 'TODAS', label: 'TODAS' },
+                  { id: 'LIBRES', label: 'LIBRES' },
+                  { id: 'OCUPADAS', label: 'OCUPADAS' },
+                  { id: 'RESERVADAS', label: 'RESERVADAS' },
+                ]}
+                value={tableFilter}
+                onChange={(val) => setTableFilter(val as any)}
+                ariaLabel="Filtrar mesas por estado"
+              />
+
+              {/* Botón Gestión Zonas */}
+              <button
+                type="button"
+                onClick={() => setShowZonesModal(true)}
+                style={{
+                  padding: '8px 14px',
+                  backgroundColor: 'rgba(255,255,255,0.7)',
+                  color: 'var(--bento-text)',
+                  border: '1px solid var(--bento-border)',
+                  borderRadius: 'var(--bento-pill-radius)',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  minHeight: '36px',
+                }}
+              >
+                Zonas
+              </button>
+
+              <button
+                type="button"
+                onClick={() => router.push('/mesas/gestion')}
+                style={{
+                  padding: '8px 14px',
+                  backgroundColor: 'rgba(255,255,255,0.7)',
+                  color: 'var(--bento-text)',
+                  border: '1px solid var(--bento-border)',
+                  borderRadius: 'var(--bento-pill-radius)',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  minHeight: '36px',
+                }}
+              >
+                Gestión en lote
+              </button>
+
+              {/* Botón Nueva Mesa */}
+              <button
+                type="button"
+                onClick={handleOpenCreateTable}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: 'var(--bento-primary)',
+                  color: 'var(--bento-card-bg-solid)',
+                  borderRadius: 'var(--bento-pill-radius)',
+                  border: '1px solid var(--bento-primary)',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: 'var(--bento-card-shadow)',
+                  minHeight: '36px',
+                }}
+              >
+                + Nueva Mesa
+              </button>
+            </div>
           </div>
-          <ul className="legend" aria-label="Leyenda de estados">
-            <li><i className="swatch" />Libre</li>
-            <li><i className="swatch ocupada" />Ocupada</li>
-            <li><i className="swatch cuenta" />Pidió la cuenta</li>
-            <li><i className="swatch mesero" />Llamó al mesero</li>
-          </ul>
-          {activeTables.length === 0 ? (
+
+          {/* Grid de Mesas */}
+          {filteredTables.length === 0 ? (
             <EmptyState
-              title="Aún no hay mesas"
-              description="Crea tus mesas en la sección Mesas para verlas aquí."
+              title="No hay mesas en este filtro"
+              description="Cambia el filtro de estado o zona para ver más mesas, o crea una nueva mesa."
             />
           ) : (
-            <div className="floor">
-              {activeTables.map((t) => {
-                const id = t.tableId || (t as any).id;
-                const state = stateOf(id);
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+                gap: '16px',
+              }}
+            >
+              {filteredTables.map((t) => {
+                const statusLabel =
+                  t.effectiveStatus === 'LIBRE'
+                    ? 'Libre'
+                    : t.effectiveStatus === 'OCUPADA'
+                    ? 'Ocupada'
+                    : t.effectiveStatus === 'RESERVADA'
+                    ? 'Reservada'
+                    : 'Deshabilitada';
+
+                const tableTitle = tableDisplayName(t.label);
+
                 return (
-                  <div key={id} className={`tbl ${state}`} data-state={state}>
-                    <b>{labelOf(id)}</b>
-                    <small>{TABLE_STATE_LABEL[state]}</small>
+                  <StatusCard
+                    status={t.effectiveStatus === 'LIBRE' ? 'available' : t.effectiveStatus === 'OCUPADA' ? 'occupied' : t.effectiveStatus === 'RESERVADA' ? 'reserved' : 'neutral'}
+                    key={t.tableId}
+                    data-testid={`table-card-${t.tableId}`}
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.75)',
+                      borderRadius: 'var(--bento-card-radius)',
+                      padding: '16px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      minHeight: '160px',
+                    }}
+                  >
+                    <div>
+                      {/* Cabecera tarjeta */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                        <Button variant="link" aria-label={`Consultar ${tableTitle}`} onClick={() => setInspectedTableId(t.tableId)} style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--bento-text)' }}>
+                          {tableTitle}
+                        </Button>
+                        <span>{statusLabel}</span>
+                      </div>
+
+                      {/* Subtítulo: N Puestos • Zona */}
+                      <p style={{ margin: '4px 0 8px 0', fontSize: '0.8125rem', color: 'var(--bento-text-muted)' }}>
+                        {t.capacity} Puestos • {t.zoneName}
+                      </p>
+
+                      {/* Consumo si está ocupada */}
+                      {t.effectiveStatus === 'OCUPADA' && (
+                        <p style={{ margin: '6px 0 0 0', fontSize: '0.9375rem', fontWeight: 600, color: 'var(--bento-text)' }}>
+                          {formatMoney(t.currentBillCop)}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Acciones por estado */}
+                    <div
+                      style={{
+                        marginTop: '16px',
+                        paddingTop: '12px',
+                        borderTop: '1px solid rgba(0,0,0,0.06)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        {t.effectiveStatus === 'LIBRE' && (
+                          <>
+                            <Button variant="secondary"
+                              type="button"
+                              onClick={() => handleOcuparMesa(t.tableId, t.label)}
+                              style={{
+                                flex: 1,
+                                padding: '6px 10px',
+                                backgroundColor: 'rgba(255,255,255,0.9)',
+                                color: 'var(--bento-text)',
+                                borderRadius: 'var(--bento-inner-radius)',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Ocupar
+                            </Button>
+                            <Button variant="secondary"
+                              type="button"
+                              onClick={() => handleOpenReservation(t.tableId)}
+                              style={{
+                                flex: 1,
+                                padding: '6px 10px',
+                                backgroundColor: 'rgba(220, 201, 138, 0.25)',
+                                color: 'var(--bento-status-reserved-text)',
+                                borderRadius: 'var(--bento-inner-radius)',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Reservar
+                            </Button>
+                          </>
+                        )}
+
+                        {t.effectiveStatus === 'OCUPADA' && (
+                          <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                            <Button variant="secondary"
+                              type="button"
+                              onClick={() => handleCobrarMesa(t.tableId)}
+                              style={{
+                                flex: 1,
+                                padding: '8px 12px',
+                                backgroundColor: 'var(--bento-primary)',
+                                color: 'var(--bento-card-bg-solid)',
+                                border: 'none',
+                                borderRadius: 'var(--bento-inner-radius)',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Cobrar y liberar
+                            </Button>
+                            <Button variant="secondary"
+                              type="button"
+                              onClick={() => handleOpenMoveTable(t.tableId, t.label)}
+                              style={{
+                                padding: '8px 12px',
+                                backgroundColor: 'rgba(255,255,255,0.9)',
+                                color: 'var(--bento-text)',
+                                borderRadius: 'var(--bento-inner-radius)',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Cambiar
+                            </Button>
+                          </div>
+                        )}
+
+                        {t.effectiveStatus === 'RESERVADA' && (
+                          <>
+                            <Button variant="secondary"
+                              type="button"
+                              onClick={() => handleClienteLlego(t.tableId, t.label)}
+                              style={{
+                                flex: 1,
+                                padding: '6px 10px',
+                                backgroundColor: 'rgba(255,255,255,0.9)',
+                                color: 'var(--bento-text)',
+                                borderRadius: 'var(--bento-inner-radius)',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Cliente Llegó
+                            </Button>
+                            <Button variant="secondary"
+                              type="button"
+                              onClick={() => handleCancelarReserva(t.tableId)}
+                              style={{
+                                flex: 1,
+                                padding: '6px 10px',
+                                backgroundColor: 'rgba(255,255,255,0.7)',
+                                color: 'var(--bento-text-muted)',
+                                borderRadius: 'var(--bento-inner-radius)',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Cancelar
+                            </Button>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Acciones de gestión secundaria (Ver QR / Editar / Eliminar) */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: '8px' }}>
+                        <Button variant="secondary"
+                          type="button"
+                          onClick={() => handleViewQr(t)}
+                          style={{
+                            flexShrink: 0,
+                            background: 'none',
+                            border: 'none',
+                            fontSize: '0.6875rem',
+                            color: 'var(--bento-text)',
+                            cursor: 'pointer',
+                            textDecoration: 'underline',
+                          }}
+                        >
+                          Ver QR
+                        </Button>
+                        <Button variant="secondary"
+                          type="button"
+                          onClick={() => handleOpenEditTable(t)}
+                          style={{
+                            flexShrink: 0,
+                            background: 'none',
+                            border: 'none',
+                            fontSize: '0.6875rem',
+                            color: 'var(--bento-text-muted)',
+                            cursor: 'pointer',
+                            textDecoration: 'underline',
+                          }}
+                        >
+                          Editar
+                        </Button>
+                        <Button variant="secondary"
+                          type="button"
+                          onClick={() => setDeletingTable(t)}
+                          style={{
+                            flexShrink: 0,
+                            background: 'none',
+                            border: 'none',
+                            fontSize: '0.6875rem',
+                            color: 'var(--bento-danger-text)',
+                            cursor: 'pointer',
+                            textDecoration: 'underline',
+                          }}
+                        >
+                          Eliminar
+                        </Button>
+                      </div>
+                    </div>
+                  </StatusCard>
+                );
+              })}
+            </div>
+          )}
+        </BentoCard>
+      </section>
+
+      {inspectedTable && (
+        <Modal open title={tableDisplayName(inspectedTable.label)} scrim={false} onClose={() => setInspectedTableId(null)}>
+          <p>{inspectedTable.capacity} Puestos • {inspectedTable.zoneName}</p>
+          <p>Estado: {inspectedTable.effectiveStatus === 'LIBRE' ? 'Libre' : inspectedTable.effectiveStatus === 'OCUPADA' ? 'Ocupada' : inspectedTable.effectiveStatus === 'RESERVADA' ? 'Reservada' : 'Deshabilitada'}</p>
+          {inspectedTable.effectiveStatus === 'OCUPADA' && <p>Consumo: {formatMoney(inspectedTable.currentBillCop)}</p>}
+        </Modal>
+      )}
+
+      {/* 3. Lista de Reservas del Día */}
+      <section aria-label="Reservas del día">
+        <BentoCard style={{ backgroundColor: 'rgba(255, 255, 255, 0.65)', padding: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: '1.125rem',
+                  fontWeight: 600,
+                  fontFamily: 'var(--bento-font-heading)',
+                  color: 'var(--bento-text)',
+                }}
+              >
+                Reservas del Día
+              </h2>
+              <span
+                style={{
+                  backgroundColor: 'rgba(220, 201, 138, 0.3)',
+                  color: 'var(--bento-status-reserved-text)',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                }}
+              >
+                {activeReservationsToday.length}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleOpenReservation()}
+              style={{
+                padding: '6px 12px',
+                backgroundColor: 'rgba(255,255,255,0.8)',
+                color: 'var(--bento-text)',
+                border: '1px solid var(--bento-border)',
+                borderRadius: 'var(--bento-pill-radius)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              + Nueva Reserva
+            </button>
+          </div>
+
+          {activeReservationsToday.length === 0 ? (
+            <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--bento-text-muted)' }}>
+              No hay reservas programadas para el día de hoy.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {activeReservationsToday.map((res) => {
+                const tableMatch = tables.find((t) => t.tableId === res.tableId);
+                const tableLabel = tableMatch?.label ? tableDisplayName(tableMatch.label) : getTableDisplayName(res.tableId, tables);
+
+                let timeStr = 'Hoy';
+                try {
+                  const d = new Date(res.reservedFor);
+                  timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                } catch {
+                  timeStr = res.reservedFor;
+                }
+
+                return (
+                  <div
+                    key={res.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '12px 16px',
+                      backgroundColor: 'rgba(255,255,255,0.7)',
+                      borderRadius: 'var(--bento-inner-radius)',
+                      border: '1px solid var(--bento-border)',
+                      flexWrap: 'wrap',
+                      gap: '12px',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--bento-text)' }}>
+                          {res.customerName}
+                        </span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--bento-text-muted)' }}>
+                          • {res.phone}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '0.6875rem',
+                            fontWeight: 600,
+                            padding: '2px 8px',
+                            backgroundColor: 'rgba(92, 103, 132, 0.1)',
+                            color: 'var(--bento-primary)',
+                            borderRadius: '4px',
+                          }}
+                        >
+                          {tableLabel}
+                        </span>
+                      </div>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: 'var(--bento-text-muted)' }}>
+                        {res.partySize} personas • {timeStr}
+                        {res.notes ? ` • Nota: ${res.notes}` : ''}
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleClienteLlego(res.tableId, tableMatch?.label || res.tableId)}
+                        style={{
+                          padding: '6px 12px',
+                          backgroundColor: 'rgba(255,255,255,0.9)',
+                          color: 'var(--bento-text)',
+                          border: '1px solid var(--bento-border)',
+                          borderRadius: 'var(--bento-pill-radius)',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cliente Llegó
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCancelarReserva(res.tableId)}
+                        style={{
+                          padding: '6px 12px',
+                          backgroundColor: 'transparent',
+                          color: 'var(--bento-danger-text)',
+                          border: '1px solid rgba(160, 90, 90, 0.3)',
+                          borderRadius: 'var(--bento-pill-radius)',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
                   </div>
                 );
               })}
             </div>
           )}
-        </section>
+        </BentoCard>
+      </section>
 
-        <section className="glass" aria-label="Mesas activas">
-          <KpiDelta
-            label="Mesas Activas"
-            value={String(activeTablesCount)}
-            delta={activeTablesCount > 0 ? `${activeTablesCount} en sala` : 'sin mesas'}
-            trend={activeTablesCount > 0 ? 'up' : 'neutral'}
-            context={`de ${totalTablesCount} mesas configuradas`}
-          />
-        </section>
-
-        <section className="glass" aria-label="Pedidos activos">
-          <KpiDelta
-            label="Pedidos Activos"
-            value={String(activeOrdersCount)}
-            delta={activeOrdersCount > 0 ? `${activeOrdersCount} en curso` : 'al día'}
-            trend={activeOrdersCount > 0 ? 'up' : 'neutral'}
-            context="en preparación y sala"
-          />
-        </section>
-
-        <section className="glass span-2" aria-label="Brief operativo y alertas">
-          <div className="glass-head">
-            <h2>Brief Operativo & Alertas</h2>
+      {/* 4. Brief Operativo y Alertas (asistencia y llamadas) */}
+      <section aria-label="Brief operativo y alertas">
+        <BentoCard style={{ backgroundColor: 'rgba(255, 255, 255, 0.65)', padding: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: '18px',
+                fontFamily: 'var(--bento-font-heading)',
+                color: 'var(--bento-text)',
+              }}
+            >
+              Brief Operativo & Alertas
+            </h2>
             {serviceCalls.length > 0 && (
-              <span className="tag tag-warn">{serviceCalls.length} pendientes</span>
+              <StatusChip tone="warning" label={`${serviceCalls.length} pendientes`} />
             )}
           </div>
+
           {serviceCalls.length === 0 ? (
             <EmptyState
               title="Sin alertas activas"
               description="Servicio al día. No hay llamadas de mesero ni solicitudes pendientes."
             />
           ) : (
-            <ul className="calls">
-              {serviceCalls.map((call) => (
-                <li key={call.id}>
-                  <div>
-                    <b>{labelOf(call.tableId)}</b>
-                    <span className="note">{call.note || 'Solicitud de asistencia'}</span>
-                  </div>
-                  <span className="tag tag-warn">Pendiente</span>
-                </li>
-              ))}
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {serviceCalls.map((call) => {
+                const tableMatch = tables.find((t) => (t.tableId || (t as any).id) === call.tableId);
+                const tableLabel = tableMatch?.label ? tableDisplayName(tableMatch.label) : getTableDisplayName(call.tableId, tables);
+
+                return (
+                  <li
+                    key={call.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      borderRadius: 'var(--bento-inner-radius)',
+                      background: 'rgba(255,255,255,0.7)',
+                      border: '1px solid var(--bento-border)',
+                      gap: '12px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--bento-text)' }}>
+                        {tableLabel}
+                      </span>
+                      <span style={{ fontSize: '13px', color: 'var(--bento-text-muted)' }}>
+                        {call.note || 'Solicitud de asistencia'}
+                      </span>
+                    </div>
+                    <StatusChip tone="warning" label="Pendiente" />
+                  </li>
+                );
+              })}
             </ul>
           )}
-        </section>
+        </BentoCard>
+      </section>
 
-        <section className="glass span-2" aria-label="Accesos rápidos de inventario">
-          <div className="glass-head">
-            <h2>Inventario</h2>
-          </div>
-          <div className="quick">
-            <a className="quick-item" href="/menu">
-              <b>Disponibilidad de productos</b>
-              <small>Activa o agota platos del menú</small>
-            </a>
-            {['Ver existencias', 'Registrar compra', 'Ajustar inventario'].map((name) => (
+      {/* MODAL: Crear Mesa */}
+      {showCreateTableModal && (
+        <Modal open title={'Nueva Mesa'} onClose={() => setShowCreateTableModal(false)} footer={<></>}>
+
+
+            {createTableError && (
+              <div role="alert" style={{ color: 'var(--bento-danger-text)', fontSize: '0.8125rem', marginBottom: '12px' }}>
+                {createTableError}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitCreateTable} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label htmlFor="create-table-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
+                  Nombre o Identificador de Mesa
+                </label>
+                <input
+                  id="create-table-label"
+                  type="text"
+                  placeholder="Ej. 1, 10 o Terraza 2"
+                  value={newTableLabel}
+                  onChange={(e) => setNewTableLabel(e.target.value)}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--bento-card-bg-solid)',
+                    backgroundColor: 'rgba(255,255,255,0.7)',
+                    fontSize: '0.875rem',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="create-table-capacity" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
+                  Capacidad (Puestos)
+                </label>
+                <input
+                  id="create-table-capacity"
+                  type="number"
+                  min={1}
+                  value={newTableCapacity}
+                  onChange={(e) => setNewTableCapacity(Number(e.target.value))}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--bento-card-bg-solid)',
+                    backgroundColor: 'rgba(255,255,255,0.7)',
+                    fontSize: '0.875rem',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="create-table-zone" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
+                  Zona
+                </label>
+                <select
+                  id="create-table-zone"
+                  value={newTableZoneId}
+                  onChange={(e) => setNewTableZoneId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--bento-card-bg-solid)',
+                    backgroundColor: 'rgba(255,255,255,0.7)',
+                    fontSize: '0.875rem',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
+                >
+                  <option value="">(Sin zona asignada)</option>
+                  {zones.map((z) => (
+                    <option key={z.id} value={z.id}>
+                      {z.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateTableModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(255,255,255,0.6)',
+                    color: 'var(--bento-text-secondary)',
+                    border: '1px solid rgba(255,255,255,0.8)',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingTable}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: '12px',
+                    backgroundColor: 'var(--bento-primary)',
+                    color: 'var(--bento-card-bg-solid)',
+                    border: 'none',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: submittingTable ? 'wait' : 'pointer',
+                  }}
+                >
+                  Guardar Mesa
+                </button>
+              </div>
+            </form>
+        </Modal>
+      )}
+
+      {/* MODAL: Editar Mesa */}
+      {editingTable && (
+        <Modal open title={`Editar ${tableDisplayName(editingTable.label)}`} onClose={() => setEditingTable(null)} footer={<></>}>
+
+
+            {editTableError && (
+              <div role="alert" style={{ color: 'var(--bento-danger-text)', fontSize: '0.8125rem', marginBottom: '12px' }}>
+                {editTableError}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitEditTable} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label htmlFor="edit-table-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
+                  Nombre o Identificador
+                </label>
+                <input
+                  id="edit-table-label"
+                  type="text"
+                  value={editTableLabel}
+                  onChange={(e) => setEditTableLabel(e.target.value)}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--bento-card-bg-solid)',
+                    backgroundColor: 'rgba(255,255,255,0.7)',
+                    fontSize: '0.875rem',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="edit-table-capacity" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
+                  Capacidad (Puestos)
+                </label>
+                <input
+                  id="edit-table-capacity"
+                  type="number"
+                  min={1}
+                  value={editTableCapacity}
+                  onChange={(e) => setEditTableCapacity(Number(e.target.value))}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--bento-card-bg-solid)',
+                    backgroundColor: 'rgba(255,255,255,0.7)',
+                    fontSize: '0.875rem',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="edit-table-zone" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
+                  Zona
+                </label>
+                <select
+                  id="edit-table-zone"
+                  value={editTableZoneId}
+                  onChange={(e) => setEditTableZoneId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--bento-card-bg-solid)',
+                    backgroundColor: 'rgba(255,255,255,0.7)',
+                    fontSize: '0.875rem',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
+                >
+                  <option value="">(Sin zona asignada)</option>
+                  {zones.map((z) => (
+                    <option key={z.id} value={z.id}>
+                      {z.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="edit-table-status" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
+                  Estado de la Mesa
+                </label>
+                <select
+                  id="edit-table-status"
+                  value={editTableStatus}
+                  onChange={(e) => setEditTableStatus(e.target.value as TableStatus)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--bento-card-bg-solid)',
+                    backgroundColor: 'rgba(255,255,255,0.7)',
+                    fontSize: '0.875rem',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
+                >
+                  <option value="AVAILABLE">Habilitada (Disponible)</option>
+                  <option value="DISABLED">Deshabilitada</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingTable(null)}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(255,255,255,0.6)',
+                    color: 'var(--bento-text-secondary)',
+                    border: '1px solid rgba(255,255,255,0.8)',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingEditTable}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: '12px',
+                    backgroundColor: 'var(--bento-primary)',
+                    color: 'var(--bento-card-bg-solid)',
+                    border: 'none',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: submittingEditTable ? 'wait' : 'pointer',
+                  }}
+                >
+                  Guardar Cambios
+                </button>
+              </div>
+            </form>
+        </Modal>
+      )}
+
+      {/* MODAL: Eliminar Mesa Confirmación */}
+      {deletingTable && (
+        <Modal open title={`¿Eliminar ${tableDisplayName(deletingTable.label)}?`} onClose={() => setDeletingTable(null)} footer={<></>}>
+
+            <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--bento-text-secondary)' }}>
+              Esta acción no se puede deshacer. Las mesas con sesión activa no pueden eliminarse.
+            </p>
+
+            {deleteTableError && (
+              <div role="alert" style={{ color: 'var(--bento-danger-text)', fontSize: '0.8125rem', marginBottom: '12px' }}>
+                {deleteTableError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '12px' }}>
               <button
-                key={name}
                 type="button"
-                className="quick-item"
-                aria-disabled="true"
-                onClick={(e) => e.preventDefault()}
+                onClick={() => setDeletingTable(null)}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(255,255,255,0.6)',
+                  color: 'var(--bento-text-secondary)',
+                  border: '1px solid rgba(255,255,255,0.8)',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
               >
-                <b>{name}</b>
-                <small>Pronto</small>
+                Cancelar
               </button>
-            ))}
-          </div>
-          <p className="sample-note">
-            El módulo de existencias aún no está conectado. Por ahora solo funciona la disponibilidad del menú.
-          </p>
-        </section>
-      </div>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteTable}
+                disabled={submittingDelete}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '12px',
+                  backgroundColor: 'var(--bento-danger-text)',
+                  color: 'var(--bento-card-bg-solid)',
+                  border: 'none',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: submittingDelete ? 'wait' : 'pointer',
+                }}
+              >
+                Eliminar
+              </button>
+            </div>
+        </Modal>
+      )}
+
+      {/* MODAL: Ver QR */}
+      {activeTableQr && (
+        <Modal open title={`QR ${tableDisplayName(activeTableQr.label)}`} onClose={() => setActiveTableQr(null)} footer={<></>}>
+
+
+            {qrError && (
+              <div role="alert" style={{ color: 'var(--bento-danger-text)', fontSize: '0.8125rem', marginBottom: '12px' }}>
+                {qrError}
+              </div>
+            )}
+
+            {qrLoading ? (
+              <div style={{ padding: '24px' }}>
+                <Skeleton height="160px" width="160px" style={{ margin: '0 auto' }} />
+              </div>
+            ) : qrData ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                <img
+                  src={qrData.pngDataUrl}
+                  alt={`QR ${tableDisplayName(activeTableQr.label)}`}
+                  style={{ width: '180px', height: '180px', borderRadius: '12px', border: '1px solid var(--bento-card-bg-solid)' }}
+                />
+                <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--bento-text-secondary)', wordBreak: 'break-all' }}>
+                  {qrData.url}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleRotateQrCode(activeTableQr)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 'var(--bento-pill-radius)',
+                    backgroundColor: 'var(--bento-primary)',
+                    color: 'var(--bento-card-bg-solid)',
+                    border: '1px solid var(--bento-primary)',
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    marginTop: '8px',
+                  }}
+                >
+                  Rotar QR
+                </button>
+              </div>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => setActiveTableQr(null)}
+              style={{
+                marginTop: '16px',
+                padding: '8px 16px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(255,255,255,0.6)',
+                color: 'var(--bento-text-secondary)',
+                border: '1px solid rgba(255,255,255,0.8)',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                width: '100%',
+              }}
+            >
+              Cerrar
+            </button>
+        </Modal>
+      )}
+
+      {/* MODAL: Gestionar Zonas */}
+      {showZonesModal && (
+        <Modal open title={'Gestión de Zonas'} onClose={() => setShowZonesModal(false)} footer={<></>}>
+            {zoneActionError && (
+              <div role="alert" style={{ color: 'var(--bento-danger-text)', fontSize: '0.8125rem', marginBottom: '12px' }}>
+                {zoneActionError}
+              </div>
+            )}
+
+            <Button variant="secondary" onClick={() => router.push('/mesas/espacios')} style={{ marginBottom: '12px' }}>
+              Editar espacios en el plano
+            </Button>
+
+            {/* Crear nueva zona */}
+            <form onSubmit={handleCreateZone} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Nombre de la zona (ej. Terraza)"
+                  value={newZoneName}
+                  onChange={(e) => setNewZoneName(e.target.value)}
+                  required
+                  style={{
+                    flex: 2,
+                    padding: '8px 12px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--bento-card-bg-solid)',
+                    backgroundColor: 'rgba(255,255,255,0.7)',
+                    fontSize: '0.8125rem',
+                    outline: 'none',
+                  }}
+                />
+                <input
+                  type="number"
+                  placeholder="Orden"
+                  value={newZoneSortOrder}
+                  onChange={(e) => setNewZoneSortOrder(Number(e.target.value))}
+                  style={{
+                    width: '60px',
+                    padding: '8px 8px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--bento-card-bg-solid)',
+                    backgroundColor: 'rgba(255,255,255,0.7)',
+                    fontSize: '0.8125rem',
+                    outline: 'none',
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={submittingZone}
+                  style={{
+                    padding: '8px 14px',
+                    backgroundColor: 'var(--bento-primary)',
+                    color: 'var(--bento-card-bg-solid)',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    cursor: submittingZone ? 'wait' : 'pointer',
+                  }}
+                >
+                  Agregar
+                </button>
+              </div>
+
+              {availableWaiters.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--bento-text-muted)' }}>
+                    Asignar meseros:
+                  </span>
+                  {availableWaiters.map((w) => {
+                    const isSelected = newZoneStaffIds.includes(w.id);
+                    return (
+                      <button
+                        key={w.id}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setNewZoneStaffIds(newZoneStaffIds.filter((id) => id !== w.id));
+                          } else {
+                            setNewZoneStaffIds([...newZoneStaffIds, w.id]);
+                          }
+                        }}
+                        style={{
+                          fontSize: '0.6875rem',
+                          padding: '2px 8px',
+                          borderRadius: 'var(--bento-pill-radius)',
+                          border: isSelected ? '1px solid var(--bento-primary)' : '1px solid rgba(0,0,0,0.1)',
+                          backgroundColor: isSelected ? 'var(--bento-primary)' : 'rgba(255,255,255,0.7)',
+                          color: isSelected ? 'var(--bento-card-bg-solid)' : 'var(--bento-text)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {isSelected ? '✓ ' : '+ '}{w.displayName || w.email}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </form>
+
+            {/* Lista de zonas */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {zones.map((z) => {
+                const isEditing = editingZoneId === z.id;
+                const assignedCount = tables.filter((t) => t.zoneId === z.id).length;
+
+                return (
+                  <div
+                    key={z.id}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                      padding: '10px 14px',
+                      backgroundColor: 'rgba(255,255,255,0.65)',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(255,255,255,0.8)',
+                    }}
+                  >
+                    {isEditing ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input
+                            type="text"
+                            value={editZoneName}
+                            onChange={(e) => setEditZoneName(e.target.value)}
+                            style={{
+                              flex: 1,
+                              padding: '4px 8px',
+                              borderRadius: '8px',
+                              border: '1px solid var(--bento-primary)',
+                              fontSize: '0.8125rem',
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateZone(z.id)}
+                            style={{
+                              padding: '4px 10px',
+                              backgroundColor: 'var(--bento-primary)',
+                              color: 'var(--bento-card-bg-solid)',
+                              border: 'none',
+                              borderRadius: '8px',
+                              fontSize: '0.75rem',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Guardar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingZoneId(null);
+                              setEditZoneStaffIds([]);
+                            }}
+                            style={{
+                              padding: '4px 8px',
+                              backgroundColor: 'transparent',
+                              color: 'var(--bento-text-secondary)',
+                              border: 'none',
+                              fontSize: '0.75rem',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+
+                        {availableWaiters.length > 0 && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--bento-text-muted)' }}>
+                              Meseros asignados:
+                            </span>
+                            {availableWaiters.map((w) => {
+                              const isSelected = editZoneStaffIds.includes(w.id);
+                              return (
+                                <button
+                                  key={w.id}
+                                  type="button"
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      setEditZoneStaffIds(editZoneStaffIds.filter((id) => id !== w.id));
+                                    } else {
+                                      setEditZoneStaffIds([...editZoneStaffIds, w.id]);
+                                    }
+                                  }}
+                                  style={{
+                                    fontSize: '0.6875rem',
+                                    padding: '2px 8px',
+                                    borderRadius: 'var(--bento-pill-radius)',
+                                    border: isSelected ? '1px solid var(--bento-primary)' : '1px solid rgba(0,0,0,0.1)',
+                                    backgroundColor: isSelected ? 'var(--bento-primary)' : 'rgba(255,255,255,0.7)',
+                                    color: isSelected ? 'var(--bento-card-bg-solid)' : 'var(--bento-text)',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  {isSelected ? '✓ ' : '+ '}{w.displayName || w.email}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                          <div>
+                            <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--bento-text-strong)' }}>
+                              {z.name}
+                            </span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--bento-text-muted)', marginLeft: '8px' }}>
+                              ({assignedCount} mesas)
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+                            {z.staffIds && z.staffIds.length > 0 ? (
+                              z.staffIds.map((sid) => {
+                                const w = availableWaiters.find((u) => u.id === sid);
+                                return (
+                                  <span
+                                    key={sid}
+                                    style={{
+                                      fontSize: '0.6875rem',
+                                      padding: '2px 6px',
+                                      borderRadius: 'var(--bento-pill-radius)',
+                                      backgroundColor: 'rgba(29, 31, 34, 0.08)',
+                                      color: 'var(--bento-text)',
+                                      fontWeight: 500,
+                                    }}
+                                  >
+                                    <Avatar name={w?.displayName || w?.email || sid} src={resolveMediaUrl(w?.avatarUrl)} size={24} /> {w?.displayName || w?.email || sid}
+                                  </span>
+                                );
+                              })
+                            ) : (
+                              <span style={{ fontSize: '0.6875rem', color: 'var(--bento-text-muted)', fontStyle: 'italic' }}>
+                                Sin meseros asignados
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingZoneId(z.id);
+                              setEditZoneName(z.name);
+                              setEditZoneStaffIds(z.staffIds || []);
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              fontSize: '0.75rem',
+                              color: 'var(--bento-primary)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteZone(z.id)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              fontSize: '0.75rem',
+                              color: 'var(--bento-danger-text)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+        </Modal>
+      )}
+
+      {/* MODAL: Nueva Reserva */}
+      {showReservationModal && (
+        <Modal open title={'Nueva Reserva'} onClose={() => setShowReservationModal(false)} footer={<></>}>
+
+
+            {reservationError && (
+              <div role="alert" style={{ color: 'var(--bento-danger-text)', fontSize: '0.8125rem', marginBottom: '12px' }}>
+                {reservationError}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitReservation} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label htmlFor="res-table-select" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
+                  Mesa
+                </label>
+                <select
+                  id="res-table-select"
+                  value={resTableId}
+                  onChange={(e) => setResTableId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--bento-card-bg-solid)',
+                    backgroundColor: 'rgba(255,255,255,0.7)',
+                    fontSize: '0.875rem',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
+                >
+                  {tables.map((t) => (
+                    <option key={t.tableId} value={t.tableId}>
+                      {tableDisplayName(t.label)} ({t.capacity || 4} puestos)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="res-customer-name" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
+                  Nombre del Cliente
+                </label>
+                <input
+                  id="res-customer-name"
+                  type="text"
+                  placeholder="Ej. Carolina Gómez"
+                  value={resCustomerName}
+                  onChange={(e) => setResCustomerName(e.target.value)}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--bento-card-bg-solid)',
+                    backgroundColor: 'rgba(255,255,255,0.7)',
+                    fontSize: '0.875rem',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ flex: 1 }}>
+                  <label htmlFor="res-phone" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
+                    Teléfono
+                  </label>
+                  <input
+                    id="res-phone"
+                    type="text"
+                    placeholder="310 123 4567"
+                    value={resPhone}
+                    onChange={(e) => setResPhone(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '12px',
+                      border: '1px solid var(--bento-card-bg-solid)',
+                      backgroundColor: 'rgba(255,255,255,0.7)',
+                      fontSize: '0.875rem',
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+
+                <div style={{ width: '90px' }}>
+                  <label htmlFor="res-party-size" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
+                    Personas
+                  </label>
+                  <input
+                    id="res-party-size"
+                    type="number"
+                    min={1}
+                    value={resPartySize}
+                    onChange={(e) => setResPartySize(Number(e.target.value))}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '12px',
+                      border: '1px solid var(--bento-card-bg-solid)',
+                      backgroundColor: 'rgba(255,255,255,0.7)',
+                      fontSize: '0.875rem',
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="res-time" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
+                  Hora de Llegada
+                </label>
+                <input
+                  id="res-time"
+                  type="time"
+                  value={resTime}
+                  onChange={(e) => setResTime(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--bento-card-bg-solid)',
+                    backgroundColor: 'rgba(255,255,255,0.7)',
+                    fontSize: '0.875rem',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="res-notes" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}>
+                  Notas u Ocasión (Opcional)
+                </label>
+                <input
+                  id="res-notes"
+                  type="text"
+                  placeholder="Ej. Aniversario, mesa tranquila"
+                  value={resNotes}
+                  onChange={(e) => setResNotes(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--bento-card-bg-solid)',
+                    backgroundColor: 'rgba(255,255,255,0.7)',
+                    fontSize: '0.875rem',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowReservationModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(255,255,255,0.6)',
+                    color: 'var(--bento-text-secondary)',
+                    border: '1px solid rgba(255,255,255,0.8)',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingReservation}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: '12px',
+                    backgroundColor: 'var(--bento-primary)',
+                    color: 'var(--bento-card-bg-solid)',
+                    border: 'none',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: submittingReservation ? 'wait' : 'pointer',
+                  }}
+                >
+                  Confirmar Reserva
+                </button>
+              </div>
+            </form>
+        </Modal>
+      )}
+
+      {/* Modal Cambiar Mesa (R12) */}
+      {movingTableData && (
+        <Modal open title={`Cambiar ${tableDisplayName(movingTableData.sourceTableLabel)}`} onClose={() => setMovingTableData(null)} footer={<></>}>
+              <p style={{ margin: '4px 0 0 0', fontSize: '0.8125rem', color: 'var(--bento-text-muted)' }}>
+                Selecciona la mesa libre a la cual trasladar la comanda y comensales.
+              </p>
+
+            {moveError && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  color: 'var(--bento-status-occupied)',
+                  borderRadius: '8px',
+                  fontSize: '0.8125rem',
+                }}
+              >
+                {moveError}
+              </div>
+            )}
+
+            {availableMoveTables.length === 0 ? (
+              <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--bento-text-muted)', fontStyle: 'italic' }}>
+                No hay otras mesas libres disponibles en este momento.
+              </p>
+            ) : (
+              <div>
+                <label
+                  htmlFor="dashboard-target-table-select"
+                  style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--bento-text-secondary)', marginBottom: '4px' }}
+                >
+                  Mesa de Destino
+                </label>
+                <select
+                  id="dashboard-target-table-select"
+                  value={targetMoveTableId}
+                  onChange={(e) => setTargetMoveTableId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--bento-card-bg-solid)',
+                    backgroundColor: 'rgba(255,255,255,0.7)',
+                    fontSize: '0.875rem',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
+                >
+                  <option value="">-- Seleccionar mesa libre --</option>
+                  {availableMoveTables.map((t) => {
+                    const zName = zones.find((z) => z.id === t.zoneId)?.name || 'Sin zona';
+                    const displayLabel = tableDisplayName(t.label);
+                    return (
+                      <option key={t.tableId} value={t.tableId}>
+                        {displayLabel} ({t.capacity || 4} puestos • {zName})
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setMovingTableData(null)}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(255,255,255,0.6)',
+                  color: 'var(--bento-text-secondary)',
+                  border: '1px solid rgba(255,255,255,0.8)',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmMoveTable}
+                disabled={!targetMoveTableId || submittingMove}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '12px',
+                  backgroundColor: !targetMoveTableId || submittingMove ? 'rgba(0,0,0,0.15)' : 'var(--bento-primary)',
+                  color: 'var(--bento-card-bg-solid)',
+                  border: 'none',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: !targetMoveTableId || submittingMove ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {submittingMove ? 'Cambiando...' : 'Confirmar Traslado'}
+              </button>
+            </div>
+        </Modal>
+      )}
     </div>
   );
 }

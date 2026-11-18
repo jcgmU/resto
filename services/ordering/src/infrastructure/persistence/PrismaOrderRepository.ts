@@ -1,10 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 import {
   OrderDTO,
+  OrderHistoryEventDTO,
   OrderItemDTO,
   OrderModifierDTO,
   OrderRepository,
   OrderStatus,
+  computeOrderOverdue,
 } from '@packages/shared-types';
 import {
   OrderReservationFencePort,
@@ -50,9 +52,21 @@ export class PrismaOrderRepository implements OrderRepository, OrderReservationF
         productName: item.productName,
         unitPrice: Number(item.unitPrice),
         quantity: item.quantity,
-        notes: item.notes,
+        notes: item.notes ?? undefined,
+        destination: (item.destination as 'kitchen' | 'bar') || 'kitchen',
         modifiers,
       };
+    });
+
+    const delayMinutes = Number(record.delayMinutes ?? 0);
+    const estimatedMinutes =
+      record.estimatedMinutes != null ? Number(record.estimatedMinutes) : undefined;
+    const notes = record.notes ?? undefined;
+    const overdue = computeOrderOverdue({
+      status: record.status,
+      createdAt: record.createdAt,
+      estimatedMinutes,
+      delayMinutes,
     });
 
     return {
@@ -61,14 +75,25 @@ export class PrismaOrderRepository implements OrderRepository, OrderReservationF
       sessionId: record.sessionId,
       tableId: record.tableId,
       status: record.status,
+      kitchenStatus: (record.kitchenStatus as OrderStatus) || undefined,
+      barStatus: (record.barStatus as OrderStatus) || undefined,
+      destinationStatus: {
+        ...(record.kitchenStatus ? { kitchen: record.kitchenStatus as OrderStatus } : {}),
+        ...(record.barStatus ? { bar: record.barStatus as OrderStatus } : {}),
+      },
       total: Number(record.total),
       items,
+      notes,
+      estimatedMinutes,
+      delayMinutes,
+      overdue,
       createdAt: record.createdAt instanceof Date ? record.createdAt.toISOString() : record.createdAt,
       cancelledAt: record.cancelledAt
         ? record.cancelledAt instanceof Date
           ? record.cancelledAt.toISOString()
           : record.cancelledAt
         : undefined,
+      cancelReason: record.cancelReason ?? undefined,
     };
   }
 
@@ -81,7 +106,12 @@ export class PrismaOrderRepository implements OrderRepository, OrderReservationF
           sessionId: order.sessionId,
           tableId: order.tableId,
           status: order.status as any,
+          kitchenStatus: (order.kitchenStatus as any) ?? (order.items.some((i) => (i.destination || 'kitchen') === 'kitchen') ? 'PLACED' : null),
+          barStatus: (order.barStatus as any) ?? (order.items.some((i) => i.destination === 'bar') ? 'PLACED' : null),
           total: order.total,
+          notes: order.notes ?? null,
+          estimatedMinutes: order.estimatedMinutes ?? null,
+          delayMinutes: order.delayMinutes ?? 0,
           items: {
             create: order.items.map((item) => ({
               id: item.id,
@@ -90,6 +120,7 @@ export class PrismaOrderRepository implements OrderRepository, OrderReservationF
               unitPrice: item.unitPrice,
               quantity: item.quantity,
               notes: item.notes,
+              destination: item.destination || 'kitchen',
               modifiers: {
                 create: (item.modifiers || []).map((mod) => ({
                   groupId: mod.groupId,
@@ -177,35 +208,162 @@ export class PrismaOrderRepository implements OrderRepository, OrderReservationF
   }
 
   async cancel(tenantId: string, id: string, cancelledAt: Date): Promise<OrderDTO> {
-    const updated = await this.prisma.order.update({
-      where: { id },
-      data: {
-        status: 'CANCELLED' as any,
-        cancelledAt,
-      },
-      include: {
-        items: {
-          include: {
-            modifiers: true,
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.order.findFirst({
+        where: { tenantId, id },
+      });
+      if (!existing) {
+        throw new Error(`Order ${id} not found`);
+      }
+      const fromStatus = existing.status;
+      const updated = await tx.order.update({
+        where: { id },
+        data: {
+          status: 'CANCELLED' as any,
+          cancelledAt,
+        },
+        include: {
+          items: {
+            include: {
+              modifiers: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    return this.mapToDTO(updated);
+      await tx.orderStatusEvent.create({
+        data: {
+          orderId: id,
+          fromStatus,
+          toStatus: 'CANCELLED',
+          occurredAt: cancelledAt,
+        },
+      });
+
+      return this.mapToDTO(updated);
+    });
+  }
+
+  async cancelForCheckout(
+    tenantId: string,
+    orderIds: string[],
+    at: Date
+  ): Promise<OrderDTO[]> {
+    if (orderIds.length === 0) {
+      return [];
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const existingOrders = await tx.order.findMany({
+        where: { tenantId, id: { in: orderIds } },
+        include: {
+          items: {
+            include: {
+              modifiers: true,
+            },
+          },
+        },
+      });
+
+      const updatedOrders: any[] = [];
+
+      for (const order of existingOrders) {
+        const fromStatus = order.status;
+        const updated = await tx.order.update({
+          where: { id: order.id },
+          data: {
+            status: 'CANCELLED',
+            ...(order.kitchenStatus !== null ? { kitchenStatus: 'CANCELLED' } : {}),
+            ...(order.barStatus !== null ? { barStatus: 'CANCELLED' } : {}),
+            cancelReason: 'checkout',
+            cancelledAt: at,
+          },
+          include: {
+            items: {
+              include: {
+                modifiers: true,
+              },
+            },
+          },
+        });
+
+        await tx.orderStatusEvent.create({
+          data: {
+            orderId: order.id,
+            fromStatus,
+            toStatus: 'CANCELLED',
+            reason: 'checkout',
+            occurredAt: at,
+          },
+        });
+
+        updatedOrders.push(updated);
+      }
+
+      return updatedOrders.map((r) => this.mapToDTO(r));
+    });
   }
 
   async updateStatus(
     tenantId: string,
     id: string,
     status: OrderStatus,
-    updatedAt: Date
+    updatedAt: Date,
+    destMeta?: {
+      kitchenStatus?: OrderStatus;
+      barStatus?: OrderStatus;
+    }
   ): Promise<OrderDTO> {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.order.findFirst({
+        where: { tenantId, id },
+      });
+      if (!existing) {
+        throw new Error(`Order ${id} not found`);
+      }
+      const fromStatus = existing.status;
+      const updated = await tx.order.update({
+        where: { id },
+        data: {
+          status: status as any,
+          ...(destMeta?.kitchenStatus ? { kitchenStatus: destMeta.kitchenStatus as any } : {}),
+          ...(destMeta?.barStatus ? { barStatus: destMeta.barStatus as any } : {}),
+          updatedAt,
+        },
+        include: {
+          items: {
+            include: {
+              modifiers: true,
+            },
+          },
+        },
+      });
+
+      await tx.orderStatusEvent.create({
+        data: {
+          orderId: id,
+          fromStatus,
+          toStatus: status,
+          occurredAt: updatedAt,
+        },
+      });
+
+      return this.mapToDTO(updated);
+    });
+  }
+
+  async updateDelay(tenantId: string, id: string, delayMinutes: number): Promise<OrderDTO> {
+    const existing = await this.prisma.order.findFirst({
+      where: { tenantId, id },
+    });
+    if (!existing) {
+      throw new Error(`Order ${id} not found`);
+    }
+
     const updated = await this.prisma.order.update({
       where: { id },
       data: {
-        status: status as any,
-        updatedAt,
+        delayMinutes,
       },
       include: {
         items: {
@@ -219,6 +377,28 @@ export class PrismaOrderRepository implements OrderRepository, OrderReservationF
     return this.mapToDTO(updated);
   }
 
+  async getOrderHistory(tenantId: string, orderId: string): Promise<OrderHistoryEventDTO[]> {
+    const order = await this.prisma.order.findFirst({
+      where: { tenantId, id: orderId },
+    });
+    if (!order) {
+      return [];
+    }
+
+    const records = await this.prisma.orderStatusEvent.findMany({
+      where: { orderId },
+      orderBy: { occurredAt: 'asc' },
+    });
+
+    return records.map((r) => ({
+      id: r.id,
+      orderId: r.orderId,
+      fromStatus: r.fromStatus,
+      toStatus: r.toStatus,
+      occurredAt: r.occurredAt.toISOString(),
+      reason: r.reason ?? undefined,
+    }));
+  }
   async claimReservationFence(
     tenantId: string,
     sessionId: string,

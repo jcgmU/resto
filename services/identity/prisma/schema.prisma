@@ -19,6 +19,9 @@ enum Role {
   MANAGER
   STAFF
   CUSTOMER
+  WAITER
+  MONITOR
+  CASHIER
 }
 
 enum UserStatus {
@@ -29,13 +32,18 @@ enum UserStatus {
 }
 
 model Tenant {
-  id        String       @id @default(uuid())
-  name      String
-  slug      String       @unique
-  status    TenantStatus @default(ACTIVE)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  users     User[]
+  id                   String       @id @default(uuid())
+  name                 String
+  slug                 String       @unique
+  status               TenantStatus @default(ACTIVE)
+  operatingMode        String       @default("hybrid")
+  estimatedPrepMinutes Int          @default(18)
+  invoiceMode          String       @default("simple")
+  currency             String       @default("COP")
+  locale               String       @default("es-CO")
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  users                User[]
 }
 
 model User {
@@ -47,6 +55,8 @@ model User {
   displayName   String
   role          Role           @default(ADMIN)
   status        UserStatus     @default(ACTIVE)
+  monitorKind   String?
+  avatarUrl     String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   refreshTokens RefreshToken[]

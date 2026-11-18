@@ -11,7 +11,31 @@ jobs:
   build-and-test:
     name: Build, Unit Tests & Real Hardening Harness
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
 
     steps:
       - name: Checkout repository
@@ -37,10 +61,29 @@ jobs:
           pnpm --filter @services/catalog exec prisma generate
           pnpm --filter @services/ordering exec prisma generate
 
+      - name: Create contract-test databases and apply migrations
+        env:
+          IDENTITY_DATABASE_URL: postgresql://postgres@localhost:5432/resto_identity_test?schema=public
+          CATALOG_DATABASE_URL: postgresql://postgres@localhost:5432/resto_catalog_test?schema=public
+          ORDERING_DATABASE_URL: postgresql://postgres@localhost:5432/resto_ordering_test?schema=public
+        run: |
+          for db in resto_identity_test resto_catalog_test resto_ordering_test; do
+            psql -h localhost -U postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE $db"
+          done
+          pnpm --filter @services/identity exec prisma migrate deploy
+          pnpm --filter @services/catalog exec prisma migrate deploy
+          pnpm --filter @services/ordering exec prisma migrate deploy
+
       - name: Build all packages, apps, and services
         run: pnpm --filter "./packages/*" --filter "./apps/*" --filter "./services/*" -r run build
 
       - name: Run unit and integration tests
+        env:
+          IDENTITY_DATABASE_URL: postgresql://postgres@localhost:5432/resto_identity_test?schema=public
+          CATALOG_DATABASE_URL: postgresql://postgres@localhost:5432/resto_catalog_test?schema=public
+          ORDERING_DATABASE_URL: postgresql://postgres@localhost:5432/resto_ordering_test?schema=public
+          REDIS_SESSION_TEST_URL: redis://localhost:6379/2
+          REDIS_ORDERING_TEST_URL: redis://localhost:6379/3
         run: pnpm -r run test
 
       - name: Run real hardening harness (Postgres + Redis + E2E Gateway)

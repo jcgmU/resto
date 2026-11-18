@@ -45,7 +45,9 @@ describe('Ordering Real - Paid Session, Advisory Lock Concurrency & Retries (U4)
       sessionId: s,
       tenantId: t,
       tableId: s.includes('race') ? 'table-race' : s.includes('retry') ? 'table-retry' : s.includes('paid') ? 'table-paid' : 'table-1',
-      status: 'active',
+      status: 'active' as const,
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 3600000).toISOString(),
     }),
   };
 
@@ -161,6 +163,11 @@ describe('Ordering Real - Paid Session, Advisory Lock Concurrency & Retries (U4)
     });
     expect(baseOrder.total).toBe(15.0);
 
+    await prisma.order.update({
+      where: { id: baseOrder.id },
+      data: { status: 'DELIVERED' },
+    });
+
     // 2. Colocar un segundo item en el carrito para el pedido concurrente
     await cartRepo.upsertItem(
       tenantId,
@@ -190,7 +197,9 @@ describe('Ordering Real - Paid Session, Advisory Lock Concurrency & Retries (U4)
         sessionId,
         tableId,
         method: 'CASH',
-        recordedBy: 'staff-concurrent',
+        recordedBy: 'admin-concurrent',
+        role: 'admin',
+        closePendingOrders: true,
       }),
     ]);
 
@@ -285,10 +294,14 @@ describe('Ordering Real - Paid Session, Advisory Lock Concurrency & Retries (U4)
       7200
     );
 
-    await orderUseCases.confirmOrder.execute({
+    const retryOrder = await orderUseCases.confirmOrder.execute({
       tenantId,
       sessionId,
       tableId,
+    });
+    await prisma.order.update({
+      where: { id: retryOrder.id },
+      data: { status: 'DELIVERED' },
     });
 
     // Simulamos fallo en closeSession en el 1er intento
@@ -300,7 +313,9 @@ describe('Ordering Real - Paid Session, Advisory Lock Concurrency & Retries (U4)
         sessionId: s,
         tenantId: t,
         tableId,
-        status: failCloseSession ? 'active' : 'closed',
+        status: failCloseSession ? ('active' as const) : ('closed' as const),
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 3600000).toISOString(),
       }),
       closeSession: async () => {
         if (failCloseSession) {
@@ -398,10 +413,14 @@ describe('Ordering Real - Paid Session, Advisory Lock Concurrency & Retries (U4)
       7200
     );
 
-    await orderUseCases.confirmOrder.execute({
+    const retryOrder = await orderUseCases.confirmOrder.execute({
       tenantId,
       sessionId,
       tableId,
+    });
+    await prisma.order.update({
+      where: { id: retryOrder.id },
+      data: { status: 'DELIVERED' },
     });
 
     // 2. Preparar sesión y barrera determinista para addCartItem
@@ -430,7 +449,9 @@ describe('Ordering Real - Paid Session, Advisory Lock Concurrency & Retries (U4)
           sessionId: s,
           tenantId: t,
           tableId,
-          status: 'active',
+          status: 'active' as const,
+          createdAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + 3600000).toISOString(),
         };
       },
     };
@@ -498,10 +519,14 @@ describe('Ordering Real - Paid Session, Advisory Lock Concurrency & Retries (U4)
       7200
     );
 
-    await orderUseCases.confirmOrder.execute({
+    const retryOrder = await orderUseCases.confirmOrder.execute({
       tenantId,
       sessionId,
       tableId,
+    });
+    await prisma.order.update({
+      where: { id: retryOrder.id },
+      data: { status: 'DELIVERED' },
     });
 
     // 2. Publisher flakey: falla la primera vez tras cerrar sesión

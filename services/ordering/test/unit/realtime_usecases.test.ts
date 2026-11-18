@@ -151,9 +151,26 @@ describe('A. Ordering — unitarios tiempo real y ServiceCall (Tests 1-7)', () =
 
     expect(call.callId).toBeDefined();
     expect(call.status).toBe('pending');
+    expect(call.type).toBe('GENERIC');
     expect(publisher.serviceCallEvents).toHaveLength(1);
     expect(publisher.serviceCallEvents[0].event.type).toBe('service-call.created');
     expect(publisher.serviceCallEvents[0].event.call.tableId).toBe('tb-5');
+    expect(publisher.serviceCallEvents[0].event.call.type).toBe('GENERIC');
+  });
+
+  test('5b. CreateServiceCall con type="WAITER_CALL" persiste y publica con ese tipo', async () => {
+    const call = await serviceCallUseCases.createServiceCall.execute({
+      tenantId: 't-1',
+      sessionId: 's-1',
+      tableId: 'tb-5',
+      type: 'WAITER_CALL',
+      note: 'Llamar al mesero para ordenar',
+    });
+
+    expect(call.callId).toBeDefined();
+    expect(call.status).toBe('pending');
+    expect(call.type).toBe('WAITER_CALL');
+    expect(publisher.serviceCallEvents[publisher.serviceCallEvents.length - 1].event.call.type).toBe('WAITER_CALL');
   });
 
   test('6. ResolveServiceCall -> status="resolved" + resolvedAt + publica service-call.resolved; segunda resolución -> idempotente y NO republica', async () => {

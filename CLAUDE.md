@@ -53,3 +53,7 @@ El trabajo es **multi-agente**: usa tus subagentes y elige el modelo según el n
 
 Memoria engram: usa siempre el proyecto `resto`.
 <!-- team:end -->
+
+## Estilo de reportes (ahorro de tokens, orden del usuario)
+
+Reportes al usuario y handoffs: una linea por tarea con ✅; si hay problema, una frase corta (⚠️). Sin rutas de archivos, sin tablas largas ni narrativa. Detalles solo en el handoff si el destinatario los necesita para actuar. Instrucciones entre agentes: breves, sin repetir contexto ya escrito.

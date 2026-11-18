@@ -2,6 +2,8 @@ import express from 'express';
 import { errorHandler } from './interfaces/http/middleware/errorHandler';
 import { createTablesRouter } from './interfaces/http/tables.routes';
 import { createSessionsRouter } from './interfaces/http/sessions.routes';
+import { createZonesRouter } from './interfaces/http/zones.routes';
+import { createReservationsRouter } from './interfaces/http/reservations.routes';
 import {
   CreateTableUseCaseImpl,
   CreateTablesBatchUseCaseImpl,
@@ -13,61 +15,120 @@ import {
 } from './application/TableUseCases';
 import {
   OpenTableSessionUseCaseImpl,
+  StaffOpenSessionUseCaseImpl,
   CloseTableSessionUseCaseImpl,
   GetTableSessionUseCaseImpl,
   ListTableSessionsUseCaseImpl,
+  RequestBillSessionUseCaseImpl,
+  ReopenBillSessionUseCaseImpl,
+  MoveTableSessionUseCaseImpl,
 } from './application/SessionUseCases';
 import Redis from 'ioredis';
-import { TableRepository, TableSessionRepository } from '@packages/shared-types';
+import {
+  TableRepository,
+  TableSessionRepository,
+  ZoneRepository,
+  ReservationRepository,
+  IdentitySettingsPort,
+} from '@packages/shared-types';
+import { HttpIdentitySettingsAdapter } from './infrastructure/identity/HttpIdentitySettingsAdapter';
 import { RedisTableRepository } from './infrastructure/redis/RedisTableRepository';
 import { RedisTableSessionRepository } from './infrastructure/redis/RedisTableSessionRepository';
+import { RedisZoneRepository } from './infrastructure/redis/RedisZoneRepository';
+import { RedisReservationRepository } from './infrastructure/redis/RedisReservationRepository';
 import {
   InMemoryTableRepository,
   InMemoryTableSessionRepository,
+  InMemoryZoneRepository,
+  InMemoryReservationRepository,
 } from './infrastructure/fakes/InMemorySessionAdapters';
 import { JwtGuestTokenIssuer } from './infrastructure/security/JwtGuestTokenIssuer';
 import { QrcodeGeneratorAdapter } from './infrastructure/qr/QrcodeGeneratorAdapter';
+import { internalAuthMiddleware } from './interfaces/http/internalAuth.middleware';
 import { config } from './config';
+
+import { HttpOrderingServiceCallAdapter } from './infrastructure/ordering/HttpOrderingServiceCallAdapter';
+import { OrderingServiceCallPort } from './domain/orderingPorts';
+import { SessionEventPublisherPort } from './domain/events';
+import { RedisSessionEventPublisher } from './infrastructure/redis/RedisSessionEventPublisher';
 
 export interface SessionAppDeps {
   tableRepo?: TableRepository;
   sessionRepo?: TableSessionRepository;
+  zoneRepo?: ZoneRepository;
+  reservationRepo?: ReservationRepository;
+  identitySettings?: IdentitySettingsPort;
+  orderingServiceCall?: OrderingServiceCallPort;
+  eventPublisher?: SessionEventPublisherPort;
+  redis?: Redis;
 }
 
 let defaultRedisClient: Redis | null = null;
 
-function getRedisClient(): Redis {
+export function getRedisClient(): Redis {
   if (!defaultRedisClient) {
-    defaultRedisClient = new Redis(config.REDIS_URL || 'redis://localhost:6379');
+    defaultRedisClient = new Redis(config.REDIS_URL || 'redis://localhost:6379', {
+      maxRetriesPerRequest: 1,
+      retryStrategy(times) {
+        if (times > 5) return null;
+        return Math.min(times * 50, 500);
+      },
+    });
   }
   return defaultRedisClient;
+}
+
+export async function closeDefaultSessionAppConnections(): Promise<void> {
+  if (defaultRedisClient) {
+    defaultRedisClient.disconnect();
+    defaultRedisClient = null;
+  }
 }
 
 export function createSessionApp(deps?: SessionAppDeps): express.Application {
   const app: express.Application = express();
   app.use(express.json());
 
+  const redis = deps?.redis || ((deps?.tableRepo && deps?.sessionRepo) ? null : getRedisClient());
+
   // Health
-  app.get('/health', (_req, res) => {
-    res.status(200).json({ status: 'ok' });
+  app.get('/health', async (_req, res) => {
+    try {
+      if (redis) {
+        await redis.ping();
+      }
+      res.status(200).json({ status: 'ok', redis: 'up' });
+    } catch {
+      res.status(503).json({ status: 'error', redis: 'down' });
+    }
   });
 
-  const redis = (deps?.tableRepo && deps?.sessionRepo) ? null : getRedisClient();
+  app.use(internalAuthMiddleware);
+
   const tableRepo: TableRepository =
-    deps?.tableRepo || (new RedisTableRepository(redis!) as unknown as TableRepository);
+    deps?.tableRepo || (redis ? (new RedisTableRepository(redis) as unknown as TableRepository) : new InMemoryTableRepository());
   const sessionRepo: TableSessionRepository =
-    deps?.sessionRepo || new RedisTableSessionRepository(redis!);
+    deps?.sessionRepo || (redis ? new RedisTableSessionRepository(redis) : new InMemoryTableSessionRepository());
+  const zoneRepo: ZoneRepository =
+    deps?.zoneRepo || (redis ? new RedisZoneRepository(redis) : new InMemoryZoneRepository());
+  const reservationRepo: ReservationRepository =
+    deps?.reservationRepo || (redis ? new RedisReservationRepository(redis) : new InMemoryReservationRepository());
+
   if (tableRepo instanceof InMemoryTableRepository) {
     tableRepo.setSessionRepository(sessionRepo);
   }
+
   const tokenIssuer = new JwtGuestTokenIssuer(config.JWT_SECRET);
   const qrGenerator = new QrcodeGeneratorAdapter();
 
-  const createTableUseCase = new CreateTableUseCaseImpl(tableRepo);
-  const createTablesBatchUseCase = new CreateTablesBatchUseCaseImpl(tableRepo);
-  const updateTablesBatchUseCase = new UpdateTablesBatchUseCaseImpl(tableRepo);
-  const updateSingleTableUseCase = new UpdateSingleTableUseCaseImpl(tableRepo);
-  const deleteTablesBatchUseCase = new DeleteTablesBatchUseCaseImpl(tableRepo);
+  const eventPublisher =
+    deps?.eventPublisher || (redis ? new RedisSessionEventPublisher(redis) : undefined);
+
+  const createTableUseCase = new CreateTableUseCaseImpl(tableRepo, zoneRepo, eventPublisher);
+  const createTablesBatchUseCase = new CreateTablesBatchUseCaseImpl(tableRepo, zoneRepo, eventPublisher);
+  const updateTablesBatchUseCase = new UpdateTablesBatchUseCaseImpl(tableRepo, zoneRepo, eventPublisher);
+  const updateSingleTableUseCase = new UpdateSingleTableUseCaseImpl(tableRepo, zoneRepo, eventPublisher);
+  const deleteTablesBatchUseCase = new DeleteTablesBatchUseCaseImpl(tableRepo, reservationRepo, sessionRepo, eventPublisher);
   const generateTableQrUseCase = new GenerateTableQrUseCaseImpl(
     tableRepo,
     qrGenerator,
@@ -79,17 +140,62 @@ export function createSessionApp(deps?: SessionAppDeps): express.Application {
     config.PWA_BASE_URL
   );
 
+  const identitySettings =
+    deps?.identitySettings || new HttpIdentitySettingsAdapter(config.IDENTITY_INTERNAL_URL);
+
+  const orderingServiceCall =
+    deps?.orderingServiceCall || new HttpOrderingServiceCallAdapter(config.ORDERING_INTERNAL_URL);
+
   const openTableSessionUseCase = new OpenTableSessionUseCaseImpl(
     sessionRepo,
     tableRepo,
     tokenIssuer,
-    config.SESSION_TTL_SECONDS
+    config.SESSION_TTL_SECONDS,
+    reservationRepo,
+    identitySettings,
+    eventPublisher
   );
-  const closeTableSessionUseCase = new CloseTableSessionUseCaseImpl(sessionRepo);
+  const staffOpenSessionUseCase = new StaffOpenSessionUseCaseImpl(
+    sessionRepo,
+    tableRepo,
+    config.SESSION_TTL_SECONDS,
+    eventPublisher
+  );
+  const closeTableSessionUseCase = new CloseTableSessionUseCaseImpl(sessionRepo, eventPublisher);
   const getTableSessionUseCase = new GetTableSessionUseCaseImpl(sessionRepo);
   const listTableSessionsUseCase = new ListTableSessionsUseCaseImpl(sessionRepo);
+  const requestBillSessionUseCase = new RequestBillSessionUseCaseImpl(
+    sessionRepo,
+    orderingServiceCall,
+    eventPublisher,
+    config.SESSION_TTL_SECONDS
+  );
+  const reopenBillSessionUseCase = new ReopenBillSessionUseCaseImpl(sessionRepo, eventPublisher);
+  const moveTableSessionUseCase = new MoveTableSessionUseCaseImpl(
+    sessionRepo,
+    tableRepo,
+    reservationRepo,
+    eventPublisher
+  );
 
   // Mount routers
+  app.use(
+    '/zones',
+    createZonesRouter({
+      zoneRepo,
+      tableRepo,
+    })
+  );
+
+  app.use(
+    '/reservations',
+    createReservationsRouter({
+      reservationRepo,
+      tableRepo,
+      sessionRepo,
+    })
+  );
+
   app.use(
     '/tables',
     createTablesRouter({
@@ -101,18 +207,25 @@ export function createSessionApp(deps?: SessionAppDeps): express.Application {
       deleteTablesBatchUseCase,
       generateTableQrUseCase,
       rotateTableQrKeyUseCase,
+      sessionRepo,
+      zoneRepo,
+      reservationRepo,
+      eventPublisher,
     })
   );
 
-  app.use(
-    '/sessions',
-    createSessionsRouter({
-      openTableSessionUseCase,
-      closeTableSessionUseCase,
-      getTableSessionUseCase,
-      listTableSessionsUseCase,
-    })
-  );
+  const sessionsRouter = createSessionsRouter({
+    openTableSessionUseCase,
+    staffOpenSessionUseCase,
+    closeTableSessionUseCase,
+    getTableSessionUseCase,
+    listTableSessionsUseCase,
+    requestBillSessionUseCase,
+    reopenBillSessionUseCase,
+    moveTableSessionUseCase,
+  });
+
+  app.use('/sessions', sessionsRouter);
 
   // Error handling
   app.use(errorHandler);

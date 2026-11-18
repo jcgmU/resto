@@ -1,30 +1,59 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Modal } from '@packages/ui-components';
+import React, { useEffect, useMemo, useState } from 'react';
 import { TabsPill } from '@packages/ui-components';
 import { createTablesBatch } from '../../lib/tablesApi';
-import { FOCUSABLE_SELECTOR, type TableItem } from './types';
+import { type TableItem } from './types';
 
 export interface CreateTablesBatchModalProps {
   open: boolean;
   onClose: () => void;
   onSuccess: (createdTables: TableItem[]) => void | Promise<void>;
   existingTables?: TableItem[];
+  zones?: ZoneOption[];
+}
+
+export interface ZoneOption {
+  id: string;
+  name: string;
 }
 
 type BatchMode = 'prefix' | 'custom';
 
+// eslint-disable-next-line no-control-regex
 const CONTROL_CHARS_RE = /[\u0000-\u001F\u007F]/;
 
 function normalizeLabelKey(raw: string): string {
   return raw.trim().normalize('NFC').toLocaleLowerCase('es');
 }
 
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  marginBottom: '6px',
+  fontSize: '0.875rem',
+  fontWeight: 600,
+  color: 'var(--bento-text)',
+};
+
+const fieldStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px 14px',
+  borderRadius: 'var(--bento-inner-radius)',
+  border: '1px solid var(--bento-field-border)',
+  backgroundColor: 'var(--bento-field-bg)',
+  color: 'var(--bento-text)',
+  fontSize: '0.95rem',
+  boxSizing: 'border-box',
+};
+
 export function CreateTablesBatchModal({
   open,
   onClose,
   onSuccess,
   existingTables = [],
+  zones = [],
 }: CreateTablesBatchModalProps) {
-  const modalRef = useRef<HTMLDivElement>(null);
+  const [zoneId, setZoneId] = useState<string>('');
+  const [capacityRaw, setCapacityRaw] = useState<string>('');
 
   const [mode, setMode] = useState<BatchMode>('prefix');
   const [prefix, setPrefix] = useState<string>('Mesa');
@@ -42,52 +71,13 @@ export function CreateTablesBatchModal({
       setCountRaw('5');
       setStartRaw('1');
       setCustomText('');
+      setZoneId('');
+      setCapacityRaw('');
       setCreating(false);
       setServerError(null);
       setServerConflictKeys(new Set());
     }
   }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const prevFocus = document.activeElement as HTMLElement | null;
-    modalRef.current?.focus();
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
-        return;
-      }
-      if (e.key === 'Tab') {
-        if (!modalRef.current) return;
-        const nodes = Array.from(
-          modalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-        );
-        if (nodes.length === 0) {
-          e.preventDefault();
-          return;
-        }
-        const first = nodes[0];
-        const last = nodes[nodes.length - 1];
-        const active = document.activeElement;
-        if (e.shiftKey && (active === first || active === modalRef.current)) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && active === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      prevFocus?.focus?.();
-    };
-  }, [open, onClose]);
 
   const existingKeySet = useMemo(() => {
     const keys = new Set<string>();
@@ -177,8 +167,19 @@ export function CreateTablesBatchModal({
       validationError = `Ya existen mesas con estas etiquetas: ${existingConflicts.join(', ')}`;
     }
 
+    const parsedCapacity = capacityRaw.trim() === '' ? undefined : Number(capacityRaw);
+    if (
+      !validationError &&
+      parsedCapacity !== undefined &&
+      (!Number.isInteger(parsedCapacity) || parsedCapacity < 1 || parsedCapacity > 99)
+    ) {
+      validationError = 'La capacidad debe ser un entero entre 1 y 99.';
+    }
+
     const isValid =
       !validationError &&
+      Boolean(zoneId) &&
+      zones.some((z) => z.id === zoneId) &&
       labels.length >= 1 &&
       labels.length <= 50 &&
       conflictKeySet.size === 0;
@@ -190,9 +191,10 @@ export function CreateTablesBatchModal({
       parsedStart,
       validationError,
       conflictKeySet,
+      parsedCapacity,
       isValid,
     };
-  }, [mode, prefix, countRaw, startRaw, customText, existingKeySet]);
+  }, [mode, prefix, countRaw, startRaw, customText, existingKeySet, capacityRaw, zoneId, zones]);
 
   if (!open) return null;
 
@@ -216,9 +218,13 @@ export function CreateTablesBatchModal({
               prefix: analysis.trimmedPrefix,
               count: analysis.parsedCount,
               start: analysis.parsedStart,
+              zoneId,
+              ...(analysis.parsedCapacity !== undefined ? { capacity: analysis.parsedCapacity } : {}),
             }
           : {
               labels: analysis.labels,
+              zoneId,
+              ...(analysis.parsedCapacity !== undefined ? { capacity: analysis.parsedCapacity } : {}),
             };
 
       const res = await createTablesBatch(payload);
@@ -256,79 +262,7 @@ export function CreateTablesBatchModal({
     serverError ?? (showClientValidationAlert ? analysis.validationError : null);
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="create-tables-batch-title"
-      ref={modalRef}
-      tabIndex={-1}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          e.stopPropagation();
-          onClose();
-          return;
-        }
-        if (e.key === 'Tab') {
-          if (!modalRef.current) return;
-          const nodes = Array.from(
-            modalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-          );
-          if (nodes.length === 0) {
-            e.preventDefault();
-            return;
-          }
-          const first = nodes[0];
-          const last = nodes[nodes.length - 1];
-          const active = document.activeElement;
-          if (e.shiftKey && (active === first || active === modalRef.current)) {
-            e.preventDefault();
-            last.focus();
-          } else if (!e.shiftKey && active === last) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'color-mix(in srgb, var(--bento-tinta) 45%, transparent)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 50,
-        padding: '16px',
-      }}
-    >
-      <div
-        style={{
-          backgroundColor: 'var(--bento-papel)',
-          color: 'var(--bento-text)',
-          padding: '24px',
-          borderRadius: 'var(--bento-card-radius)',
-          width: '100%',
-          maxWidth: '520px',
-          border: '1px solid var(--bento-border)',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-        }}
-      >
-        <h2
-          id="create-tables-batch-title"
-          style={{
-            margin: '0 0 16px 0',
-            fontSize: '1.25rem',
-            fontWeight: 700,
-            color: 'var(--bento-text)',
-          }}
-        >
-          Crear varias mesas
-        </h2>
-
+    <Modal open={true} title="Crear varias mesas" onClose={onClose} maxWidth="520px" footer={<></>}>
         <div style={{ marginBottom: '16px' }}>
           <TabsPill
             ariaLabel="Modo de creación en lote"
@@ -350,7 +284,7 @@ export function CreateTablesBatchModal({
             aria-live="assertive"
             style={{
               padding: '10px 14px',
-              backgroundColor: 'var(--bento-papel)',
+              backgroundColor: 'var(--bento-card-bg-solid)',
               color: 'var(--bento-destructive)',
               border: '1px solid var(--bento-destructive)',
               borderRadius: 'var(--bento-inner-radius)',
@@ -399,8 +333,8 @@ export function CreateTablesBatchModal({
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: 'var(--bento-inner-radius)',
-                    border: '1px solid var(--bento-border)',
-                    backgroundColor: 'var(--bento-papel)',
+                    border: '1px solid var(--bento-field-border)',
+                    backgroundColor: 'var(--bento-field-bg)',
                     color: 'var(--bento-text)',
                     fontSize: '0.95rem',
                     boxSizing: 'border-box',
@@ -435,8 +369,8 @@ export function CreateTablesBatchModal({
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: 'var(--bento-inner-radius)',
-                    border: '1px solid var(--bento-border)',
-                    backgroundColor: 'var(--bento-papel)',
+                    border: '1px solid var(--bento-field-border)',
+                    backgroundColor: 'var(--bento-field-bg)',
                     color: 'var(--bento-text)',
                     fontSize: '0.95rem',
                     boxSizing: 'border-box',
@@ -470,8 +404,8 @@ export function CreateTablesBatchModal({
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: 'var(--bento-inner-radius)',
-                    border: '1px solid var(--bento-border)',
-                    backgroundColor: 'var(--bento-papel)',
+                    border: '1px solid var(--bento-field-border)',
+                    backgroundColor: 'var(--bento-field-bg)',
                     color: 'var(--bento-text)',
                     fontSize: '0.95rem',
                     boxSizing: 'border-box',
@@ -509,8 +443,8 @@ export function CreateTablesBatchModal({
                   width: '100%',
                   padding: '10px 14px',
                   borderRadius: 'var(--bento-inner-radius)',
-                  border: '1px solid var(--bento-border)',
-                  backgroundColor: 'var(--bento-papel)',
+                  border: '1px solid var(--bento-field-border)',
+                  backgroundColor: 'var(--bento-field-bg)',
                   color: 'var(--bento-text)',
                   fontSize: '0.95rem',
                   boxSizing: 'border-box',
@@ -520,11 +454,58 @@ export function CreateTablesBatchModal({
             </div>
           )}
 
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+            <div>
+              <label htmlFor="batch-zone-select" style={labelStyle}>
+                Zona
+              </label>
+              <select
+                id="batch-zone-select"
+                value={zoneId}
+                required
+                onChange={(e) => {
+                  setZoneId(e.target.value);
+                  clearServerStatus();
+                }}
+                style={fieldStyle}
+              >
+                <option value="">Elige una zona</option>
+                {zones.map((z) => (
+                  <option key={z.id} value={z.id}>
+                    {z.name}
+                  </option>
+                ))}
+              </select>
+              {zones.length === 0 && (
+                <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: 'var(--bento-text-muted)' }}>
+                  Crea al menos una zona antes de crear mesas en lote.
+                </p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="batch-capacity-input" style={labelStyle}>
+                Capacidad (puestos, opcional)
+              </label>
+              <input
+                id="batch-capacity-input"
+                type="number"
+                min={1}
+                max={99}
+                value={capacityRaw}
+                onChange={(e) => {
+                  setCapacityRaw(e.target.value);
+                  clearServerStatus();
+                }}
+                style={fieldStyle}
+              />
+            </div>
+          </div>
+
           <div
             data-testid="batch-preview"
             style={{
               padding: '12px',
-              backgroundColor: 'var(--bento-hueso)',
+              backgroundColor: 'var(--bento-panel-bg)',
               borderRadius: 'var(--bento-inner-radius)',
               border: '1px solid var(--bento-border)',
               marginBottom: '20px',
@@ -575,7 +556,7 @@ export function CreateTablesBatchModal({
                         borderRadius: 'var(--bento-pill-radius)',
                         fontSize: '0.8rem',
                         fontWeight: 600,
-                        backgroundColor: 'var(--bento-papel)',
+                        backgroundColor: 'var(--bento-card-bg-solid)',
                         color: isConflict
                           ? 'var(--bento-destructive)'
                           : 'var(--bento-text)',
@@ -615,9 +596,9 @@ export function CreateTablesBatchModal({
               style={{
                 minHeight: '44px',
                 padding: '0 20px',
-                backgroundColor: 'var(--bento-tinta)',
-                color: 'var(--bento-papel)',
-                border: '1px solid var(--bento-tinta)',
+                backgroundColor: 'var(--bento-primary)',
+                color: 'var(--bento-card-bg-solid)',
+                border: '1px solid var(--bento-border)',
                 borderRadius: 'var(--bento-pill-radius)',
                 cursor: !analysis.isValid || creating ? 'not-allowed' : 'pointer',
                 opacity: !analysis.isValid || creating ? 0.6 : 1,
@@ -628,7 +609,6 @@ export function CreateTablesBatchModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

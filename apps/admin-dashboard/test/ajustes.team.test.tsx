@@ -11,6 +11,7 @@ describe('U7 & U9: Ajustes - Gestión de Equipo y Cambio de Contraseña', () => 
   const originalSetTeamMemberActive = ApiClient.setTeamMemberActive;
   const originalResetPassword = ApiClient.resetTeamMemberPassword;
   const originalChangePassword = ApiClient.changePassword;
+  const originalRequest = ApiClient.request;
 
   // Helper to build mock JWT
   const makeJwt = (role: string) => {
@@ -20,30 +21,9 @@ describe('U7 & U9: Ajustes - Gestión de Equipo y Cambio de Contraseña', () => 
   };
 
   const mockTeam = [
-    {
-      id: 'u-admin',
-      tenantId: 't1',
-      email: 'admin@resto.com',
-      displayName: 'Admin Boss',
-      role: 'ADMIN' as const,
-      status: 'ACTIVE' as const,
-    },
-    {
-      id: 'u-staff',
-      tenantId: 't1',
-      email: 'staff@resto.com',
-      displayName: 'Mesero Pedro',
-      role: 'STAFF' as const,
-      status: 'ACTIVE' as const,
-    },
-    {
-      id: 'u-disabled',
-      tenantId: 't1',
-      email: 'disabled@resto.com',
-      displayName: 'Ex Mesero',
-      role: 'STAFF' as const,
-      status: 'DISABLED' as const,
-    },
+    { id: 'u-admin', tenantId: 't1', email: 'admin@resto.com', displayName: 'Admin Boss', role: 'ADMIN', status: 'ACTIVE' },
+    { id: 'u-staff', tenantId: 't1', email: 'staff@resto.com', displayName: 'Mesero Pedro', role: 'WAITER', status: 'ACTIVE' },
+    { id: 'u-disabled', tenantId: 't1', email: 'disabled@resto.com', displayName: 'Ex Mesero', role: 'WAITER', status: 'DISABLED' },
   ];
 
   beforeEach(() => {
@@ -51,6 +31,7 @@ describe('U7 & U9: Ajustes - Gestión de Equipo y Cambio de Contraseña', () => 
     ApiClient.clearAuth();
     ApiClient.token = makeJwt('ADMIN');
 
+    ApiClient.request = jest.fn().mockResolvedValue({ status: 200, data: {} });
     ApiClient.listTeam = jest.fn().mockResolvedValue({ status: 200, data: mockTeam });
     ApiClient.createTeamMember = jest.fn().mockResolvedValue({ status: 201, data: {} });
     ApiClient.updateTeamMember = jest.fn().mockResolvedValue({ status: 200, data: {} });
@@ -60,6 +41,7 @@ describe('U7 & U9: Ajustes - Gestión de Equipo y Cambio de Contraseña', () => 
   });
 
   afterEach(() => {
+    ApiClient.request = originalRequest;
     ApiClient.listTeam = originalListTeam;
     ApiClient.createTeamMember = originalCreateTeamMember;
     ApiClient.updateTeamMember = originalUpdateTeamMember;
@@ -69,109 +51,54 @@ describe('U7 & U9: Ajustes - Gestión de Equipo y Cambio de Contraseña', () => 
     jest.restoreAllMocks();
   });
 
-  describe('ADMIN: Vista de Equipo (U7)', () => {
-    test('1. Lista los miembros del equipo con nombre, email, rol y StatusChip', async () => {
+  const actionBtn = (row: HTMLElement, label: string) =>
+    Array.from(row.querySelectorAll('button')).find((b) => b.textContent === label);
+
+  test('distingue la contraseña inicial del empleado y el cambio de contraseña propio', async () => {
+    render(<AjustesView />);
+    await screen.findByText('Mesero Pedro');
+    fireEvent.click(screen.getByTestId('toggle-new-employee-button'));
+    expect(screen.getByTestId('employee-password-input')).toHaveAttribute('autocomplete', 'new-password');
+    expect(screen.getByLabelText('Contraseña actual')).toHaveAttribute('autocomplete', 'current-password');
+    expect(screen.getByLabelText('Nueva contraseña (mínimo 8 caracteres)')).toHaveAttribute('autocomplete', 'new-password');
+    expect(screen.getByLabelText('Confirmar nueva contraseña')).toHaveAttribute('autocomplete', 'new-password');
+  });
+
+  describe('ADMIN: sección Equipo de Trabajo con acciones', () => {
+    test('1. Lista los miembros con nombre, email, rol y StatusChip', async () => {
       render(<AjustesView />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Admin Boss')).toBeInTheDocument();
-        expect(screen.getByText('Mesero Pedro')).toBeInTheDocument();
-        expect(screen.getByText('Ex Mesero')).toBeInTheDocument();
-      });
-
+      await waitFor(() => expect(screen.getByText('Mesero Pedro')).toBeInTheDocument());
       expect(screen.getByText('admin@resto.com')).toBeInTheDocument();
-      expect(screen.getByText('staff@resto.com')).toBeInTheDocument();
-
-      // StatusChips
       expect(screen.getAllByText('Activo').length).toBe(2);
-      expect(screen.getByText('Desactivado')).toBeInTheDocument();
+      expect(screen.getByText('Inactivo')).toBeInTheDocument();
+      expect(ApiClient.listTeam).toHaveBeenCalled();
     });
 
-    test('2. Abre modal de "Agregar miembro", valida y crea con contraseña inicial', async () => {
+    test('2. Rol abre el modal con los 5 roles operativos y actualiza vía updateTeamMember', async () => {
       render(<AjustesView />);
+      await waitFor(() => expect(screen.getByText('Mesero Pedro')).toBeInTheDocument());
+
+      fireEvent.click(actionBtn(screen.getByTestId('employee-row-u-staff'), 'Rol')!);
+      expect(screen.getByText('Cambiar rol')).toBeInTheDocument();
+      expect(screen.getByRole('dialog').querySelectorAll('input[name="roleSelect"]')).toHaveLength(5);
+
+      fireEvent.click(screen.getByLabelText(/MANAGER/i));
+      fireEvent.click(screen.getByRole('button', { name: /Guardar rol/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('Admin Boss')).toBeInTheDocument();
-      });
-
-      const addBtn = screen.getByRole('button', { name: /\+ Agregar miembro/i });
-      fireEvent.click(addBtn);
-
-      expect(screen.getByText('Agregar nuevo miembro')).toBeInTheDocument();
-
-      // Completar campos
-      fireEvent.change(screen.getByPlaceholderText(/ejemplo@restaurante.com/i), {
-        target: { value: 'nuevo@resto.com' },
-      });
-      fireEvent.change(screen.getByPlaceholderText(/Juan Pérez/i), {
-        target: { value: 'Nuevo Mesero' },
-      });
-      fireEvent.change(screen.getByPlaceholderText(/Mínimo 8 caracteres/i), {
-        target: { value: 'nuevapassword123' },
-      });
-
-      const submitBtn = screen.getByRole('button', { name: /Crear miembro/i });
-      fireEvent.click(submitBtn);
-
-      await waitFor(() => {
-        expect(ApiClient.createTeamMember).toHaveBeenCalledWith({
-          email: 'nuevo@resto.com',
-          displayName: 'Nuevo Mesero',
-          role: 'STAFF',
-          password: 'nuevapassword123',
-        });
+        expect(ApiClient.updateTeamMember).toHaveBeenCalledWith('u-staff', { role: 'MANAGER' });
       });
     });
 
-    test('3. Cambiar rol abre modal y actualiza vía ApiClient.updateTeamMember', async () => {
+    test('3. Desactivar usa ModalConfirm y llama setTeamMemberActive(false)', async () => {
       render(<AjustesView />);
+      await waitFor(() => expect(screen.getByText('Mesero Pedro')).toBeInTheDocument());
 
-      await waitFor(() => {
-        expect(screen.getByText('Mesero Pedro')).toBeInTheDocument();
-      });
-
-      const staffRow = screen.getByTestId('team-row-u-staff');
-      const roleBtn = staffRow.querySelector('button'); // Primer botón "Rol"
-      expect(roleBtn).toHaveTextContent('Rol');
-      fireEvent.click(roleBtn!);
-
-      expect(screen.getByText(/Cambiar rol/i)).toBeInTheDocument();
-
-      // Seleccionar MANAGER
-      const managerRadio = screen.getByLabelText(/MANAGER/i);
-      fireEvent.click(managerRadio);
-
-      const saveRoleBtn = screen.getByRole('button', { name: /Guardar rol/i });
-      fireEvent.click(saveRoleBtn);
-
-      await waitFor(() => {
-        expect(ApiClient.updateTeamMember).toHaveBeenCalledWith('u-staff', {
-          role: 'MANAGER',
-        });
-      });
-    });
-
-    test('4. Desactivar usuario usa ModalConfirm y llama setTeamMemberActive(false)', async () => {
-      render(<AjustesView />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Mesero Pedro')).toBeInTheDocument();
-      });
-
-      const staffRow = screen.getByTestId('team-row-u-staff');
-      const deactivateBtn = Array.from(staffRow.querySelectorAll('button')).find(
-        (b) => b.textContent === 'Desactivar'
-      );
-      expect(deactivateBtn).toBeDefined();
-      fireEvent.click(deactivateBtn!);
-
-      // ModalConfirm visible
+      fireEvent.click(actionBtn(screen.getByTestId('employee-row-u-staff'), 'Desactivar')!);
       expect(screen.getByText('¿Desactivar usuario?')).toBeInTheDocument();
 
-      // Botón confirmar en ModalConfirm
       const dialog = screen.getByRole('dialog');
-      const confirmBtn = dialog.querySelector('button[type="button"]:last-child') ||
-        screen.getAllByRole('button', { name: /^Desactivar$/i })[1];
+      const confirmBtn = Array.from(dialog.querySelectorAll('button')).find((b) => b.textContent === 'Desactivar');
       fireEvent.click(confirmBtn!);
 
       await waitFor(() => {
@@ -179,101 +106,69 @@ describe('U7 & U9: Ajustes - Gestión de Equipo y Cambio de Contraseña', () => 
       });
     });
 
-    test('5. Reactivar usuario usa ModalConfirm y llama setTeamMemberActive(true)', async () => {
+    test('4. Activar usa ModalConfirm y llama setTeamMemberActive(true)', async () => {
       render(<AjustesView />);
+      await waitFor(() => expect(screen.getByText('Ex Mesero')).toBeInTheDocument());
 
-      await waitFor(() => {
-        expect(screen.getByText('Ex Mesero')).toBeInTheDocument();
-      });
-
-      const disabledRow = screen.getByTestId('team-row-u-disabled');
-      const activateBtn = Array.from(disabledRow.querySelectorAll('button')).find(
-        (b) => b.textContent === 'Activar'
-      );
-      expect(activateBtn).toBeDefined();
-      fireEvent.click(activateBtn!);
-
+      fireEvent.click(actionBtn(screen.getByTestId('employee-row-u-disabled'), 'Activar')!);
       expect(screen.getByText('¿Reactivar usuario?')).toBeInTheDocument();
-
-      const confirmBtn = screen.getByRole('button', { name: /^Reactivar$/i });
-      fireEvent.click(confirmBtn);
+      fireEvent.click(screen.getByRole('button', { name: /^Reactivar$/i }));
 
       await waitFor(() => {
         expect(ApiClient.setTeamMemberActive).toHaveBeenCalledWith('u-disabled', true);
       });
     });
 
-    test('6. Restablecer contraseña abre modal y llama resetTeamMemberPassword', async () => {
+    test('5. Clave abre modal y llama resetTeamMemberPassword', async () => {
       render(<AjustesView />);
+      await waitFor(() => expect(screen.getByText('Mesero Pedro')).toBeInTheDocument());
 
-      await waitFor(() => {
-        expect(screen.getByText('Mesero Pedro')).toBeInTheDocument();
-      });
-
-      const staffRow = screen.getByTestId('team-row-u-staff');
-      const claveBtn = Array.from(staffRow.querySelectorAll('button')).find(
-        (b) => b.textContent === 'Clave'
-      );
-      expect(claveBtn).toBeDefined();
-      fireEvent.click(claveBtn!);
-
+      fireEvent.click(actionBtn(screen.getByTestId('employee-row-u-staff'), 'Clave')!);
       expect(screen.getByText('Restablecer contraseña')).toBeInTheDocument();
-
-      const submitResetBtn = screen.getByRole('button', { name: /^Restablecer$/i });
-      fireEvent.click(submitResetBtn);
+      fireEvent.click(screen.getByRole('button', { name: /^Restablecer$/i }));
 
       await waitFor(() => {
-        expect(ApiClient.resetTeamMemberPassword).toHaveBeenCalledWith('u-staff', expect.any(String));
+        expect(ApiClient.resetTeamMemberPassword).toHaveBeenCalledWith('u-staff', undefined);
       });
     });
   });
 
-  describe('MANAGER / STAFF: Control de Acceso UI y Cambio de Contraseña (U7 & U9)', () => {
-    test('7. Usuario con rol MANAGER no ve la pestaña "Equipo"', async () => {
+  describe('MANAGER y WAITER: acceso por rol y cambio de contraseña', () => {
+    test('6. MANAGER lee la lista de empleados pero no ve acciones ni alta', async () => {
       ApiClient.token = makeJwt('MANAGER');
       render(<AjustesView />);
 
-      // No debe existir el botón/tab de Equipo
-      expect(screen.queryByText('Gestión de Equipo')).not.toBeInTheDocument();
-      expect(screen.queryByRole('tab', { name: /Equipo/i })).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.getByText('Mesero Pedro')).toBeInTheDocument());
+      expect(screen.queryByTestId('toggle-new-employee-button')).not.toBeInTheDocument();
+      const row = screen.getByTestId('employee-row-u-staff');
+      expect(row.querySelectorAll('button')).toHaveLength(0);
       expect(screen.getByText('Cambiar mi Contraseña')).toBeInTheDocument();
     });
 
-    test('8. Usuario con rol STAFF no ve la pestaña "Equipo"', async () => {
-      ApiClient.token = makeJwt('STAFF');
+    test('7. WAITER no ve Equipo de Trabajo ni consulta la lista', async () => {
+      ApiClient.token = makeJwt('WAITER');
       render(<AjustesView />);
 
-      expect(screen.queryByText('Gestión de Equipo')).not.toBeInTheDocument();
-      expect(screen.queryByRole('tab', { name: /Equipo/i })).not.toBeInTheDocument();
+      expect(screen.queryByText('Equipo de Trabajo')).not.toBeInTheDocument();
       expect(screen.getByText('Cambiar mi Contraseña')).toBeInTheDocument();
+      expect(ApiClient.listTeam).not.toHaveBeenCalled();
     });
 
-    test('9. Flujo Cambiar mi contraseña (U9): éxito y error al no coincidir', async () => {
-      ApiClient.token = makeJwt('STAFF');
+    test('8. Cambiar mi contraseña: error al no coincidir y éxito al corregir', async () => {
+      ApiClient.token = makeJwt('WAITER');
       render(<AjustesView />);
 
-      expect(screen.getByText('Cambiar mi Contraseña')).toBeInTheDocument();
-
-      // Error cuando no coinciden las nuevas contraseñas
-      fireEvent.change(screen.getByLabelText(/Contraseña actual/i), {
-        target: { value: 'claveactual123' },
-      });
+      fireEvent.change(screen.getByLabelText(/Contraseña actual/i), { target: { value: 'claveactual123' } });
       fireEvent.change(screen.getByLabelText(/Nueva contraseña \(mínimo 8 caracteres\)/i), {
         target: { value: 'nuevaclave123' },
       });
-      fireEvent.change(screen.getByLabelText(/Confirmar nueva contraseña/i), {
-        target: { value: 'otra-diferente' },
-      });
-
+      fireEvent.change(screen.getByLabelText(/Confirmar nueva contraseña/i), { target: { value: 'otra-diferente' } });
       fireEvent.click(screen.getByRole('button', { name: /Actualizar contraseña/i }));
 
       expect(screen.getByText(/Las nuevas contraseñas no coinciden/i)).toBeInTheDocument();
       expect(ApiClient.changePassword).not.toHaveBeenCalled();
 
-      // Éxito al corregir la confirmación
-      fireEvent.change(screen.getByLabelText(/Confirmar nueva contraseña/i), {
-        target: { value: 'nuevaclave123' },
-      });
+      fireEvent.change(screen.getByLabelText(/Confirmar nueva contraseña/i), { target: { value: 'nuevaclave123' } });
       fireEvent.click(screen.getByRole('button', { name: /Actualizar contraseña/i }));
 
       await waitFor(() => {

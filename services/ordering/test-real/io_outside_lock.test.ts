@@ -29,7 +29,9 @@ describe('Ordering Real - I/O Outside Advisory Lock (X3)', () => {
       sessionId: s,
       tenantId: t,
       tableId: 'table-io-1',
-      status: 'active',
+      status: 'active' as const,
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 3600000).toISOString(),
     }),
   };
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { ModifierGroupDTO } from '@packages/shared-types';
+import { useMoney } from '../lib/money';
 
 export interface ModifierGroupPickerProps {
   group: ModifierGroupDTO;
@@ -12,6 +13,7 @@ export function ModifierGroupPicker({
   selectedOptions = [],
   onChange,
 }: ModifierGroupPickerProps) {
+  const { format } = useMoney();
   const handleToggle = (optId: string) => {
     const isSelected = selectedOptions.includes(optId);
     if (isSelected) {
@@ -75,7 +77,7 @@ export function ModifierGroupPicker({
               <span style={{ color: 'var(--bento-text)' }}>{opt.name}</span>
               {opt.priceDelta > 0 && (
                 <span style={{ color: 'var(--bento-text-muted)' }}>
-                  (+${opt.priceDelta.toFixed(2)})
+                  (+{format(opt.priceDelta)})
                 </span>
               )}
             </label>

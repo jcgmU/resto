@@ -14,6 +14,12 @@ const mockedCreateTablesBatch = tablesApi.createTablesBatch as jest.MockedFuncti
   typeof tablesApi.createTablesBatch
 >;
 
+const baseZones = [{ id: 'zone-1', name: 'Zona 1' }];
+
+function pickZone() {
+  fireEvent.change(screen.getByLabelText(/^Zona/i), { target: { value: 'zone-1' } });
+}
+
 describe('CreateTablesBatchModal (U6)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -24,12 +30,12 @@ describe('CreateTablesBatchModal (U6)', () => {
     const onSuccess = jest.fn();
 
     const { rerender } = render(
-      <CreateTablesBatchModal open={false} onClose={onClose} onSuccess={onSuccess} />
+      <CreateTablesBatchModal open={false} onClose={onClose} onSuccess={onSuccess} zones={baseZones} />
     );
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-    rerender(<CreateTablesBatchModal open={true} onClose={onClose} onSuccess={onSuccess} />);
+    rerender(<CreateTablesBatchModal open={true} onClose={onClose} onSuccess={onSuccess} zones={baseZones} />);
 
     const dialog = screen.getByRole('dialog');
     expect(dialog).toBeInTheDocument();
@@ -41,7 +47,7 @@ describe('CreateTablesBatchModal (U6)', () => {
 
   test('2. Modo prefijo: vista previa en vivo por defecto (Mesa 1..Mesa 5) y actualizada para { prefix: "Terraza", count: 3, start: 10 }', () => {
     render(
-      <CreateTablesBatchModal open={true} onClose={jest.fn()} onSuccess={jest.fn()} />
+      <CreateTablesBatchModal open={true} onClose={jest.fn()} onSuccess={jest.fn()} zones={baseZones} />
     );
 
     const preview = screen.getByTestId('batch-preview');
@@ -75,9 +81,11 @@ describe('CreateTablesBatchModal (U6)', () => {
         onClose={jest.fn()}
         onSuccess={jest.fn()}
         existingTables={existingTables}
+        zones={baseZones}
       />
     );
 
+    pickZone();
     const submitBtn = screen.getByRole('button', { name: /Crear mesas|Guardar/i });
     // Con existingTables teniendo "Mesa 2", el rango por defecto Mesa 1..5 tiene conflicto en vivo
     expect(submitBtn).toBeDisabled();
@@ -100,12 +108,13 @@ describe('CreateTablesBatchModal (U6)', () => {
 
   test('4. Modo lista personalizada: procesa líneas, detecta duplicados en vivo y valida límites (0 y 51)', () => {
     render(
-      <CreateTablesBatchModal open={true} onClose={jest.fn()} onSuccess={jest.fn()} />
+      <CreateTablesBatchModal open={true} onClose={jest.fn()} onSuccess={jest.fn()} zones={baseZones} />
     );
 
     const customTab = screen.getByRole('tab', { name: /Lista personalizada/i });
     fireEvent.click(customTab);
 
+    pickZone();
     const textarea = screen.getByLabelText(/Lista de nombres/i);
     const submitBtn = screen.getByRole('button', { name: /Crear mesas|Guardar/i });
 
@@ -149,9 +158,10 @@ describe('CreateTablesBatchModal (U6)', () => {
     const onSuccess = jest.fn();
 
     const { rerender } = render(
-      <CreateTablesBatchModal open={true} onClose={onClose} onSuccess={onSuccess} />
+      <CreateTablesBatchModal open={true} onClose={onClose} onSuccess={onSuccess} zones={baseZones} />
     );
 
+    pickZone();
     fireEvent.change(screen.getByLabelText(/Prefijo/i), { target: { value: '  Terraza ' } });
     fireEvent.change(screen.getByLabelText(/Cantidad/i), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText(/Número inicial/i), { target: { value: '10' } });
@@ -164,6 +174,7 @@ describe('CreateTablesBatchModal (U6)', () => {
         prefix: 'Terraza',
         count: 2,
         start: 10,
+        zoneId: 'zone-1',
       });
     });
     expect(onSuccess).toHaveBeenCalledWith(createdPrefix);
@@ -176,9 +187,10 @@ describe('CreateTablesBatchModal (U6)', () => {
     ];
     mockedCreateTablesBatch.mockResolvedValueOnce({ tables: createdCustom });
 
-    rerender(<CreateTablesBatchModal open={true} onClose={onClose} onSuccess={onSuccess} />);
+    rerender(<CreateTablesBatchModal open={true} onClose={onClose} onSuccess={onSuccess} zones={baseZones} />);
 
     fireEvent.click(screen.getByRole('tab', { name: /Lista personalizada/i }));
+    pickZone();
     fireEvent.change(screen.getByLabelText(/Lista de nombres/i), {
       target: { value: '  Salón A \n\n Salón B  ' },
     });
@@ -187,6 +199,7 @@ describe('CreateTablesBatchModal (U6)', () => {
     await waitFor(() => {
       expect(mockedCreateTablesBatch).toHaveBeenLastCalledWith({
         labels: ['Salón A', 'Salón B'],
+        zoneId: 'zone-1',
       });
     });
     expect(onSuccess).toHaveBeenLastCalledWith(createdCustom);
@@ -204,9 +217,10 @@ describe('CreateTablesBatchModal (U6)', () => {
     const onSuccess = jest.fn();
 
     render(
-      <CreateTablesBatchModal open={true} onClose={onClose} onSuccess={onSuccess} />
+      <CreateTablesBatchModal open={true} onClose={onClose} onSuccess={onSuccess} zones={baseZones} />
     );
 
+    pickZone();
     const submitBtn = screen.getByRole('button', { name: /Crear mesas|Guardar/i });
     fireEvent.click(submitBtn);
 
@@ -232,12 +246,93 @@ describe('CreateTablesBatchModal (U6)', () => {
     mockedCreateTablesBatch.mockRejectedValueOnce(limitError);
 
     render(
-      <CreateTablesBatchModal open={true} onClose={jest.fn()} onSuccess={jest.fn()} />
+      <CreateTablesBatchModal open={true} onClose={jest.fn()} onSuccess={jest.fn()} zones={baseZones} />
     );
 
+    pickZone();
     fireEvent.click(screen.getByRole('button', { name: /Crear mesas|Guardar/i }));
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent(/500/);
+  });
+
+  describe('zona obligatoria y capacidad (decisión de integración)', () => {
+    const zones = [
+      { id: 'zone-terraza', name: 'Terraza' },
+      { id: 'zone-salon', name: 'Salón Principal' },
+    ];
+
+    test('8. Sin zona elegida el submit está deshabilitado y no se llama a createTablesBatch', () => {
+      render(
+        <CreateTablesBatchModal open={true} onClose={jest.fn()} onSuccess={jest.fn()} zones={zones} />
+      );
+      const submitBtn = screen.getByRole('button', { name: /Crear mesas|Guardar/i });
+      expect(screen.getByLabelText(/^Zona/i)).toBeInTheDocument();
+      expect(submitBtn).toBeDisabled();
+      fireEvent.click(submitBtn);
+      expect(mockedCreateTablesBatch).not.toHaveBeenCalled();
+    });
+
+    test('9. Con zona y capacidad envía zoneId y capacity en modo prefijo y personalizado', async () => {
+      mockedCreateTablesBatch.mockResolvedValue({ tables: [] });
+      render(
+        <CreateTablesBatchModal open={true} onClose={jest.fn()} onSuccess={jest.fn()} zones={zones} />
+      );
+      fireEvent.change(screen.getByLabelText(/^Zona/i), { target: { value: 'zone-terraza' } });
+      fireEvent.change(screen.getByLabelText(/Capacidad/i), { target: { value: '4' } });
+      fireEvent.click(screen.getByRole('button', { name: /Crear mesas|Guardar/i }));
+      await waitFor(() => {
+        expect(mockedCreateTablesBatch).toHaveBeenCalledWith({
+          prefix: 'Mesa',
+          count: 5,
+          start: 1,
+          zoneId: 'zone-terraza',
+          capacity: 4,
+        });
+      });
+    });
+
+    test('10. Sin zonas disponibles avisa que hay que crear una zona y bloquea el envío', () => {
+      render(
+        <CreateTablesBatchModal open={true} onClose={jest.fn()} onSuccess={jest.fn()} zones={[]} />
+      );
+      expect(screen.getByText(/Crea al menos una zona/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Crear mesas|Guardar/i })).toBeDisabled();
+    });
+
+    test('11. Escape llama al onClose más reciente sin re-suscribir el listener en cada render (onCloseRef)', () => {
+      const first = jest.fn();
+      const second = jest.fn();
+      const addSpy = jest.spyOn(document, 'addEventListener');
+      const { rerender } = render(
+        <CreateTablesBatchModal open={true} onClose={first} onSuccess={jest.fn()} zones={zones} />
+      );
+      const keydownSubs = () => addSpy.mock.calls.filter((c) => c[0] === 'keydown').length;
+      const before = keydownSubs();
+      rerender(
+        <CreateTablesBatchModal open={true} onClose={second} onSuccess={jest.fn()} zones={zones} />
+      );
+      expect(keydownSubs()).toBe(before);
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(second).toHaveBeenCalledTimes(1);
+      expect(first).not.toHaveBeenCalled();
+      addSpy.mockRestore();
+    });
+
+    test('mantiene el foco en el input de prefijo cuando el padre re-renderiza con un onClose nuevo', () => {
+      const onSuccess = jest.fn();
+      const { rerender } = render(
+        <CreateTablesBatchModal open={true} onClose={() => {}} onSuccess={onSuccess} zones={zones} />
+      );
+
+      const input = screen.getByLabelText('Prefijo');
+      input.focus();
+      fireEvent.change(input, { target: { value: 'Mesa.' } });
+
+      rerender(<CreateTablesBatchModal open={true} onClose={() => {}} onSuccess={onSuccess} zones={zones} />);
+
+      expect(input).toHaveFocus();
+      expect(input).toHaveValue('Mesa.');
+    });
   });
 });

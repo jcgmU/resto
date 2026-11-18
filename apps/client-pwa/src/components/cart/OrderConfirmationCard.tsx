@@ -1,12 +1,14 @@
+import { Button } from '@packages/ui-components';
 import React, { useEffect, useState } from 'react';
 import { OrderDTO } from '@packages/shared-types';
-import { BentoCard, ProgressNodes, StatusChip, ORDER_STATUS_LABELS, formatOrderNumber } from '@packages/ui-components';
+import { StatusCard, ProgressNodes, ORDER_STATUS_LABELS, formatOrderNumber } from '@packages/ui-components';
 import { PwaApiClient } from '../../lib/api';
 
 export interface OrderConfirmationCardProps {
   order: OrderDTO;
   pollIntervalMs?: number;
   onOrderUpdate?: (order: OrderDTO) => void;
+  onAddAnotherOrder?: () => void;
 }
 
 const PROGRESS_STEPS = ['Recibido', 'En cocina', 'Listo', 'Entregado'];
@@ -75,6 +77,7 @@ export function OrderConfirmationCard({
   order,
   pollIntervalMs = 5000,
   onOrderUpdate,
+  onAddAnotherOrder,
 }: OrderConfirmationCardProps) {
   const [currentOrder, setCurrentOrder] = useState<OrderDTO>(order);
 
@@ -107,13 +110,14 @@ export function OrderConfirmationCard({
   }, [currentOrder.id, statusInfo.isTerminal, onOrderUpdate, pollIntervalMs]);
 
   return (
-    <BentoCard
+    <StatusCard
+      status={statusInfo.chipTone === 'error' ? 'occupied' : statusInfo.chipTone === 'warning' ? 'reserved' : statusInfo.chipTone === 'ok' ? 'available' : 'neutral'}
       style={{
         padding: 'var(--bento-spacing-md)',
         display: 'flex',
         flexDirection: 'column',
         gap: 'var(--bento-spacing-md)',
-        backgroundColor: 'var(--bento-papel)',
+        backgroundColor: 'var(--bento-card-bg-solid)',
         borderRadius: 'var(--bento-card-radius)',
         border: '1px solid var(--bento-border)',
       }}
@@ -138,10 +142,7 @@ export function OrderConfirmationCard({
         >
           {formatOrderNumber(currentOrder.id)}
         </h3>
-        <StatusChip
-          label={ORDER_STATUS_LABELS[currentOrder.status] || currentOrder.status}
-          tone={statusInfo.chipTone}
-        />
+        <span data-testid="order-status">{ORDER_STATUS_LABELS[currentOrder.status] || currentOrder.status}</span>
       </div>
 
       <div style={{ padding: 'var(--bento-spacing-xs) 0' }}>
@@ -163,13 +164,61 @@ export function OrderConfirmationCard({
         {statusInfo.description}
       </p>
 
+      {/* Información de estado inmutable y opción de agregar más pedidos (U04) */}
+      <div
+        data-testid="order-clarity-actions"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--bento-spacing-xs)',
+          paddingTop: 'var(--bento-spacing-xs)',
+          borderTop: '1px solid var(--bento-border)',
+        }}
+      >
+        <p
+          data-testid="order-locked-notice"
+          style={{
+            margin: 0,
+            fontSize: '0.875rem',
+            color: 'var(--bento-text-muted)',
+            fontFamily: 'var(--bento-font-body, inherit)',
+          }}
+        >
+          Pedido enviado; ya no puede editarse
+        </p>
+
+        <Button
+          type="button"
+          onClick={onAddAnotherOrder}
+          data-testid="add-another-order-btn"
+          style={{
+            alignSelf: 'flex-start',
+            minHeight: 'var(--bento-touch-target, 44px)',
+            padding: '0 var(--bento-spacing-md, 16px)',
+            borderRadius: 'var(--bento-pill-radius)',
+            backgroundColor: 'var(--bento-card-bg-solid)',
+            border: '1px solid var(--bento-border)',
+            color: 'var(--bento-text)',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'var(--bento-font-body, inherit)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          Agregar otro pedido
+        </Button>
+      </div>
+
       {statusInfo.problemSegment !== undefined && (
         <div
           role="alert"
           style={{
             padding: 'var(--bento-spacing-xs) var(--bento-spacing-sm)',
             borderRadius: 'var(--bento-card-radius)',
-            backgroundColor: 'var(--bento-papel)',
+            backgroundColor: 'var(--bento-card-bg-solid)',
             border: '1px solid var(--bento-destructive)',
             color: 'var(--bento-destructive)',
             fontSize: '0.875rem',
@@ -181,6 +230,6 @@ export function OrderConfirmationCard({
           Pedido cancelado
         </div>
       )}
-    </BentoCard>
+    </StatusCard>
   );
 }

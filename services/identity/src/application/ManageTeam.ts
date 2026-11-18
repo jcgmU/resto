@@ -1,3 +1,4 @@
+import { parseAvatarUrl } from './avatarUrl';
 import {
   UserRepository,
   RefreshTokenRepository,
@@ -22,8 +23,10 @@ export class ManageTeamUseCaseImpl {
     currentUserId: string;
     targetUserId: string;
     displayName?: string;
-    role?: 'MANAGER' | 'STAFF';
+    role?: 'MANAGER' | 'WAITER' | 'CASHIER' | 'MONITOR';
+    avatarUrl?: string | null;
   }): Promise<UserDTO> {
+    const avatarUrl = parseAvatarUrl(input.avatarUrl);
     const userWithHash =
       (await this.userRepo.findWithPasswordById?.(input.targetUserId)) ||
       (await this.userRepo.findById(input.targetUserId) as any);
@@ -36,8 +39,8 @@ export class ManageTeamUseCaseImpl {
       if (input.targetUserId === input.currentUserId) {
         throw new DomainError('FORBIDDEN', 'El administrador no puede cambiar su propio rol');
       }
-      if (input.role !== 'MANAGER' && input.role !== 'STAFF') {
-        throw new DomainError('VALIDATION_ERROR', 'Rol debe ser MANAGER o STAFF');
+      if (!['MANAGER', 'WAITER', 'CASHIER', 'MONITOR'].includes(input.role)) {
+        throw new DomainError('VALIDATION_ERROR', 'Rol debe ser MANAGER, WAITER, CASHIER o MONITOR');
       }
     }
 
@@ -45,6 +48,7 @@ export class ManageTeamUseCaseImpl {
       ...userWithHash,
       displayName: input.displayName !== undefined ? input.displayName.trim() : userWithHash.displayName,
       role: input.role !== undefined ? input.role : userWithHash.role,
+      avatarUrl: avatarUrl !== undefined ? avatarUrl : userWithHash.avatarUrl ?? null,
       updatedAt: new Date(),
     };
 

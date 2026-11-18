@@ -216,11 +216,12 @@ describe('C. Client PWA — Bento Box mobile-first (Tests 16-27)', () => {
     });
   });
 
-  test('27. FeatureGuard: CTA "Pagar" con flag payments apagado -> muestra Proximamente (data-testid="proximamente") sin romper el layout', () => {
+  test('27. Cobro solo por personal (R10): El cliente/guest NO tiene botón de "Pagar" en la PWA (el cobro es exclusivo de caja en admin)', () => {
     PwaApiClient.guestToken = 'valid-token';
     render(<ClientMenuPage params={{ tenantId: 't-1', tableId: 'tb-1' }} />);
 
-    expect(screen.getByTestId('proximamente')).toBeInTheDocument();
-    expect(screen.queryByText('Pagar')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^pagar$/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/^pagar$/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /pedir la cuenta/i })).toBeInTheDocument();
   });
 });

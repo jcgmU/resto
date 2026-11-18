@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { CartUseCases } from '../../application/CartUseCases';
 import { OrderUseCases } from '../../application/OrderUseCases';
 import { parseCartItemQuantity, validateQuantity } from '../../domain/validation';
+import { ValidationError } from '../../domain/errors';
+import { CART_STAFF_ROLES, hasRole } from './authzRoles';
 
 export function createCartRouter(
   cartUseCases: CartUseCases,
@@ -21,7 +23,7 @@ export function createCartRouter(
 
   router.post('/items', async (req, res, next) => {
     try {
-      const { tenantId, sessionId } = req.auth!;
+      const { tenantId, sessionId, role } = req.auth!;
       const { productId, modifiers, quantity, notes, addedBy, display } = req.body || {};
 
       const parsedQuantity = parseCartItemQuantity(quantity);
@@ -34,6 +36,7 @@ export function createCartRouter(
         quantity: parsedQuantity,
         notes,
         addedBy,
+        userRole: role,
         display: display || { productName: 'Producto', unitPrice: 0, modifierNames: [] },
       });
 
@@ -83,13 +86,31 @@ export function createCartRouter(
 
   router.post('/confirm', async (req, res, next) => {
     try {
-      const { tenantId, sessionId } = req.auth!;
-      const tableId = req.body?.tableId || `table-from-${sessionId}`;
+      const { tenantId, sessionId, role } = req.auth!;
+      const { tableId, notes, estimatedMinutes } = req.body || {};
+
+      if (notes !== undefined && notes !== null) {
+        if (typeof notes !== 'string' || notes.length > 280) {
+          throw new ValidationError('Las notas generales no pueden superar 280 caracteres');
+        }
+      }
+
+      const isStaff = hasRole(role, CART_STAFF_ROLES);
+      const effectiveEstimatedMinutes = isStaff ? estimatedMinutes : undefined;
+
+      if (effectiveEstimatedMinutes !== undefined && effectiveEstimatedMinutes !== null) {
+        if (typeof effectiveEstimatedMinutes !== 'number' || !Number.isInteger(effectiveEstimatedMinutes) || effectiveEstimatedMinutes <= 0) {
+          throw new ValidationError('estimatedMinutes debe ser un entero positivo');
+        }
+      }
 
       const order = await orderUseCases.confirmOrder.execute({
         tenantId,
         sessionId: sessionId!,
         tableId,
+        notes,
+        estimatedMinutes: effectiveEstimatedMinutes,
+        userRole: role,
       });
 
       res.status(201).json(order);

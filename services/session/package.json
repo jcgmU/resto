@@ -9,7 +9,7 @@
     "test:real": "jest --config jest.real.config.js --runInBand",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
-    "lint": "echo linting session"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@packages/shared-types": "workspace:*",

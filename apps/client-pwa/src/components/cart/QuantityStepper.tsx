@@ -1,3 +1,4 @@
+import { Button } from '@packages/ui-components';
 import React, { useState } from 'react';
 
 export interface QuantityStepperProps {
@@ -35,7 +36,7 @@ export function QuantityStepper({
         >
           ¿Eliminar?
         </span>
-        <button
+        <Button
           type="button"
           role="button"
           aria-label={`Confirmar eliminar ${productName}`}
@@ -60,8 +61,8 @@ export function QuantityStepper({
           }}
         >
           Confirmar
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           role="button"
           aria-label={`Cancelar eliminar ${productName}`}
@@ -79,7 +80,7 @@ export function QuantityStepper({
           }}
         >
           Cancelar
-        </button>
+        </Button>
       </div>
     );
   }
@@ -100,7 +101,7 @@ export function QuantityStepper({
         gap: 'var(--bento-touch-gap)',
       }}
     >
-      <button
+      <Button
         type="button"
         role="button"
         aria-label={`Reducir cantidad de ${productName}`}
@@ -121,7 +122,7 @@ export function QuantityStepper({
         }}
       >
         −
-      </button>
+      </Button>
 
       <span
         style={{
@@ -134,7 +135,7 @@ export function QuantityStepper({
         {quantity}
       </span>
 
-      <button
+      <Button
         type="button"
         role="button"
         aria-label={`Aumentar cantidad de ${productName}`}
@@ -155,7 +156,7 @@ export function QuantityStepper({
         }}
       >
         +
-      </button>
+      </Button>
     </div>
   );
 }

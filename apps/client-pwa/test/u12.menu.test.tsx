@@ -226,4 +226,32 @@ describe('U12: PWA Menu — Tabs funcionales y estados L/E/E', () => {
       global.fetch = originalFetch;
     }
   });
+
+  test('D9.2 & D9.3: Menú PWA renderiza h1 "Carta" y skeletons de categorías con altura de 44px', async () => {
+    const originalFetch = global.fetch;
+    PwaApiClient.guestToken = 'token-guest-real';
+    PwaApiClient.session = { sessionId: 'sess-real', tableId: 'tb-real', tenantId: 'tenant-real' };
+
+    // Simular promesa pendiente para verificar estado de carga y skeletons
+    global.fetch = jest.fn(() => new Promise(() => {})) as any;
+
+    try {
+      render(<ClientMenuPage params={{ tenantId: 'tenant-real', tableId: 'tb-real' }} />);
+
+      // D9.2: Header con h1 Carta
+      const h1 = screen.getByRole('heading', { level: 1, name: 'Carta' });
+      expect(h1).toBeInTheDocument();
+
+      // D9.3: Skeletons de categorías con altura de 44px
+      const loadingContainer = screen.getByTestId('menu-loading');
+      expect(loadingContainer).toBeInTheDocument();
+      const skeletons = loadingContainer.querySelectorAll('[data-component="skeleton"]');
+      expect(skeletons.length).toBeGreaterThan(0);
+      skeletons.forEach((s) => {
+        expect(s).toHaveStyle({ height: '44px' });
+      });
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
 });

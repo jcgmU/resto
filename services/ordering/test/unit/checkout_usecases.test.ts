@@ -108,7 +108,7 @@ describe('A. Ordering — unitarios checkout (Tests 1-8)', () => {
       tenantId: 't-1',
       sessionId: 's-10',
       tableId: 'tb-1',
-      status: 'READY',
+      status: 'DELIVERED',
       total: 45,
       items: [],
       createdAt: new Date().toISOString(),
@@ -147,7 +147,7 @@ describe('A. Ordering — unitarios checkout (Tests 1-8)', () => {
       tenantId: 't-1',
       sessionId: 's-5',
       tableId: 'tb-1',
-      status: 'READY',
+      status: 'DELIVERED',
       total: 25,
       items: [],
       createdAt: new Date().toISOString(),
@@ -165,7 +165,7 @@ describe('A. Ordering — unitarios checkout (Tests 1-8)', () => {
     expect(sessionService.closedSessions[0]).toEqual({
       tenantId: 't-1',
       sessionId: 's-5',
-      requester: { userId: 'staff-42', role: 'staff' },
+      requester: { userId: 'staff-42', role: 'cashier' },
     });
   });
 
@@ -175,7 +175,7 @@ describe('A. Ordering — unitarios checkout (Tests 1-8)', () => {
       tenantId: 't-1',
       sessionId: 's-6',
       tableId: 'tb-1',
-      status: 'READY',
+      status: 'DELIVERED',
       total: 35,
       items: [],
       createdAt: new Date().toISOString(),
@@ -200,6 +200,7 @@ describe('A. Ordering — unitarios checkout (Tests 1-8)', () => {
     expect(second.payment.id).toBe(first.payment.id);
     expect(paymentRepo.payments).toHaveLength(1);
     expect(sessionService.closedSessions.length).toBeGreaterThanOrEqual(2);
+    expect(eventPublisher.checkoutCompletedEvents).toHaveLength(1);
   });
 
   test('7. Si closeSession falla tras persistir -> SESSION_CLOSE_FAILED y el pago queda registrado; el reintento posterior completa el cierre', async () => {
@@ -208,7 +209,7 @@ describe('A. Ordering — unitarios checkout (Tests 1-8)', () => {
       tenantId: 't-1',
       sessionId: 's-7',
       tableId: 'tb-1',
-      status: 'READY',
+      status: 'DELIVERED',
       total: 15,
       items: [],
       createdAt: new Date().toISOString(),
@@ -249,7 +250,7 @@ describe('A. Ordering — unitarios checkout (Tests 1-8)', () => {
       tenantId: 't-1',
       sessionId: 's-8',
       tableId: 'tb-1',
-      status: 'READY',
+      status: 'DELIVERED',
       total: 50,
       items: [],
       createdAt: new Date().toISOString(),

@@ -10,13 +10,6 @@ import {
   TenantDTO,
   DomainError,
 } from '@packages/shared-types';
-import {
-  InMemoryTenantRepository,
-  InMemoryUserRepository,
-  InMemoryRefreshTokenRepository,
-  FakePasswordHasher,
-  FakeTokenIssuer,
-} from '../infrastructure/fakes/InMemoryIdentityAdapters';
 
 export class RegisterTenantUseCaseImpl implements RegisterTenantUseCase {
   constructor(
@@ -28,8 +21,10 @@ export class RegisterTenantUseCaseImpl implements RegisterTenantUseCase {
   ) {}
 
   async execute(input: RegisterTenantRequest): Promise<RegisterTenantResult> {
-    if (!input.adminPassword || input.adminPassword.length < 8) {
-      throw new DomainError('VALIDATION_ERROR', 'Password must be at least 8 characters');
+    const envMin = parseInt(process.env.MIN_ADMIN_PASSWORD_LENGTH || '', 10);
+    const minPasswordLength = Number.isInteger(envMin) && envMin > 0 ? envMin : 8;
+    if (!input.adminPassword || input.adminPassword.length < minPasswordLength) {
+      throw new DomainError('VALIDATION_ERROR', `Password must be at least ${minPasswordLength} characters`);
     }
 
     const slug = input.slug
@@ -60,6 +55,11 @@ export class RegisterTenantUseCaseImpl implements RegisterTenantUseCase {
       name: input.restaurantName,
       slug,
       status: 'ACTIVE',
+      operatingMode: 'hybrid',
+      estimatedPrepMinutes: 18,
+      invoiceMode: 'simple',
+      currency: 'COP',
+      locale: 'es-CO',
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -89,6 +89,7 @@ export class RegisterTenantUseCaseImpl implements RegisterTenantUseCase {
         tenantId: savedTenant.id,
         role: savedUser.role,
         email: savedUser.email,
+        displayName: savedUser.displayName || savedUser.email,
       });
 
       const refresh = this.tokenIssuer.generateRefreshToken();

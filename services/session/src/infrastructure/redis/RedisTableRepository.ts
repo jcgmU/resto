@@ -1,6 +1,8 @@
 import Redis from 'ioredis';
-import { TableRepository, TableDTO, DomainError } from '@packages/shared-types';
+import crypto from 'crypto';
+import { TableRepository, TableDTO, TableStatus, DomainError } from '@packages/shared-types';
 import { RedisKeys } from './keys';
+import { RESERVATION_ACTIVE_GRACE_MS } from '../../domain/reservationRules';
 
 const LUA_CREATE_MANY = `
 local setKey = KEYS[1]
@@ -178,6 +180,12 @@ for _, u in ipairs(updates) do
   if u.status ~= nil then
     tableObj.status = u.status
   end
+  if u.zoneId ~= nil then
+    tableObj.zoneId = u.zoneId
+  end
+  if u.capacity ~= nil then
+    tableObj.capacity = u.capacity
+  end
   tableObj.updatedAt = nowIso
   redis.call('SET', tableKey, cjson.encode(tableObj))
   table.insert(updatedList, tableObj)
@@ -190,6 +198,56 @@ const LUA_SOFT_DELETE_MANY = `
 local setKey = KEYS[1]
 local tenantId = ARGV[1]
 local items = cjson.decode(ARGV[2])
+local nowMs = tonumber(ARGV[3])
+local graceMs = tonumber(ARGV[4])
+
+local function daysFromCivil(y, m, d)
+  if m <= 2 then y = y - 1 end
+  local era = math.floor(y / 400)
+  local yoe = y - era * 400
+  local mp = (m + 9) % 12
+  local doy = math.floor((153 * mp + 2) / 5) + d - 1
+  local doe = yoe * 365 + math.floor(yoe / 4) - math.floor(yoe / 100) + doy
+  return era * 146097 + doe - 719468
+end
+
+local function parseIsoMs(value)
+  if type(value) ~= 'string' then return nil end
+  local y, mo, d, h, mi, sec, frac, tz = string.match(value, '^(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d):(%d%d)(%.?%d*)(.*)$')
+  if not y then
+    y, mo, d = string.match(value, '^(%d%d%d%d)%-(%d%d)%-(%d%d)$')
+    if not y then return nil end
+    h, mi, sec, frac, tz = '0', '0', '0', '', 'Z'
+  end
+  local offsetMin = 0
+  if tz ~= '' and tz ~= 'Z' then
+    local sign, oh, om = string.match(tz, '^([+-])(%d%d):?(%d%d)$')
+    if not sign then return nil end
+    offsetMin = (tonumber(oh) * 60 + tonumber(om)) * (sign == '-' and -1 or 1)
+  end
+  local ms = 0
+  if frac ~= '' and frac ~= '.' then ms = math.floor(tonumber('0' .. frac) * 1000) end
+  local days = daysFromCivil(tonumber(y), tonumber(mo), tonumber(d))
+  return ((((days * 24 + tonumber(h)) * 60 + tonumber(mi) - offsetMin) * 60) + tonumber(sec)) * 1000 + ms
+end
+
+local function hasActiveReservation(tableId)
+  local ids = redis.call('SMEMBERS', 'table:' .. tableId .. ':reservations')
+  for _, reservationId in ipairs(ids) do
+    local fields = redis.call('HMGET', 'reservation:' .. reservationId, 'status', 'reservedFor', 'tenantId')
+    local status, reservedFor, owner = fields[1], fields[2], fields[3]
+    if status and owner == tenantId then
+      local lowered = string.lower(status)
+      if lowered ~= 'cancelled' and lowered ~= 'seated' then
+        local at = parseIsoMs(reservedFor)
+        if at == nil or at >= nowMs - graceMs then
+          return true
+        end
+      end
+    end
+  end
+  return false
+end
 
 local deleted = {}
 local failed = {}
@@ -215,7 +273,7 @@ for _, item in ipairs(items) do
         local sessionRaw = redis.call('GET', sessionKey)
         if sessionRaw then
           local sessionObj = cjson.decode(sessionRaw)
-          if sessionObj.status == 'active' and sessionObj.tenantId == tenantId then
+          if (sessionObj.status == 'active' or sessionObj.status == 'billRequested') and sessionObj.tenantId == tenantId then
             hasActiveSession = true
           end
         end
@@ -223,6 +281,8 @@ for _, item in ipairs(items) do
 
       if hasActiveSession then
         table.insert(failed, { tableId = tableId, code = 'TABLE_HAS_ACTIVE_SESSION' })
+      elseif hasActiveReservation(tableId) then
+        table.insert(failed, { tableId = tableId, code = 'TABLE_HAS_RESERVATIONS' })
       else
         if activeSessionId then
           redis.call('DEL', pointerKey)
@@ -242,25 +302,50 @@ end
 return cjson.encode({ deleted = deleted, failed = failed })
 `;
 
+const LUA_ROTATE_QR = `
+local tableKey = KEYS[1]
+local tenantId = ARGV[1]
+local newQrKey = ARGV[2]
+local nowIso = ARGV[3]
+
+local raw = redis.call('GET', tableKey)
+if not raw then
+  return nil
+end
+
+local obj = cjson.decode(raw)
+if obj.tenantId ~= tenantId or obj.status == 'deleted' then
+  return nil
+end
+
+obj.qrKey = newQrKey
+obj.updatedAt = nowIso
+local updated = cjson.encode(obj)
+redis.call('SET', tableKey, updated)
+return updated
+`;
+
 export class RedisTableRepository implements TableRepository {
   constructor(private readonly redis: Redis) {}
 
-  async save(tenantId: string, table: TableDTO & { qrKey: string }): Promise<TableDTO> {
+  async save(tenantId: string, table: TableDTO & { qrKey: string; labelKey?: string }): Promise<TableDTO> {
     const key = RedisKeys.table(tenantId, table.tableId);
     const setKey = RedisKeys.tenantTables(tenantId);
 
-    const labelKey = table.label
-      ? table.label.trim().normalize('NFC').toLocaleLowerCase('es')
-      : undefined;
+    const labelKey =
+      table.labelKey ||
+      (table.label ? table.label.trim().normalize('NFC').toLocaleLowerCase('es') : undefined);
     const record = {
       ...table,
       tenantId,
+      capacity: table.capacity ?? 4,
+      status: table.status ?? 'AVAILABLE',
       ...(labelKey ? { labelKey } : {}),
     };
     const payload = JSON.stringify(record);
 
     const multi = this.redis.multi().set(key, payload);
-    if (table.status === 'deleted') {
+    if (table.status === 'deleted' || table.deletedAt) {
       multi.srem(setKey, table.tableId);
     } else {
       multi.sadd(setKey, table.tableId);
@@ -277,7 +362,11 @@ export class RedisTableRepository implements TableRepository {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (parsed.tenantId !== tenantId) return null;
-    return parsed;
+    return {
+      ...parsed,
+      capacity: parsed.capacity ?? 4,
+      status: parsed.status ?? 'AVAILABLE',
+    };
   }
 
   async listByTenant(tenantId: string): Promise<TableDTO[]> {
@@ -292,12 +381,46 @@ export class RedisTableRepository implements TableRepository {
     for (const raw of rawTables) {
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed.status === 'deleted') continue;
+        if (parsed.tenantId !== tenantId || parsed.status === 'deleted' || parsed.deletedAt) continue;
         const { qrKey: _, labelKey: __, ...dto } = parsed;
-        tables.push(dto);
+        tables.push({
+          ...dto,
+          capacity: dto.capacity ?? 4,
+          status: dto.status ?? 'AVAILABLE',
+        });
       }
     }
     return tables;
+  }
+
+  async delete(tenantId: string, tableId: string): Promise<void> {
+    const nowIso = new Date().toISOString();
+    const newQrKey = crypto.randomBytes(16).toString('hex');
+    await this.softDeleteMany(tenantId, [{ tableId, deletedAt: nowIso, newQrKey }]);
+  }
+
+  async rotateQrAtomic(
+    tenantId: string,
+    tableId: string,
+    newQrKey: string
+  ): Promise<(TableDTO & { qrKey: string }) | null> {
+    const tableKey = RedisKeys.table(tenantId, tableId);
+    const nowIso = new Date().toISOString();
+    const rawRes = await this.redis.eval(
+      LUA_ROTATE_QR,
+      1,
+      tableKey,
+      tenantId,
+      newQrKey,
+      nowIso
+    );
+    if (!rawRes) return null;
+    const parsed = JSON.parse(rawRes as string);
+    return {
+      ...parsed,
+      capacity: parsed.capacity ?? 4,
+      status: parsed.status ?? 'AVAILABLE',
+    };
   }
 
   async createMany(
@@ -413,7 +536,7 @@ export class RedisTableRepository implements TableRepository {
     items: Array<{ tableId: string; deletedAt: string; newQrKey: string }>
   ): Promise<{
     deleted: string[];
-    failed: Array<{ tableId: string; code: 'TABLE_HAS_ACTIVE_SESSION' | 'TABLE_NOT_FOUND' }>;
+    failed: Array<{ tableId: string; code: 'TABLE_HAS_ACTIVE_SESSION' | 'TABLE_NOT_FOUND' | 'TABLE_HAS_RESERVATIONS' }>;
   }> {
     if (!items.length) return { deleted: [], failed: [] };
 
@@ -423,7 +546,9 @@ export class RedisTableRepository implements TableRepository {
       1,
       setKey,
       tenantId,
-      JSON.stringify(items)
+      JSON.stringify(items),
+      Date.now(),
+      RESERVATION_ACTIVE_GRACE_MS
     );
 
     const res = JSON.parse(rawRes as string);

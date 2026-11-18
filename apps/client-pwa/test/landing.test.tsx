@@ -26,7 +26,7 @@ describe('B1: Landing PWA — Lima & Tinta', () => {
     // Fondo hueso en contenedor principal
     const mainContainer = container.firstChild as HTMLElement;
     expect(mainContainer).toBeInTheDocument();
-    expect(mainContainer.getAttribute('style') || '').toContain('var(--bento-hueso)');
+    expect(mainContainer.getAttribute('style') || '').toContain('var(--bento-page-bg-pwa)');
 
     // Cero hex #666 y cero hex inline en todo el árbol de la landing
     const htmlContent = container.innerHTML;

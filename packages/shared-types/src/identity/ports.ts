@@ -2,17 +2,29 @@ import { UseCase } from '../common/UseCase';
 import {
   TenantDTO,
   UserDTO,
+  UserRole,
+  MonitorKind,
+  OperatingMode,
   AuthTokens,
   AccessTokenClaims,
   RegisterTenantRequest,
   RegisterTenantResult,
 } from './dtos';
 
+export interface IdentitySettingsPort {
+  getOperatingMode(tenantId: string): Promise<OperatingMode>;
+  getEstimatedPrepMinutes(tenantId: string): Promise<number>;
+}
+
 export interface TenantRepository {
   findById(id: string): Promise<TenantDTO | null>;
   findBySlug(slug: string): Promise<TenantDTO | null>;
   save(tenant: TenantDTO): Promise<TenantDTO>;
   delete?(id: string): Promise<void>;
+  updateSettings(
+    id: string,
+    settings: { operatingMode?: string; estimatedPrepMinutes?: number; invoiceMode?: string; currency?: string; locale?: string }
+  ): Promise<TenantDTO>;
 }
 
 export interface UserRepository {
@@ -29,6 +41,10 @@ export interface RefreshTokenRepository {
   findValidByHash(tokenHash: string): Promise<{ id: string; userId: string } | null>;
   revoke(id: string): Promise<void>;
   revokeAllForUser?(userId: string): Promise<void>;
+  rotate(
+    oldTokenHash: string,
+    newToken: { tokenHash: string; expiresAt: Date }
+  ): Promise<{ userId: string }>;
 }
 
 export interface PasswordHasher {
@@ -42,9 +58,32 @@ export interface TokenIssuer {
 }
 
 // Casos de uso (firmas)
+export interface InviteUserInput {
+  tenantId: string;
+  email: string;
+  displayName: string;
+  role: UserRole;
+  password?: string;
+  monitorKind?: MonitorKind | string;
+  avatarUrl?: string | null;
+}
+
 export type RegisterTenantUseCase = UseCase<RegisterTenantRequest, RegisterTenantResult>;
 export type LoginUseCase = UseCase<{ email: string; password: string; tenantSlug?: string }, { user: UserDTO; tokens: AuthTokens }>;
 export type RefreshSessionUseCase = UseCase<{ refreshToken: string }, AuthTokens>;
-export type InviteUserUseCase = UseCase<{ tenantId: string; email: string; displayName: string; role: 'MANAGER' | 'STAFF'; password?: string }, UserDTO>;
-export type CreateTeamMemberUseCase = UseCase<{ tenantId: string; email: string; displayName: string; role: 'MANAGER' | 'STAFF'; password: string }, UserDTO>;
-export type ChangePasswordUseCase = UseCase<{ userId: string; currentPassword: string; newPassword: string }, void>;
+export type InviteUserUseCase = UseCase<InviteUserInput, UserDTO>;
+export type CreateTeamMemberUseCase = UseCase<
+  {
+    tenantId: string;
+    email: string;
+    displayName: string;
+    role: UserRole;
+    password: string;
+    monitorKind?: MonitorKind | string;
+  },
+  UserDTO
+>;
+export type ChangePasswordUseCase = UseCase<
+  { userId: string; currentPassword: string; newPassword: string },
+  void
+>;

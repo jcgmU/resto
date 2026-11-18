@@ -58,6 +58,7 @@ describe('D. Catalog — integración GraphQL (Tests 24-28)', () => {
     const adminToken = signTestJwt({ tenantId: 'tenant-100', role: 'ADMIN' });
     const resMut = await request(app)
       .post('/graphql')
+      .set('x-tenant-id', 'tenant-100')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ query: mutation });
 
@@ -152,11 +153,38 @@ describe('D. Catalog — integración GraphQL (Tests 24-28)', () => {
     const adminToken = signTestJwt({ tenantId: 'tenant-100', role: 'ADMIN' });
     const res = await request(app)
       .post('/graphql')
+      .set('x-tenant-id', 'tenant-100')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ query: badMutation });
 
     expect(res.body.errors).toBeDefined();
     const code = res.body.errors[0]?.extensions?.code;
     expect(['BAD_USER_INPUT', 'NOT_FOUND', 'CONFLICT', 'CATEGORY_NOT_EMPTY']).toContain(code);
+  });
+
+  test('29. Mutación sin rol o con STAFF -> error FORBIDDEN', async () => {
+    const mutation = `
+      mutation {
+        createCategory(input: { name: "NoPermitida", sortOrder: 0 }) {
+          id
+        }
+      }
+    `;
+    const resNoRole = await request(app)
+      .post('/graphql')
+      .set('x-tenant-id', 'tenant-100')
+      .send({ query: mutation });
+
+    expect(resNoRole.body.errors).toBeDefined();
+    expect(resNoRole.body.errors[0]?.extensions?.code).toBe('FORBIDDEN');
+
+    const resStaff = await request(app)
+      .post('/graphql')
+      .set('x-tenant-id', 'tenant-100')
+      .set('x-user-role', 'STAFF')
+      .send({ query: mutation });
+
+    expect(resStaff.body.errors).toBeDefined();
+    expect(resStaff.body.errors[0]?.extensions?.code).toBe('FORBIDDEN');
   });
 });

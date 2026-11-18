@@ -1,12 +1,13 @@
 import React from 'react';
 import '@testing-library/jest-dom';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import LoginPage from '../src/app/(auth)/login/page';
 import MenuPage from '../src/app/(panel)/menu/page';
 import DashboardPage from '../src/app/(panel)/dashboard/page';
 import { ProductCard } from '../src/components/ProductCard';
 import { ApiClient } from '../src/lib/api';
-import { FeatureGuard } from '@packages/ui-components';
+import * as realtimeModule from '../src/lib/realtime';
+import { FeatureGuard, FeatureFlagProviderRoot, StaticFeatureFlagProvider } from '@packages/ui-components';
 
 describe('E.1 Admin Dashboard — Comportamiento Bento Box (Tests 31-36)', () => {
   beforeEach(() => {
@@ -81,9 +82,11 @@ describe('E.1 Admin Dashboard — Comportamiento Bento Box (Tests 31-36)', () =>
 
   test('36. <FeatureGuard flag="analytics"> con el flag apagado -> BentoCard con data-testid="proximamente" que OCUPA su celda del grid (el layout no colapsa)', () => {
     const { container } = render(
-      <FeatureGuard flag="analytics">
-        <div>Contenido Analytics</div>
-      </FeatureGuard>
+      <FeatureFlagProviderRoot provider={new StaticFeatureFlagProvider({ analytics: false })}>
+        <FeatureGuard flag="analytics">
+          <div>Contenido Analytics</div>
+        </FeatureGuard>
+      </FeatureFlagProviderRoot>
     );
 
     const bentoCard = container.querySelector('[data-component="bento-card"]');
@@ -171,10 +174,346 @@ describe('H8 Admin Dashboard — Métricas Reales y KPIs', () => {
 
       const style = alDiaChip.getAttribute('style') || '';
       expect(style).not.toContain('var(--bento-destructive)');
-      expect(style).toContain('var(--bento-hueso)');
+      expect(style).toContain('var(--bento-page-bg)');
+    } finally {
+      ApiClient.request = originalRequest;
+    }
+  });
+
+  test('(c) H6: Denominador de mesas en Resumen maneja 0 mesas mostrando "sin mesas configuradas" en vez de "de 0 mesas configuradas"', async () => {
+    const originalRequest = ApiClient.request;
+    ApiClient.request = jest.fn(async (endpoint: string) => {
+      if (endpoint.includes('/v1/sessions?status=active')) {
+        return [];
+      }
+      if (endpoint.includes('/v1/tables')) {
+        return [];
+      }
+      if (endpoint.includes('/v1/orders')) {
+        return [];
+      }
+      if (endpoint.includes('/v1/service-calls')) {
+        return [];
+      }
+      return [];
+    });
+
+    try {
+      render(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesas Activas')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('sin mesas configuradas')).toBeInTheDocument();
+      expect(screen.queryByText(/de 0 mesas configuradas/i)).not.toBeInTheDocument();
     } finally {
       ApiClient.request = originalRequest;
     }
   });
 });
+
+describe('Unidad V23 — Resumen Operativo y Modo de Operación en Dashboard', () => {
+  const originalRequest = ApiClient.request;
+
+  beforeEach(() => {
+    ApiClient.token = 'mock-admin-token';
+  });
+
+  afterEach(() => {
+    ApiClient.request = originalRequest;
+  });
+
+  test('V23-1: Muestra métricas operativas (Mesas Ocupadas, Disponibilidad y SLA)', async () => {
+    const mockTables = [
+      { tableId: 't-1', label: '1', capacity: 4, zoneId: 'z-1', status: 'OCCUPIED' },
+      { tableId: 't-2', label: '2', capacity: 2, zoneId: 'z-1', status: 'AVAILABLE' },
+      { tableId: 't-3', label: '3', capacity: 6, zoneId: 'z-2', status: 'RESERVED' },
+    ];
+    const mockZones = [
+      { id: 'z-1', name: 'Terraza', sortOrder: 1 },
+      { id: 'z-2', name: 'Salón Principal', sortOrder: 2 },
+    ];
+
+    ApiClient.request = jest.fn(async (endpoint: string) => {
+      if (endpoint === '/v1/tables') return mockTables;
+      if (endpoint === '/v1/zones') return mockZones;
+      if (endpoint.includes('/v1/reservations')) return [];
+      if (endpoint.includes('/v1/sessions')) return [{ tableId: 't-1', status: 'active' }];
+      if (endpoint === '/v1/tenant/settings') return { operatingMode: 'hybrid', estimatedPrepMinutes: 25 };
+      if (endpoint.includes('/v1/orders')) return [];
+      if (endpoint.includes('/v1/service-calls')) return [];
+      return [];
+    });
+
+    render(<DashboardPage />);
+
+    expect(await screen.findByText('Resumen Operativo')).toBeInTheDocument();
+    expect(screen.getByText('Mesas Ocupadas')).toBeInTheDocument();
+    expect(screen.getByText('Mesas Ocupadas').closest('[data-component="status-card"]')).toHaveAttribute('data-status', 'occupied');
+    expect(screen.getByTestId('table-card-t-1')).toHaveAttribute('data-status', 'occupied');
+    expect(screen.getByTestId('table-card-t-2')).toHaveAttribute('data-status', 'available');
+    expect(screen.getByTestId('table-card-t-3')).toHaveAttribute('data-status', 'reserved');
+    expect(screen.getByText('Disponibilidad')).toBeInTheDocument();
+    expect(screen.getByText('Tiempo Límite Estimado')).toBeInTheDocument();
+    expect(screen.getByText('25 min')).toBeInTheDocument();
+    expect(screen.getByText('1 Libres')).toBeInTheDocument();
+    expect(screen.getByText('1 Reservas')).toBeInTheDocument();
+  });
+
+  test('V23-2: Persistencia del SLA slider contra PATCH /v1/tenant/settings', async () => {
+    let patchedBody: any = null;
+    ApiClient.request = jest.fn(async (endpoint: string, opts?: any) => {
+      if (endpoint === '/v1/tables') return [];
+      if (endpoint === '/v1/zones') return [];
+      if (endpoint.includes('/v1/reservations')) return [];
+      if (endpoint.includes('/v1/sessions')) return [];
+      if (endpoint === '/v1/tenant/settings') {
+        if (opts?.method === 'PATCH') {
+          patchedBody = JSON.parse(opts.body);
+          return { operatingMode: 'hybrid', estimatedPrepMinutes: patchedBody.estimatedPrepMinutes };
+        }
+        return { operatingMode: 'hybrid', estimatedPrepMinutes: 18 };
+      }
+      if (endpoint.includes('/v1/orders')) return [];
+      if (endpoint.includes('/v1/service-calls')) return [];
+      return [];
+    });
+
+    render(<DashboardPage />);
+    expect(await screen.findByText('18 min')).toBeInTheDocument();
+
+    const slider = screen.getByLabelText(/Tiempo Límite Estimado/i);
+    expect(slider).toBeInTheDocument();
+
+    // Cambiar slider y disparar mouseUp
+    fireEvent.change(slider, { target: { value: '35' } });
+    fireEvent.mouseUp(slider, { target: { value: '35' } });
+
+    await waitFor(() => {
+      expect(patchedBody).toEqual({ estimatedPrepMinutes: 35 });
+    });
+  });
+
+  test('V23-3: Toggle de Modo de Operación entre Híbrido y Solo Meseros persiste en PATCH /v1/tenant/settings', async () => {
+    let patchedBody: any = null;
+    let currentMode: string = 'hybrid';
+
+    ApiClient.request = jest.fn(async (endpoint: string, opts?: any) => {
+      if (endpoint === '/v1/tables') return [];
+      if (endpoint === '/v1/zones') return [];
+      if (endpoint.includes('/v1/reservations')) return [];
+      if (endpoint.includes('/v1/sessions')) return [];
+      if (endpoint === '/v1/tenant/settings') {
+        if (opts?.method === 'PATCH') {
+          patchedBody = JSON.parse(opts.body);
+          currentMode = patchedBody.operatingMode;
+          return { operatingMode: currentMode, estimatedPrepMinutes: 18 };
+        }
+        return { operatingMode: currentMode, estimatedPrepMinutes: 18 };
+      }
+      if (endpoint.includes('/v1/orders')) return [];
+      if (endpoint.includes('/v1/service-calls')) return [];
+      return [];
+    });
+
+    render(<DashboardPage />);
+    const toggleBtn = await screen.findByTestId('operating-mode-toggle');
+    expect(toggleBtn).toHaveTextContent(/Híbrido \(QR \+ Meseros\)/i);
+
+    fireEvent.click(toggleBtn);
+
+    await waitFor(() => {
+      expect(patchedBody).toEqual({ operatingMode: 'waiter_only' });
+      expect(toggleBtn).toHaveTextContent(/Solo Meseros \(QR Inactivo\)/i);
+    });
+  });
+
+  test('V23-4: Renderizado de N Puestos • Zona y filtros de estado (TODAS, LIBRES, OCUPADAS, RESERVADAS)', async () => {
+    const mockTables = [
+      { tableId: 't-1', label: '1', capacity: 4, zoneId: 'z-terraza', status: 'AVAILABLE' },
+      { tableId: 't-2', label: '2', capacity: 2, zoneId: 'z-terraza', status: 'OCCUPIED' },
+      { tableId: 't-3', label: '3', capacity: 6, zoneId: 'z-salon', status: 'RESERVED' },
+    ];
+    const mockZones = [
+      { id: 'z-terraza', name: 'Terraza', sortOrder: 1 },
+      { id: 'z-salon', name: 'Salón Principal', sortOrder: 2 },
+    ];
+
+    ApiClient.request = jest.fn(async (endpoint: string) => {
+      if (endpoint === '/v1/tables') return mockTables;
+      if (endpoint === '/v1/zones') return mockZones;
+      if (endpoint.includes('/v1/reservations')) return [];
+      if (endpoint.includes('/v1/sessions')) return [{ tableId: 't-2', status: 'active' }];
+      if (endpoint === '/v1/tenant/settings') return { operatingMode: 'hybrid', estimatedPrepMinutes: 18 };
+      if (endpoint.includes('/v1/orders')) return [];
+      if (endpoint.includes('/v1/service-calls')) return [];
+      return [];
+    });
+
+    render(<DashboardPage />);
+
+    expect(await screen.findByText('Mesa 1')).toBeInTheDocument();
+    expect(screen.getByText('4 Puestos • Terraza')).toBeInTheDocument();
+    expect(screen.getByText('2 Puestos • Terraza')).toBeInTheDocument();
+    expect(screen.getByText('6 Puestos • Salón Principal')).toBeInTheDocument();
+
+    // Filtrar por LIBRES
+    const libresTab = screen.getByRole('tab', { name: /LIBRES/i });
+    fireEvent.click(libresTab);
+
+    expect(screen.getByText('Mesa 1')).toBeInTheDocument();
+    expect(screen.queryByText('Mesa 2')).not.toBeInTheDocument();
+    expect(screen.queryByText('Mesa 3')).not.toBeInTheDocument();
+
+    // Filtrar por OCUPADAS
+    const ocupadasTab = screen.getByRole('tab', { name: /OCUPADAS/i });
+    fireEvent.click(ocupadasTab);
+
+    expect(screen.queryByText('Mesa 1')).not.toBeInTheDocument();
+    expect(screen.getByText('Mesa 2')).toBeInTheDocument();
+    expect(screen.queryByText('Mesa 3')).not.toBeInTheDocument();
+
+    // Filtrar por RESERVADAS
+    const reservadasTab = screen.getByRole('tab', { name: /RESERVADAS/i });
+    fireEvent.click(reservadasTab);
+
+    expect(screen.queryByText('Mesa 1')).not.toBeInTheDocument();
+    expect(screen.queryByText('Mesa 2')).not.toBeInTheDocument();
+    expect(screen.getByText('Mesa 3')).toBeInTheDocument();
+  });
+
+  test('R4: Refresco sin F5 — re-evalúa y recarga datos del dashboard ante evento visibilitychange', async () => {
+    let activeSessions: any[] = [];
+    const mockTables = [
+      { tableId: 't-1', label: 'Mesa 1', capacity: 4, zoneId: 'z-1', status: 'AVAILABLE' },
+    ];
+
+    ApiClient.request = jest.fn(async (endpoint: string) => {
+      if (endpoint === '/v1/tables') return mockTables;
+      if (endpoint === '/v1/zones') return [];
+      if (endpoint.includes('/v1/reservations')) return [];
+      if (endpoint.includes('/v1/sessions')) return activeSessions;
+      if (endpoint === '/v1/tenant/settings') return { operatingMode: 'hybrid', estimatedPrepMinutes: 18 };
+      if (endpoint.includes('/v1/orders')) return [];
+      if (endpoint.includes('/v1/service-calls')) return [];
+      return [];
+    });
+
+    render(<DashboardPage />);
+
+    expect(await screen.findByText('Resumen Operativo')).toBeInTheDocument();
+    expect(screen.getByText('1 Libres')).toBeInTheDocument();
+
+    // Simular que otra pestaña o comensal ocupa la mesa en el backend
+    activeSessions = [{ tableId: 't-1', status: 'active' }];
+
+    // Simular regreso del usuario a la pestaña (visibilitychange)
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', writable: true, configurable: true });
+    fireEvent(document, new Event('visibilitychange'));
+
+    // Debe refrescar automáticamente sin F5 y mostrar 0 Libres y 1 en sala
+    await waitFor(() => {
+      expect(screen.getByText('0 Libres')).toBeInTheDocument();
+      expect(screen.getByText('1 en sala')).toBeInTheDocument();
+    });
+  });
+
+  test('U2 (D2.5): tras table:status-changed y order:status-changed (al cerrar sesión en checkout), el dashboard re-pide las órdenes sin poner toda la página en skeleton y "Pedidos Activos" excluye las CANCELLED', async () => {
+    const socketListeners: Record<string, (data?: any) => void> = {};
+    const mockSocket = {
+      on: jest.fn((evt: string, cb: (data?: any) => void) => {
+        socketListeners[evt] = cb;
+      }),
+      off: jest.fn(),
+      disconnect: jest.fn(),
+    };
+    const socketSpy = jest.spyOn(realtimeModule, 'connectOrdersSocket').mockReturnValue(mockSocket as any);
+
+    let currentOrders: any[] = [
+      { id: 'ord-1', tableId: 't-1', status: 'PLACED', total: 25000 },
+      { id: 'ord-2', tableId: 't-1', status: 'IN_KITCHEN', total: 15000 },
+    ];
+    let currentSessions: any[] = [{ tableId: 't-1', status: 'active' }];
+    let ordersFetchCount = 0;
+
+    let resolveNextOrders: ((val: any) => void) | null = null;
+    let delayNextOrders = false;
+
+    ApiClient.request = jest.fn(async (endpoint: string) => {
+      if (endpoint === '/v1/tables') {
+        return [{ tableId: 't-1', label: 'Mesa 1', capacity: 4, zoneId: 'z-1', status: 'AVAILABLE' }];
+      }
+      if (endpoint === '/v1/zones') return [];
+      if (endpoint.includes('/v1/reservations')) return [];
+      if (endpoint.includes('/v1/sessions')) return currentSessions;
+      if (endpoint === '/v1/tenant/settings') return { operatingMode: 'hybrid', estimatedPrepMinutes: 18 };
+      if (endpoint.includes('/v1/orders')) {
+        ordersFetchCount++;
+        if (delayNextOrders) {
+          return new Promise((resolve) => {
+            resolveNextOrders = resolve;
+          });
+        }
+        return currentOrders;
+      }
+      if (endpoint.includes('/v1/service-calls')) return [];
+      return [];
+    });
+
+    try {
+      render(<DashboardPage />);
+
+      expect(await screen.findByText('Resumen Operativo')).toBeInTheDocument();
+      expect(screen.getByText('2 en curso')).toBeInTheDocument();
+      expect(ordersFetchCount).toBe(1);
+
+      // 1. Ahora la sesión se cobra con override: las órdenes pasan a CANCELLED (cancelReason: 'checkout')
+      currentOrders = [
+        { id: 'ord-1', tableId: 't-1', status: 'CANCELLED', cancelReason: 'checkout', total: 25000 },
+        { id: 'ord-2', tableId: 't-1', status: 'CANCELLED', cancelReason: 'checkout', total: 15000 },
+      ];
+      currentSessions = [];
+      delayNextOrders = true;
+
+      // Disparar evento socket table:status-changed
+      act(() => {
+        socketListeners['table:status-changed']?.();
+      });
+
+      // Mientras el refetch está en vuelo, el dashboard NO debe desmontar el contenido a skeleton
+      expect(screen.getByText('Resumen Operativo')).toBeInTheDocument();
+
+      // Resolver el refetch de órdenes
+      await act(async () => {
+        delayNextOrders = false;
+        resolveNextOrders?.(currentOrders);
+      });
+
+      await waitFor(() => {
+        expect(ordersFetchCount).toBeGreaterThan(1);
+        expect(screen.getByText('al día')).toBeInTheDocument();
+      });
+
+      const pedidosLabel = screen.getByText('Pedidos Activos');
+      const kpiContainer = pedidosLabel.closest('[data-component="kpi-delta"]');
+      expect(kpiContainer).toHaveTextContent('0');
+
+      // 2. También debe escuchar order:status-changed y re-pedir órdenes
+      const countBeforeOrderStatusChanged = ordersFetchCount;
+      expect(typeof socketListeners['order:status-changed']).toBe('function');
+
+      await act(async () => {
+        socketListeners['order:status-changed']?.();
+      });
+
+      await waitFor(() => {
+        expect(ordersFetchCount).toBeGreaterThan(countBeforeOrderStatusChanged);
+      });
+    } finally {
+      socketSpy.mockRestore();
+    }
+  });
+});
+
 

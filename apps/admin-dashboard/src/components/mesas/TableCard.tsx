@@ -1,5 +1,5 @@
 import React from 'react';
-import { BentoCard, StatusChip } from '@packages/ui-components';
+import { Button, StatusCard } from '@packages/ui-components';
 import type { TableItem, TableStatusInfo } from './types';
 
 export interface TableCardProps {
@@ -24,7 +24,7 @@ export function TableCard({
   canMutate,
 }: TableCardProps) {
   return (
-    <BentoCard>
+    <StatusCard status={statusInfo.slotStatus === 'ocupada' ? 'occupied' : statusInfo.slotStatus === 'libre' ? 'available' : 'neutral'}>
       <div
         style={{
           display: 'flex',
@@ -64,7 +64,7 @@ export function TableCard({
                 {table.label}
               </h3>
             </div>
-            <StatusChip label={statusInfo.label} tone={statusInfo.tone} />
+            <span>{statusInfo.label}</span>
           </div>
 
           <p
@@ -80,14 +80,14 @@ export function TableCard({
         </div>
 
         <div style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap' }}>
-          <button
+          <Button variant="secondary"
             type="button"
             onClick={() => onViewQr(table)}
             style={{
               flex: 1,
               minHeight: '40px',
               padding: '8px 12px',
-              backgroundColor: 'var(--bento-papel)',
+              backgroundColor: 'var(--bento-card-bg-solid)',
               color: 'var(--bento-text)',
               border: '1px solid var(--bento-border)',
               borderRadius: 'var(--bento-pill-radius)',
@@ -99,16 +99,16 @@ export function TableCard({
             }}
           >
             Ver QR
-          </button>
+          </Button>
           {canMutate && onEdit && (
-            <button
+            <Button variant="secondary"
               type="button"
               onClick={() => onEdit(table)}
               aria-label={`Editar ${table.label}`}
               style={{
                 minHeight: '40px',
                 padding: '8px 12px',
-                backgroundColor: 'var(--bento-papel)',
+                backgroundColor: 'var(--bento-card-bg-solid)',
                 color: 'var(--bento-text)',
                 border: '1px solid var(--bento-border)',
                 borderRadius: 'var(--bento-pill-radius)',
@@ -119,19 +119,19 @@ export function TableCard({
               }}
             >
               Editar
-            </button>
+            </Button>
           )}
           {canMutate && onDelete && (
-            <button
+            <Button variant="danger"
               type="button"
               onClick={() => onDelete(table)}
               aria-label={`Eliminar ${table.label}`}
               style={{
                 minHeight: '40px',
                 padding: '8px 12px',
-                backgroundColor: 'var(--bento-papel)',
+                backgroundColor: 'var(--bento-card-bg-solid)',
                 color: 'var(--bento-destructive)',
-                border: '1px solid var(--bento-destructive)',
+                border: 'none',
                 borderRadius: 'var(--bento-pill-radius)',
                 fontSize: '0.875rem',
                 fontWeight: 600,
@@ -140,11 +140,11 @@ export function TableCard({
               }}
             >
               Eliminar
-            </button>
+            </Button>
           )}
         </div>
       </div>
-    </BentoCard>
+    </StatusCard>
   );
 }
 
@@ -161,32 +161,15 @@ export function TableMapSlot({
   const isOccupied = statusInfo.slotStatus === 'ocupada';
   const isFree = statusInfo.slotStatus === 'libre';
 
-  const slotBg = isOccupied
-    ? 'var(--bento-tinta)'
-    : isFree
-    ? 'var(--bento-papel)'
-    : 'var(--bento-hueso)';
-
-  const slotFg = isOccupied
-    ? 'var(--bento-papel)'
-    : isFree
-    ? 'var(--bento-text)'
-    : 'var(--bento-text-muted)';
-
-  const slotBorder = isOccupied
-    ? '1px solid var(--bento-tinta)'
-    : isFree
-    ? '1px dashed var(--bento-border)'
-    : '1px solid var(--bento-border)';
+  const slotFg = 'var(--bento-text)';
 
   return (
-    <div
+    <StatusCard
+      status={isOccupied ? 'occupied' : isFree ? 'available' : 'neutral'}
       data-testid={`slot-${table.tableId}`}
       data-slot-status={statusInfo.slotStatus}
       style={{
-        backgroundColor: slotBg,
         color: slotFg,
-        border: slotBorder,
         borderRadius: 'var(--bento-inner-radius)',
         padding: '16px',
         minHeight: '140px',
@@ -227,14 +210,14 @@ export function TableMapSlot({
               {table.label}
             </h3>
           </div>
-          <StatusChip label={statusInfo.label} tone={statusInfo.tone} />
+          <span>{statusInfo.label}</span>
         </div>
 
         <p
           style={{
             margin: 0,
             fontSize: '0.75rem',
-            color: isOccupied ? 'var(--bento-border)' : 'var(--bento-text-muted)',
+            color: 'var(--bento-text-muted)',
           }}
         >
           ID: {table.tableId}
@@ -242,7 +225,7 @@ export function TableMapSlot({
       </div>
 
       <div style={{ marginTop: '14px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-        <button
+        <Button variant="secondary"
           type="button"
           onClick={() => onViewQr(table)}
           style={{
@@ -250,7 +233,7 @@ export function TableMapSlot({
             width: '100%',
             minHeight: '36px',
             padding: '6px 12px',
-            backgroundColor: isOccupied ? 'transparent' : 'var(--bento-hueso)',
+            backgroundColor: isOccupied ? 'transparent' : 'var(--bento-panel-bg)',
             color: slotFg,
             border: '1px solid var(--bento-border)',
             borderRadius: 'var(--bento-pill-radius)',
@@ -261,16 +244,16 @@ export function TableMapSlot({
           }}
         >
           Ver QR
-        </button>
+        </Button>
         {canMutate && onEdit && (
-          <button
+          <Button variant="secondary"
             type="button"
             onClick={() => onEdit(table)}
             aria-label={`Editar ${table.label}`}
             style={{
               minHeight: '36px',
               padding: '6px 10px',
-              backgroundColor: isOccupied ? 'transparent' : 'var(--bento-hueso)',
+              backgroundColor: isOccupied ? 'transparent' : 'var(--bento-panel-bg)',
               color: slotFg,
               border: '1px solid var(--bento-border)',
               borderRadius: 'var(--bento-pill-radius)',
@@ -281,19 +264,19 @@ export function TableMapSlot({
             }}
           >
             Editar
-          </button>
+          </Button>
         )}
         {canMutate && onDelete && (
-          <button
+          <Button variant="danger"
             type="button"
             onClick={() => onDelete(table)}
             aria-label={`Eliminar ${table.label}`}
             style={{
               minHeight: '36px',
               padding: '6px 10px',
-              backgroundColor: isOccupied ? 'transparent' : 'var(--bento-hueso)',
+              backgroundColor: isOccupied ? 'transparent' : 'var(--bento-panel-bg)',
               color: 'var(--bento-destructive)',
-              border: '1px solid var(--bento-destructive)',
+              border: 'none',
               borderRadius: 'var(--bento-pill-radius)',
               fontSize: '0.8rem',
               fontWeight: 600,
@@ -302,9 +285,9 @@ export function TableMapSlot({
             }}
           >
             Eliminar
-          </button>
+          </Button>
         )}
       </div>
-    </div>
+    </StatusCard>
   );
 }

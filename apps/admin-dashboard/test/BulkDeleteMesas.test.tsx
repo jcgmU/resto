@@ -244,6 +244,30 @@ describe('U8 - Selección múltiple, BulkActionBar y DeleteTablesDialog', () => 
       expect(onClose).toHaveBeenCalledTimes(1);
     });
 
+    test('eliminación parcial con failed TABLE_HAS_RESERVATIONS muestra el motivo de reservas futuras', async () => {
+      const partialResult: tablesApi.DeleteTablesBatchResult = {
+        deleted: ['tbl-1'],
+        failed: [{ tableId: 'tbl-2', code: 'TABLE_HAS_RESERVATIONS' }],
+      };
+      jest.spyOn(tablesApi, 'deleteTablesBatch').mockResolvedValueOnce(partialResult);
+
+      render(
+        <DeleteTablesDialog
+          open={true}
+          tablesToDelete={[sampleTables[0], sampleTables[1]]}
+          occupiedTableIds={new Set()}
+          onClose={jest.fn()}
+          onCompleted={jest.fn()}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /Eliminar mesas|Confirmar eliminación/i }));
+
+      const alertBox = await screen.findByRole('alert');
+      expect(alertBox).toHaveTextContent('Mesa 2');
+      expect(alertBox).toHaveTextContent(/reservas futuras/i);
+    });
+
     test('eliminación fallida total (409 TABLES_NOT_DELETABLE con error.details.failed) muestra el desglose en role="alert"', async () => {
       const err: any = new Error('Ninguna mesa pudo eliminarse');
       err.status = 409;

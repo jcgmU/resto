@@ -99,7 +99,7 @@ describe('U5: Admin Checkout State Consistency & Concurrency (TDD)', () => {
       if (urlStr.includes('/v1/tables')) {
         return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => tables };
       }
-      if (urlStr.includes('/v1/sessions?status=active')) {
+      if (/\/v1\/sessions(\?|$)/.test(urlStr)) {
         return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => activeSessions };
       }
       if (urlStr.includes('/v1/checkout/sess-A')) {
@@ -142,7 +142,7 @@ describe('U5: Admin Checkout State Consistency & Concurrency (TDD)', () => {
       // Mesa B debe estar mostrada con su total $250
       await waitFor(() => {
         expect(screen.getByText('Cuenta — Mesa Salón B')).toBeInTheDocument();
-        expect(screen.getAllByText('$250').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText(/\$\s*250/).length).toBeGreaterThanOrEqual(1);
         expect(screen.getByText('Corte Especial')).toBeInTheDocument();
       });
 
@@ -158,7 +158,7 @@ describe('U5: Admin Checkout State Consistency & Concurrency (TDD)', () => {
 
       // Mesa B DEBE seguir visible. A nunca debe sobreescribir B
       expect(screen.getByText('Cuenta — Mesa Salón B')).toBeInTheDocument();
-      expect(screen.getAllByText('$250').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/\$\s*250/).length).toBeGreaterThanOrEqual(1);
       expect(screen.queryByText('Cuenta — Mesa Terraza A')).not.toBeInTheDocument();
       expect(screen.queryByText('Tacos Pastor')).not.toBeInTheDocument();
     } finally {
@@ -183,7 +183,7 @@ describe('U5: Admin Checkout State Consistency & Concurrency (TDD)', () => {
       if (urlStr.includes('/v1/tables')) {
         return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => tables };
       }
-      if (urlStr.includes('/v1/sessions?status=active')) {
+      if (/\/v1\/sessions(\?|$)/.test(urlStr)) {
         return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => activeSessions };
       }
       if (urlStr.includes('/v1/checkout/sess-A')) {
@@ -244,7 +244,7 @@ describe('U5: Admin Checkout State Consistency & Concurrency (TDD)', () => {
       if (urlStr.includes('/v1/tables')) {
         return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => tables };
       }
-      if (urlStr.includes('/v1/sessions?status=active')) {
+      if (/\/v1\/sessions(\?|$)/.test(urlStr)) {
         return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => activeSessions };
       }
       if (urlStr.includes('/v1/checkout/sess-A')) {
@@ -279,7 +279,7 @@ describe('U5: Admin Checkout State Consistency & Concurrency (TDD)', () => {
       // Abrir modal de confirmación para A
       fireEvent.click(screen.getByRole('button', { name: /registrar cobro/i }));
       expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(within(screen.getByRole('dialog')).getAllByText('$100').length).toBeGreaterThanOrEqual(1);
+      expect(within(screen.getByRole('dialog')).getAllByText(/\$\s*100/).length).toBeGreaterThanOrEqual(1);
 
       // Cambiar a Mesa B mientras modal estaba abierto
       fireEvent.click(screen.getByText('Mesa Salón B'));
@@ -310,7 +310,7 @@ describe('U5: Admin Checkout State Consistency & Concurrency (TDD)', () => {
       if (urlStr.includes('/v1/tables')) {
         return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => tables };
       }
-      if (urlStr.includes('/v1/sessions?status=active')) {
+      if (/\/v1\/sessions(\?|$)/.test(urlStr)) {
         return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => activeSessions };
       }
       if (urlStr.includes('/v1/checkout/sess-A')) {
@@ -374,7 +374,7 @@ describe('U5: Admin Checkout State Consistency & Concurrency (TDD)', () => {
 
       // La selección activa de B NO debe haberse borrado ni puesto en null
       expect(screen.getByText('Cuenta — Mesa Salón B')).toBeInTheDocument();
-      expect(screen.getAllByText('$250').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/\$\s*250/).length).toBeGreaterThanOrEqual(1);
     } finally {
       global.fetch = originalFetch;
     }
@@ -393,7 +393,7 @@ describe('U5: Admin Checkout State Consistency & Concurrency (TDD)', () => {
       if (urlStr.includes('/v1/tables')) {
         return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => tables };
       }
-      if (urlStr.includes('/v1/sessions?status=active')) {
+      if (/\/v1\/sessions(\?|$)/.test(urlStr)) {
         return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => activeSessions };
       }
       if (urlStr.includes('/v1/checkout/sess-A')) {
@@ -521,7 +521,7 @@ describe('U5: Admin Checkout State Consistency & Concurrency (TDD)', () => {
       if (urlStr.includes('/v1/tables')) {
         return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => tables };
       }
-      if (urlStr.includes('/v1/sessions?status=active')) {
+      if (/\/v1\/sessions(\?|$)/.test(urlStr)) {
         return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => activeSessions };
       }
       if (urlStr.includes('/v1/checkout/sess-A')) {
@@ -603,7 +603,7 @@ describe('U5: Admin Checkout State Consistency & Concurrency (TDD)', () => {
       if (urlStr.includes('/v1/tables')) {
         return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => tables };
       }
-      if (urlStr.includes('/v1/sessions?status=active')) {
+      if (/\/v1\/sessions(\?|$)/.test(urlStr)) {
         return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => activeSessions };
       }
       if (urlStr.includes('/v1/checkout/sess-A')) {
@@ -649,7 +649,7 @@ describe('U5: Admin Checkout State Consistency & Concurrency (TDD)', () => {
 
       // La respuesta vieja A1 NO debe repintar la cuenta ni habilitar confirmar cobro
       expect(screen.queryByText('Tacos Pastor')).not.toBeInTheDocument();
-      expect(screen.queryByText('$100')).not.toBeInTheDocument();
+      expect(screen.queryByText(/\$\s*100/)).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /registrar cobro/i })).not.toBeInTheDocument();
 
       // 5. Ahora resuelve A2 (la solicitud vigente, $180)
@@ -665,7 +665,7 @@ describe('U5: Admin Checkout State Consistency & Concurrency (TDD)', () => {
       await waitFor(() => {
         expect(screen.getByText('Cuenta — Mesa Terraza A')).toBeInTheDocument();
         expect(screen.getByText('Tacos Gobernador Actualizados')).toBeInTheDocument();
-        expect(screen.getAllByText('$180').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText(/\$\s*180/).length).toBeGreaterThanOrEqual(1);
       });
 
       // Incluso si B resuelve después, sigue ignorándose
@@ -691,7 +691,7 @@ describe('U5: Admin Checkout State Consistency & Concurrency (TDD)', () => {
       if (urlStr.includes('/v1/tables')) {
         return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => tables };
       }
-      if (urlStr.includes('/v1/sessions?status=active')) {
+      if (/\/v1\/sessions(\?|$)/.test(urlStr)) {
         return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => activeSessions };
       }
       if (urlStr.includes('/v1/checkout/sess-A')) {
@@ -721,7 +721,7 @@ describe('U5: Admin Checkout State Consistency & Concurrency (TDD)', () => {
       // Debe mostrarse role="alert" con el mensaje de error y botón de reintentar aunque bill sea null
       const alert = await screen.findByRole('alert');
       expect(alert).toBeInTheDocument();
-      expect(alert).toHaveTextContent(/Error de red al cargar cuenta/i);
+      expect(alert).toHaveTextContent(/Error de conexión con el servidor/i);
 
       const retryBtn = within(alert).getByRole('button', { name: /reintentar/i });
       expect(retryBtn).toBeInTheDocument();
@@ -732,7 +732,7 @@ describe('U5: Admin Checkout State Consistency & Concurrency (TDD)', () => {
       await waitFor(() => {
         expect(screen.getByText('Cuenta — Mesa Terraza A')).toBeInTheDocument();
         expect(screen.getByText('Tacos Pastor')).toBeInTheDocument();
-        expect(screen.getAllByText('$100').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText(/\$\s*100/).length).toBeGreaterThanOrEqual(1);
       });
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
       expect(aCallCount).toBe(2);
@@ -760,7 +760,7 @@ describe('U5: Admin Checkout State Consistency & Concurrency (TDD)', () => {
       if (urlStr.includes('/v1/tables')) {
         return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => tables };
       }
-      if (urlStr.includes('/v1/sessions?status=active')) {
+      if (/\/v1\/sessions(\?|$)/.test(urlStr)) {
         sessionsGetCount += 1;
         // Tras el cierre de A, el backend sólo devuelve B como activa
         const list = sessionsGetCount === 1 ? activeSessions : [activeSessions[1]];

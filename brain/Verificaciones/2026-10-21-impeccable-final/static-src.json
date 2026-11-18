@@ -1,0 +1,4117 @@
+﻿[
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\PanelShell.tsx",
+    "line": 288,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\PanelShell.tsx",
+    "line": 296,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\PanelShell.tsx",
+    "line": 297,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\PanelShell.tsx",
+    "line": 304,
+    "snippet": "fontSize: 0.6875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.6875rem",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\PanelShell.tsx",
+    "line": 335,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\PanelShell.tsx",
+    "line": 369,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\PanelShell.tsx",
+    "line": 377,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\checkout\\page.tsx",
+    "line": 228,
+    "snippet": "fontSize: 1.2rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1.2rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\checkout\\page.tsx",
+    "line": 248,
+    "snippet": "fontSize: 1.1rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1.1rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 760,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 795,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 802,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 866,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 875,
+    "snippet": "borderRadius: 6px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "6px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 876,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 922,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 962,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 965,
+    "snippet": "fontSize: 0.6875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.6875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 975,
+    "snippet": "borderRadius: 6px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "6px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1001,
+    "snippet": "fontSize: 0.6875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.6875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1035,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1038,
+    "snippet": "fontSize: 0.6875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.6875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1047,
+    "snippet": "borderRadius: 6px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "6px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1048,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1088,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1090,
+    "snippet": "borderRadius: 4px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "4px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1299,
+    "snippet": "fontSize: 1.125rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1.125rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1354,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1371,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1392,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1413,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1430,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1449,
+    "snippet": "fontSize: 0.6875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.6875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1463,
+    "snippet": "fontSize: 0.6875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.6875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1477,
+    "snippet": "fontSize: 0.6875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.6875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1503,
+    "snippet": "fontSize: 1.125rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1.125rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1516,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1517,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1534,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1544,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1581,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1586,
+    "snippet": "fontSize: 0.6875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.6875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1591,
+    "snippet": "borderRadius: 4px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "4px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1597,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1613,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1627,
+    "snippet": "Undocumented color rgba(160, 90, 90, 0.3) is outside DESIGN.md colors",
+    "advisory": true,
+    "ignoreValue": "rgba(160, 90, 90, 0.3)",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1629,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1652,
+    "snippet": "fontSize: 18px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "18px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1690,
+    "snippet": "fontSize: 14px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "14px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1752,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1765,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1768,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1776,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1788,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1791,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1799,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1809,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1812,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1833,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1837,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1850,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1854,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1913,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1925,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1928,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1936,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1948,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1951,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1959,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1969,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1972,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1987,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 1997,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2000,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2017,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2021,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2034,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2038,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2088,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2105,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2109,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2123,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2127,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2193,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2195,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2224,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2306,
+    "snippet": "borderRadius: 10px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "10px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2321,
+    "snippet": "borderRadius: 10px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "10px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2336,
+    "snippet": "borderRadius: 10px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "10px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2361,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2374,
+    "snippet": "borderRadius: 8px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "8px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2387,
+    "snippet": "borderRadius: 8px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "8px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2388,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2402,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2412,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2415,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2429,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2442,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2506,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2516,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2519,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2533,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2546,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2549,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2558,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2570,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2573,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2581,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2593,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2596,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2605,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2616,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2619,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2627,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2639,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2642,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2656,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2660,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2673,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\dashboard\\page.tsx",
+    "line": 2677,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\kds\\page.tsx",
+    "line": 317,
+    "snippet": "fontSize: 24px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "24px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\kds\\page.tsx",
+    "line": 339,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\kds\\page.tsx",
+    "line": 404,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\menu\\page.tsx",
+    "line": 424,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\menu\\page.tsx",
+    "line": 441,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\menu\\page.tsx",
+    "line": 459,
+    "snippet": "fontSize: 0.9rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.9rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\menu\\page.tsx",
+    "line": 491,
+    "snippet": "fontSize: 0.9rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.9rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\menu\\page.tsx",
+    "line": 609,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\menu\\page.tsx",
+    "line": 621,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\menu\\page.tsx",
+    "line": 640,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\menu\\page.tsx",
+    "line": 660,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\menu\\page.tsx",
+    "line": 680,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\menu\\page.tsx",
+    "line": 704,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\menu\\page.tsx",
+    "line": 722,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\menu\\page.tsx",
+    "line": 766,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\menu\\page.tsx",
+    "line": 853,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\menu\\page.tsx",
+    "line": 865,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\menu\\page.tsx",
+    "line": 883,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 389,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 428,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 481,
+    "snippet": "fontSize: 1.5rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1.5rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 511,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 529,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 567,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 585,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 595,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 617,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 635,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 645,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 667,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 685,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 712,
+    "snippet": "fontSize: 1.125rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1.125rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 805,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 839,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 875,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 1040,
+    "snippet": "fontSize: 1rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 1055,
+    "snippet": "fontSize: 0.6875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.6875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 1082,
+    "snippet": "fontSize: 1.125rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1.125rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 1097,
+    "snippet": "fontSize: 0.6875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.6875rem"
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 1121,
+    "snippet": "Undocumented color rgba(0, 0, 0, 0.1) is outside DESIGN.md colors",
+    "advisory": true,
+    "ignoreValue": "rgba(0, 0, 0, 0.1)"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 1151,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 1198,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 1208,
+    "snippet": "fontSize: 1.375rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1.375rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 1291,
+    "snippet": "fontSize: 1rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 1312,
+    "snippet": "fontSize: 1rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 1354,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 1421,
+    "snippet": "Undocumented color rgba(0, 0, 0, 0.1) is outside DESIGN.md colors",
+    "advisory": true,
+    "ignoreValue": "rgba(0, 0, 0, 0.1)"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 1456,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem"
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 1479,
+    "snippet": "Undocumented color rgba(0, 0, 0, 0.12) is outside DESIGN.md colors",
+    "advisory": true,
+    "ignoreValue": "rgba(0, 0, 0, 0.12)"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 1480,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 1510,
+    "snippet": "fontSize: 1rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\app\\(panel)\\meseros\\page.tsx",
+    "line": 1544,
+    "snippet": "fontSize: 1rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\CategoryCard.tsx",
+    "line": 35,
+    "snippet": "fontSize: 1.1rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1.1rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\CategoryCard.tsx",
+    "line": 38,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\CategoryCard.tsx",
+    "line": 56,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\CategoryCard.tsx",
+    "line": 78,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\ProductCard.tsx",
+    "line": 61,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\ProductCard.tsx",
+    "line": 73,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\ProductCard.tsx",
+    "line": 89,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\ProductCard.tsx",
+    "line": 101,
+    "snippet": "fontSize: 1rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\checkout\\index.tsx",
+    "line": 105,
+    "snippet": "fontSize: 1.1rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1.1rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\checkout\\index.tsx",
+    "line": 111,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\checkout\\index.tsx",
+    "line": 157,
+    "snippet": "fontSize: 1.2rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1.2rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\checkout\\index.tsx",
+    "line": 255,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\checkout\\index.tsx",
+    "line": 453,
+    "snippet": "fontSize: 1.2rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1.2rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\checkout\\index.tsx",
+    "line": 571,
+    "snippet": "fontSize: 0.9rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.9rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\checkout\\index.tsx",
+    "line": 580,
+    "snippet": "fontSize: 0.9rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.9rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\checkout\\index.tsx",
+    "line": 587,
+    "snippet": "fontSize: 14px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "14px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\checkout\\index.tsx",
+    "line": 591,
+    "snippet": "fontSize: 14px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "14px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\checkout\\index.tsx",
+    "line": 647,
+    "snippet": "fontSize: 14px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "14px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\checkout\\index.tsx",
+    "line": 667,
+    "snippet": "fontSize: 14px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "14px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsColumn.tsx",
+    "line": 83,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "KdsBoard.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsColumn.tsx",
+    "line": 112,
+    "snippet": "fontSize: 14px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "14px",
+    "importedBy": [
+      "KdsBoard.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 155,
+    "snippet": "fontSize: 16px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "16px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 162,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 172,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 203,
+    "snippet": "fontSize: 14px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "14px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 210,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 220,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 225,
+    "snippet": "borderRadius: 6px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "6px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 243,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 248,
+    "snippet": "borderRadius: 8px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "8px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 266,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 283,
+    "snippet": "fontSize: 11px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "11px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 311,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 330,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 343,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 352,
+    "snippet": "fontSize: 11px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "11px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 362,
+    "snippet": "fontSize: 11px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "11px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 366,
+    "snippet": "fontSize: 11px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "11px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 370,
+    "snippet": "fontSize: 11px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "11px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 383,
+    "snippet": "fontSize: 11px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "11px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 386,
+    "snippet": "borderRadius: 4px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "4px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 393,
+    "snippet": "fontSize: 10px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "10px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\KdsOrderCard.tsx",
+    "line": 419,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "KdsColumn.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\ServiceCallPanel.tsx",
+    "line": 43,
+    "snippet": "fontSize: 14px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "14px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\ServiceCallPanel.tsx",
+    "line": 53,
+    "snippet": "fontSize: 11px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "11px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\ServiceCallPanel.tsx",
+    "line": 59,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\ServiceCallPanel.tsx",
+    "line": 68,
+    "snippet": "fontSize: 14px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "14px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\ServiceCallPanel.tsx",
+    "line": 122,
+    "snippet": "fontSize: 11px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "11px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\ServiceCallPanel.tsx",
+    "line": 151,
+    "snippet": "fontSize: 11px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "11px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\admin-dashboard\\src\\components\\kds\\ServiceCallPanel.tsx",
+    "line": 169,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\app\\page.tsx",
+    "line": 27,
+    "snippet": "fontSize: 11px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "11px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\app\\page.tsx",
+    "line": 91,
+    "snippet": "fontSize: 26px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "26px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\app\\page.tsx",
+    "line": 103,
+    "snippet": "fontSize: 14px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "14px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\app\\page.tsx",
+    "line": 123,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\app\\page.tsx",
+    "line": 171,
+    "snippet": "fontSize: 11px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "11px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\app\\page.tsx",
+    "line": 203,
+    "snippet": "fontSize: 11px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "11px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\app\\page.tsx",
+    "line": 221,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\app\\t\\[tenantId]\\[tableId]\\menu\\page.tsx",
+    "line": 366,
+    "snippet": "fontSize: 26px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "26px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\app\\t\\[tenantId]\\[tableId]\\menu\\page.tsx",
+    "line": 411,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\app\\t\\[tenantId]\\[tableId]\\menu\\page.tsx",
+    "line": 520,
+    "snippet": "fontSize: 0.9rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.9rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\app\\t\\[tenantId]\\[tableId]\\menu\\page.tsx",
+    "line": 528,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\app\\t\\[tenantId]\\[tableId]\\menu\\page.tsx",
+    "line": 737,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\app\\t\\[tenantId]\\[tableId]\\page.tsx",
+    "line": 132,
+    "snippet": "fontSize: 14px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "14px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\app\\t\\[tenantId]\\[tableId]\\page.tsx",
+    "line": 145,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\GuestSessionGuard.tsx",
+    "line": 62,
+    "snippet": "fontSize: 1.25rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1.25rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\GuestSessionGuard.tsx",
+    "line": 75,
+    "snippet": "fontSize: 0.9rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.9rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\ProductDetailSheet.tsx",
+    "line": 216,
+    "snippet": "Undocumented color rgba(0, 0, 0, 0.06) is outside DESIGN.md colors",
+    "advisory": true,
+    "ignoreValue": "rgba(0, 0, 0, 0.06)",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\ProductDetailSheet.tsx",
+    "line": 283,
+    "snippet": "fontSize: 1.25rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1.25rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\ProductDetailSheet.tsx",
+    "line": 294,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\ProductDetailSheet.tsx",
+    "line": 296,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\ProductDetailSheet.tsx",
+    "line": 300,
+    "snippet": "fontSize: 0.7rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.7rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\ProductDetailSheet.tsx",
+    "line": 323,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\ProductDetailSheet.tsx",
+    "line": 343,
+    "snippet": "borderRadius: 8px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "8px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\ProductDetailSheet.tsx",
+    "line": 347,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\ProductDetailSheet.tsx",
+    "line": 378,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\ProductDetailSheet.tsx",
+    "line": 391,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\ProductDetailSheet.tsx",
+    "line": 405,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\ProductDetailSheet.tsx",
+    "line": 426,
+    "snippet": "fontSize: 1rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\ProductListCard.tsx",
+    "line": 45,
+    "snippet": "Undocumented color rgba(0, 0, 0, 0.06) is outside DESIGN.md colors",
+    "advisory": true,
+    "ignoreValue": "rgba(0, 0, 0, 0.06)",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\ProductListCard.tsx",
+    "line": 125,
+    "snippet": "borderRadius: 12px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "12px",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\ProductListCard.tsx",
+    "line": 127,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\ProductListCard.tsx",
+    "line": 131,
+    "snippet": "fontSize: 0.7rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.7rem",
+    "importedBy": [
+      "page.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\cart\\CartLineItem.tsx",
+    "line": 40,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem",
+    "importedBy": [
+      "CartSheet.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\cart\\CartLineItem.tsx",
+    "line": 52,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem",
+    "importedBy": [
+      "CartSheet.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\cart\\CartSheet.tsx",
+    "line": 213,
+    "snippet": "fontSize: 0.9rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.9rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\cart\\CartSheet.tsx",
+    "line": 253,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem"
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\cart\\CartSheet.tsx",
+    "line": 273,
+    "snippet": "borderRadius: 8px is outside the DESIGN.md rounded scale",
+    "advisory": true,
+    "ignoreValue": "8px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\cart\\CartSheet.tsx",
+    "line": 277,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\cart\\OrderConfirmationCard.tsx",
+    "line": 160,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\cart\\OrderConfirmationCard.tsx",
+    "line": 183,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\cart\\OrderConfirmationCard.tsx",
+    "line": 203,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\cart\\OrderConfirmationCard.tsx",
+    "line": 225,
+    "snippet": "fontSize: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\cart\\QuantityStepper.tsx",
+    "line": 31,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem",
+    "importedBy": [
+      "ProductDetailSheet.tsx",
+      "CartLineItem.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\cart\\QuantityStepper.tsx",
+    "line": 59,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem",
+    "importedBy": [
+      "ProductDetailSheet.tsx",
+      "CartLineItem.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\cart\\QuantityStepper.tsx",
+    "line": 73,
+    "snippet": "Undocumented color rgba(0, 0, 0, 0.1) is outside DESIGN.md colors",
+    "advisory": true,
+    "ignoreValue": "rgba(0, 0, 0, 0.1)",
+    "importedBy": [
+      "ProductDetailSheet.tsx",
+      "CartLineItem.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\cart\\QuantityStepper.tsx",
+    "line": 78,
+    "snippet": "fontSize: 0.85rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.85rem",
+    "importedBy": [
+      "ProductDetailSheet.tsx",
+      "CartLineItem.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\cart\\QuantityStepper.tsx",
+    "line": 112,
+    "snippet": "Undocumented color rgba(0, 0, 0, 0.1) is outside DESIGN.md colors",
+    "advisory": true,
+    "ignoreValue": "rgba(0, 0, 0, 0.1)",
+    "importedBy": [
+      "ProductDetailSheet.tsx",
+      "CartLineItem.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\cart\\QuantityStepper.tsx",
+    "line": 119,
+    "snippet": "fontSize: 1.2rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1.2rem",
+    "importedBy": [
+      "ProductDetailSheet.tsx",
+      "CartLineItem.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\cart\\QuantityStepper.tsx",
+    "line": 146,
+    "snippet": "Undocumented color rgba(0, 0, 0, 0.1) is outside DESIGN.md colors",
+    "advisory": true,
+    "ignoreValue": "rgba(0, 0, 0, 0.1)",
+    "importedBy": [
+      "ProductDetailSheet.tsx",
+      "CartLineItem.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\apps\\client-pwa\\src\\components\\cart\\QuantityStepper.tsx",
+    "line": 153,
+    "snippet": "fontSize: 1.2rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "1.2rem",
+    "importedBy": [
+      "ProductDetailSheet.tsx",
+      "CartLineItem.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\bento\\KpiValue.tsx",
+    "line": 33,
+    "snippet": "fontSize: 11px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "11px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\bento\\bento.css",
+    "line": 170,
+    "snippet": "font-size: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\bento\\bento.css",
+    "line": 192,
+    "snippet": "font-size: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\bento\\tokens.ts",
+    "line": 256,
+    "snippet": "font-size: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\bento\\tokens.ts",
+    "line": 278,
+    "snippet": "font-size: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\kit\\EmptyState.tsx",
+    "line": 41,
+    "snippet": "fontSize: 16px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "16px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\kit\\ErrorState.tsx",
+    "line": 49,
+    "snippet": "fontSize: 16px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "16px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\kit\\ErrorState.tsx",
+    "line": 64,
+    "snippet": "fontSize: 14px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "14px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\kit\\KpiDelta.tsx",
+    "line": 27,
+    "snippet": "fontSize: 11px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "11px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\kit\\KpiDelta.tsx",
+    "line": 58,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\kit\\KpiDelta.tsx",
+    "line": 110,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\kit\\ModalConfirm.tsx",
+    "line": 90,
+    "snippet": "fontSize: 14px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "14px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\kit\\ModalConfirm.tsx",
+    "line": 153,
+    "snippet": "fontSize: 11px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "11px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\kit\\ModalConfirm.tsx",
+    "line": 160,
+    "snippet": "fontSize: 24px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "24px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\kit\\ModalConfirm.tsx",
+    "line": 179,
+    "snippet": "fontSize: 14px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "14px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\kit\\PageHeader.tsx",
+    "line": 24,
+    "snippet": "font-size: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\kit\\PageHeader.tsx",
+    "line": 29,
+    "snippet": "font-size: 0.875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\kit\\ProgressNodes.tsx",
+    "line": 52,
+    "snippet": "fontSize: 12px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "12px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\kit\\SidebarRail.tsx",
+    "line": 32,
+    "snippet": "font-size: 0.6875rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.6875rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\kit\\StatusChip.tsx",
+    "line": 52,
+    "snippet": "fontSize: 0.75rem is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "0.75rem"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\kit\\Timeline.tsx",
+    "line": 57,
+    "snippet": "fontSize: 11px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "11px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\kit\\Timeline.tsx",
+    "line": 65,
+    "snippet": "fontSize: 14px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "14px"
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "C:\\Users\\jcgm1\\OneDrive\\Desktop\\Resto\\Resto\\packages\\ui-components\\src\\kit\\Toast.tsx",
+    "line": 38,
+    "snippet": "fontSize: 14px is off the DESIGN.md type ramp",
+    "advisory": true,
+    "ignoreValue": "14px"
+  }
+]

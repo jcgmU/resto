@@ -1,10 +1,11 @@
-import { ServiceCallDTO } from '@packages/shared-types';
+import { ServiceCallDTO, ServiceCallType } from '@packages/shared-types';
 
 export function createServiceCallEntity(params: {
   callId: string;
   tenantId: string;
   sessionId: string;
   tableId: string;
+  type?: ServiceCallType;
   note?: string;
   createdAt?: string;
 }): ServiceCallDTO {
@@ -13,6 +14,7 @@ export function createServiceCallEntity(params: {
     tenantId: params.tenantId,
     sessionId: params.sessionId,
     tableId: params.tableId,
+    type: params.type || 'GENERIC',
     note: params.note,
     status: 'pending',
     createdAt: params.createdAt || new Date().toISOString(),

@@ -25,6 +25,7 @@ export class CreateProductUseCaseImpl {
     description?: string;
     imageUrl?: string;
     sortOrder?: number;
+    prepTimeMinutes?: number | null;
   }): Promise<ProductDTO> {
     if (input.price < 0) {
       throw new DomainError('BAD_USER_INPUT', 'El precio no puede ser negativo');
@@ -44,6 +45,7 @@ export class CreateProductUseCaseImpl {
       description: input.description,
       imageUrl: input.imageUrl,
       sortOrder: input.sortOrder ?? 0,
+      prepTimeMinutes: input.prepTimeMinutes,
       isAvailable: true,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -68,6 +70,7 @@ export class UpdateProductUseCaseImpl {
     imageUrl?: string;
     categoryId?: string;
     sortOrder?: number;
+    prepTimeMinutes?: number | null;
   }): Promise<ProductDTO> {
     const existing = await this.productRepo.findById(input.tenantId, input.id);
     if (!existing) {
@@ -93,6 +96,7 @@ export class UpdateProductUseCaseImpl {
       ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl } : {}),
       ...(input.categoryId !== undefined ? { categoryId: input.categoryId } : {}),
       ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
+      ...(input.prepTimeMinutes !== undefined ? { prepTimeMinutes: input.prepTimeMinutes } : {}),
       updatedAt: new Date(),
     };
 

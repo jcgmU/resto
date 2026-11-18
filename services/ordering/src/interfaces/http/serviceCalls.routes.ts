@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { ServiceCallUseCases } from '../../application/ServiceCallUseCases';
 import { ServiceCallStatus } from '@packages/shared-types';
+import { SERVICE_CALL_ROLES, hasRole } from './authzRoles';
 
 export function createServiceCallsRouter(serviceCallUseCases: ServiceCallUseCases): Router {
   const router = Router();
@@ -15,17 +16,13 @@ export function createServiceCallsRouter(serviceCallUseCases: ServiceCallUseCase
         });
       }
 
-      const { tableId, note } = req.body;
-      if (!tableId) {
-        return res.status(400).json({
-          error: { code: 'VALIDATION_ERROR', message: 'tableId es requerido' },
-        });
-      }
+      const { tableId, note, type } = req.body || {};
 
       const call = await serviceCallUseCases.createServiceCall.execute({
         tenantId,
         sessionId,
         tableId,
+        type,
         note,
       });
 
@@ -38,7 +35,7 @@ export function createServiceCallsRouter(serviceCallUseCases: ServiceCallUseCase
   router.get('/', async (req, res, next) => {
     try {
       const { tenantId, role } = req.auth!;
-      const isStaff = role && ['staff', 'manager', 'admin'].includes(role.toLowerCase());
+      const isStaff = hasRole(role, SERVICE_CALL_ROLES);
 
       if (!isStaff) {
         return res.status(403).json({
@@ -61,7 +58,7 @@ export function createServiceCallsRouter(serviceCallUseCases: ServiceCallUseCase
   router.patch('/:id/resolve', async (req, res, next) => {
     try {
       const { tenantId, role } = req.auth!;
-      const isStaff = role && ['staff', 'manager', 'admin'].includes(role.toLowerCase());
+      const isStaff = hasRole(role, SERVICE_CALL_ROLES);
 
       if (!isStaff) {
         return res.status(403).json({

@@ -46,7 +46,7 @@ export function getTableDisplayName(
 ): string {
   if (!tableId) return '';
   if (tables && Array.isArray(tables)) {
-    const found = tables.find((t) => t.tableId === tableId);
+    const found = tables.find((t) => t.tableId === tableId || (t as any).id === tableId);
     if (found && found.label) {
       return found.label;
     }
@@ -57,3 +57,10 @@ export function getTableDisplayName(
   return `Mesa · ${shortId(tableId)}`;
 }
 
+
+/** Nombre visible de una mesa a partir de su etiqueta: evita "Mesa Mesa 3". */
+export function tableDisplayName(label: string | null | undefined): string {
+  const text = (label ?? '').trim();
+  if (!text) return '';
+  return /^mesa/i.test(text) ? text : `Mesa ${text}`;
+}

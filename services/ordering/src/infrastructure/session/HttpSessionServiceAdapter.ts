@@ -1,24 +1,25 @@
 import http from 'http';
 import https from 'https';
 import { URL } from 'url';
+import { SessionServicePort, TableSessionDTO } from '@packages/shared-types';
 import { SessionCloseFailedError, SessionUnreachableError } from '../../domain/errors';
 import { OrderingSessionPort, SessionInfo } from '../../domain/sessionValidation';
 
 export const SESSION_REQUEST_TIMEOUT_MS = 5000;
 
-export class HttpSessionServiceAdapter implements OrderingSessionPort {
+export class HttpSessionServiceAdapter implements SessionServicePort, OrderingSessionPort {
   constructor(
     private readonly sessionInternalUrl: string,
     private readonly timeoutMs: number = SESSION_REQUEST_TIMEOUT_MS
   ) {}
 
-  async getSession(tenantId: string, sessionId: string): Promise<SessionInfo | null> {
+  async getSession(tenantId: string, sessionId: string): Promise<TableSessionDTO | null> {
     const fullUrl = `${this.sessionInternalUrl.replace(/\/$/, '')}/sessions/${encodeURIComponent(sessionId)}`;
     const parsed = new URL(fullUrl);
     const isHttps = parsed.protocol === 'https:';
     const transport = isHttps ? https : http;
 
-    return new Promise<SessionInfo | null>((resolve, reject) => {
+    return new Promise<TableSessionDTO | null>((resolve, reject) => {
       let timeoutTimer: NodeJS.Timeout | null = null;
 
       const req = transport.request(
@@ -31,8 +32,11 @@ export class HttpSessionServiceAdapter implements OrderingSessionPort {
           headers: {
             'content-type': 'application/json',
             'x-tenant-id': tenantId,
-            'x-user-role': 'service',
             'x-session-id': sessionId,
+            'x-user-role': 'system',
+            ...(process.env.INTERNAL_SHARED_SECRET
+              ? { 'x-internal-token': process.env.INTERNAL_SHARED_SECRET }
+              : {}),
           },
         },
         (res) => {
@@ -60,11 +64,12 @@ export class HttpSessionServiceAdapter implements OrderingSessionPort {
               try {
                 const parsedData = JSON.parse(data);
                 resolve({
+                  ...parsedData,
                   sessionId: parsedData.sessionId || parsedData.id,
                   tenantId: parsedData.tenantId,
                   tableId: parsedData.tableId,
                   status: parsedData.status,
-                });
+                } as TableSessionDTO);
               } catch (parseErr: any) {
                 reject(new SessionUnreachableError(`Respuesta inválida de sesión: ${parseErr.message}`));
               }
@@ -73,14 +78,13 @@ export class HttpSessionServiceAdapter implements OrderingSessionPort {
             } else if (res.statusCode && res.statusCode >= 500) {
               reject(
                 new SessionUnreachableError(
-                  `Session service respondió con error de servidor ${res.statusCode}: ${data}`
+                  `Session service responded with status ${res.statusCode}: ${data}`
                 )
               );
             } else {
-              // Cualquier otro error de sesión
               reject(
                 new SessionUnreachableError(
-                  `Session service respondió con status no esperado ${res.statusCode}: ${data}`
+                  `Session service responded with status ${res.statusCode}: ${data}`
                 )
               );
             }
@@ -149,6 +153,9 @@ export class HttpSessionServiceAdapter implements OrderingSessionPort {
             'x-tenant-id': tenantId,
             'x-user-id': requester.userId,
             'x-user-role': requester.role,
+            ...(process.env.INTERNAL_SHARED_SECRET
+              ? { 'x-internal-token': process.env.INTERNAL_SHARED_SECRET }
+              : {}),
           },
         },
         (res) => {

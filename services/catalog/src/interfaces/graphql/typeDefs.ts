@@ -4,6 +4,7 @@ export const typeDefs = `#graphql
     name: String!
     sortOrder: Int
     isActive: Boolean
+    destination: String
     products: [Product!]!
   }
 
@@ -15,6 +16,7 @@ export const typeDefs = `#graphql
     imageUrl: String
     isAvailable: Boolean
     sortOrder: Int
+    prepTimeMinutes: Int
     category: Category!
     modifierGroups: [ModifierGroup!]!
   }
@@ -63,12 +65,14 @@ export const typeDefs = `#graphql
   input CreateCategoryInput {
     name: String!
     sortOrder: Int
+    destination: String
   }
 
   input UpdateCategoryInput {
     name: String
     sortOrder: Int
     isActive: Boolean
+    destination: String
   }
 
   input CreateProductInput {
@@ -78,6 +82,7 @@ export const typeDefs = `#graphql
     price: Float!
     imageUrl: String
     sortOrder: Int
+    prepTimeMinutes: Int
   }
 
   input UpdateProductInput {
@@ -87,6 +92,7 @@ export const typeDefs = `#graphql
     imageUrl: String
     categoryId: ID
     sortOrder: Int
+    prepTimeMinutes: Int
   }
 
   input CreateModifierGroupInput {

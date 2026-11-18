@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+.git
+.agents
+dist
+**/dist
+build
+**/build
+.next
+coverage
+*.log
+.env*
+*.env*

@@ -29,7 +29,7 @@ describe('D. Cierre de oleada (smoke) (Tests 28-30)', () => {
       .post('/tables')
       .set('x-tenant-id', 'tenant-100')
       .set('x-user-role', 'admin')
-      .send({ label: 'Mesa 1' });
+      .send({ label: 'Mesa 1', zoneId: 'zone-1' });
 
     expect(res.status).toBe(201);
     expect(res.body.tableId).toBeDefined();

@@ -76,11 +76,11 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
         email: 'mesero1@bistro.com',
         displayName: 'Mesero 1',
         password: 'password123',
-        role: 'STAFF',
+        role: 'WAITER',
       });
 
     expect(res.status).toBe(201);
-    expect(res.body.role).toBe('STAFF');
+    expect(res.body.role).toBe('WAITER');
     expect(res.body.status).toBe('ACTIVE');
     expect(res.body.passwordHash).toBeUndefined();
 
@@ -104,7 +104,7 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
         email: 'mesero2@bistro.com',
         displayName: 'Mesero 2',
         password: 'password123',
-        role: 'STAFF',
+        role: 'WAITER',
       });
 
     expect(forbiddenRes.status).toBe(403);
@@ -117,7 +117,7 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
         email: 'mesero2@bistro.com',
         displayName: 'Mesero 2',
         password: 'password123',
-        role: 'STAFF',
+        role: 'WAITER',
       });
     expect(successRes.status).toBe(201);
     expect(successRes.body.status).toBe('ACTIVE');
@@ -133,7 +133,7 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
         email: 'shortpass@bistro.com',
         displayName: 'Short',
         password: 'short',
-        role: 'STAFF',
+        role: 'WAITER',
       });
     expect(shortPassRes.status).toBe(400);
     expect(shortPassRes.body.error.code).toBe('VALIDATION_ERROR');
@@ -161,19 +161,25 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
         email: 'mesero1@bistro.com',
         displayName: 'Mesero Clon',
         password: 'password123',
-        role: 'STAFF',
+        role: 'WAITER',
       });
     expect(duplicateEmailRes.status).toBe(409);
     expect(duplicateEmailRes.body.error.code).toBe('EMAIL_TAKEN');
   });
 
   describe('U2 endpoints: GET /identity/users, PATCH, disable, enable, reset-password', () => {
-    test('17. GET /identity/users 200 para ADMIN del tenant; 403 para MANAGER/STAFF; sin passwordHash', async () => {
+    test('17. GET /identity/users 200 para ADMIN y MANAGER del tenant; 403 para STAFF; sin passwordHash', async () => {
       const forbiddenRes = await request(app)
         .get('/identity/users')
         .set('x-tenant-id', 't-456')
-        .set('x-user-role', 'MANAGER');
+        .set('x-user-role', 'STAFF');
       expect(forbiddenRes.status).toBe(403);
+
+      const managerRes = await request(app)
+        .get('/identity/users')
+        .set('x-tenant-id', 't-456')
+        .set('x-user-role', 'MANAGER');
+      expect(managerRes.status).toBe(200);
 
       const res = await request(app)
         .get('/identity/users')
@@ -210,7 +216,7 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
           email: 'patch@bistro.com',
           displayName: 'Original Name',
           password: 'password123',
-          role: 'STAFF',
+          role: 'WAITER',
         });
       const targetId = createRes.body.id;
 
@@ -235,7 +241,7 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
         .set('x-tenant-id', 't-patch')
         .set('x-user-id', 'admin-patch-id')
         .set('x-user-role', 'ADMIN')
-        .send({ role: 'STAFF' });
+        .send({ role: 'WAITER' });
       expect(selfRoleRes.status).toBe(403);
 
       // Aislamiento: 404 si es de otro tenant
@@ -270,7 +276,7 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
           email: 'disableme@bistro.com',
           displayName: 'Will Disable',
           password: 'password123',
-          role: 'STAFF',
+          role: 'WAITER',
         });
       const targetId = createRes.body.id;
 
@@ -329,7 +335,7 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
           email: 'resetme@bistro.com',
           displayName: 'Reset Me',
           password: 'oldpassword123',
-          role: 'STAFF',
+          role: 'WAITER',
         });
       const targetId = createRes.body.id;
 
@@ -368,7 +374,7 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
           email: 'changepass@bistro.com',
           displayName: 'Change Pass User',
           password: 'initialpassword123',
-          role: 'STAFF',
+          role: 'WAITER',
         });
       const userId = createRes.body.id;
 
@@ -442,6 +448,231 @@ describe('B. Identity — integración HTTP (Tests 11-15)', () => {
       expect(refresh2.status).toBe(200);
       expect(refresh2.body.accessToken).toBeDefined();
       expect(refresh2.body.refreshToken).toBeDefined();
+    });
+  });
+
+  test('16. GET /identity/users -> 200 para ADMIN y MANAGER, 403 para WAITER/STAFF, 401 sin cabecera', async () => {
+    const unauth = await request(app).get('/identity/users');
+    expect(unauth.status).toBe(401);
+
+    const forbidden = await request(app)
+      .get('/identity/users')
+      .set('x-tenant-id', 't-456')
+      .set('x-user-role', 'WAITER');
+    expect(forbidden.status).toBe(403);
+
+    const okAdmin = await request(app)
+      .get('/identity/users')
+      .set('x-tenant-id', 't-456')
+      .set('x-user-role', 'ADMIN');
+    expect(okAdmin.status).toBe(200);
+    expect(Array.isArray(okAdmin.body)).toBe(true);
+
+    const okManager = await request(app)
+      .get('/identity/users')
+      .set('x-tenant-id', 't-456')
+      .set('x-user-role', 'MANAGER');
+    expect(okManager.status).toBe(200);
+  });
+
+  test('17. POST /identity/users con password crea usuario activo con rol WAITER', async () => {
+    const res = await request(app)
+      .post('/identity/users')
+      .set('x-tenant-id', 't-456')
+      .set('x-user-role', 'ADMIN')
+      .send({
+        email: 'mesero.real@bistro.com',
+        displayName: 'Carlos Mesero Real',
+        role: 'WAITER',
+        password: 'password123',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.role).toBe('WAITER');
+    expect(res.body.status).toBe('ACTIVE');
+    expect(res.body.displayName).toBe('Carlos Mesero Real');
+  });
+
+  test('18. POST /identity/users con rol MONITOR valida monitorKind kitchen/bar', async () => {
+    const errRes = await request(app)
+      .post('/identity/users')
+      .set('x-tenant-id', 't-456')
+      .set('x-user-role', 'ADMIN')
+      .send({
+        email: 'monitor.nokind@bistro.com',
+        displayName: 'Monitor Sin Tipo',
+        role: 'MONITOR',
+        password: 'pass',
+      });
+    expect(errRes.status).toBe(400);
+
+    const okRes = await request(app)
+      .post('/identity/users')
+      .set('x-tenant-id', 't-456')
+      .set('x-user-role', 'ADMIN')
+      .send({
+        email: 'monitor.bar@bistro.com',
+        displayName: 'Monitor Bar',
+        role: 'MONITOR',
+        monitorKind: 'bar',
+        password: 'pass',
+      });
+    expect(okRes.status).toBe(201);
+    expect(okRes.body.role).toBe('MONITOR');
+    expect(okRes.body.monitorKind).toBe('bar');
+  });
+
+  test('19. POST /identity/users con rol CASHIER crea usuario con rol CASHIER', async () => {
+    const res = await request(app)
+      .post('/identity/users')
+      .set('x-tenant-id', 't-456')
+      .set('x-user-role', 'ADMIN')
+      .send({
+        email: 'caja.real@bistro.com',
+        displayName: 'Cajero Principal',
+        role: 'CASHIER',
+        password: 'password123',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.role).toBe('CASHIER');
+    expect(res.body.status).toBe('ACTIVE');
+  });
+
+  describe('D1: Matriz de permisos de equipo (GET admin+manager; mutaciones solo admin)', () => {
+    const tenantId = 't-d1-test';
+    let targetUserId: string;
+
+    beforeAll(async () => {
+      // Crear un usuario de prueba para mutaciones
+      const created = await userRepo.save({
+        id: 'u-d1-target',
+        tenantId,
+        email: 'target.d1@bistro.com',
+        displayName: 'Target D1',
+        role: 'WAITER',
+        status: 'ACTIVE',
+        passwordHash: 'hashed_password123',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      targetUserId = created.id;
+    });
+
+    test('GET /v1/identity/users: 200 para ADMIN y MANAGER (case-insensitive); 403 para otros roles', async () => {
+      for (const role of ['ADMIN', 'admin', 'MANAGER', 'manager']) {
+        const res = await request(app)
+          .get('/v1/identity/users')
+          .set('x-tenant-id', tenantId)
+          .set('x-user-role', role);
+        expect(res.status).toBe(200);
+        expect(Array.isArray(res.body)).toBe(true);
+      }
+
+      for (const role of ['STAFF', 'staff', 'WAITER', 'waiter', 'CASHIER', 'cashier', 'MONITOR', 'monitor', 'CUSTOMER', 'customer', 'guest']) {
+        const res = await request(app)
+          .get('/v1/identity/users')
+          .set('x-tenant-id', tenantId)
+          .set('x-user-role', role);
+        expect(res.status).toBe(403);
+      }
+    });
+
+    test('PATCH /v1/identity/users/:id: 200 solo para ADMIN; 403 para MANAGER y STAFF', async () => {
+      const managerRes = await request(app)
+        .patch(`/v1/identity/users/${targetUserId}`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'MANAGER')
+        .set('x-user-id', 'admin-id-d1')
+        .send({ displayName: 'Hacked by Manager' });
+      expect(managerRes.status).toBe(403);
+
+      const staffRes = await request(app)
+        .patch(`/v1/identity/users/${targetUserId}`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'STAFF')
+        .set('x-user-id', 'admin-id-d1')
+        .send({ displayName: 'Hacked by Staff' });
+      expect(staffRes.status).toBe(403);
+
+      const adminRes = await request(app)
+        .patch(`/v1/identity/users/${targetUserId}`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'ADMIN')
+        .set('x-user-id', 'admin-id-d1')
+        .send({ displayName: 'Admin Updated' });
+      expect(adminRes.status).toBe(200);
+      expect(adminRes.body.displayName).toBe('Admin Updated');
+    });
+
+    test('POST /v1/identity/users/:id/disable: 200 solo para ADMIN; 403 para MANAGER y STAFF', async () => {
+      const managerRes = await request(app)
+        .post(`/v1/identity/users/${targetUserId}/disable`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'MANAGER')
+        .set('x-user-id', 'admin-id-d1');
+      expect(managerRes.status).toBe(403);
+
+      const staffRes = await request(app)
+        .post(`/v1/identity/users/${targetUserId}/disable`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'STAFF')
+        .set('x-user-id', 'admin-id-d1');
+      expect(staffRes.status).toBe(403);
+
+      const adminRes = await request(app)
+        .post(`/v1/identity/users/${targetUserId}/disable`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'ADMIN')
+        .set('x-user-id', 'admin-id-d1');
+      expect(adminRes.status).toBe(200);
+      expect(adminRes.body.status).toBe('DISABLED');
+    });
+
+    test('POST /v1/identity/users/:id/enable: 200 solo para ADMIN; 403 para MANAGER y STAFF', async () => {
+      const managerRes = await request(app)
+        .post(`/v1/identity/users/${targetUserId}/enable`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'MANAGER')
+        .set('x-user-id', 'admin-id-d1');
+      expect(managerRes.status).toBe(403);
+
+      const staffRes = await request(app)
+        .post(`/v1/identity/users/${targetUserId}/enable`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'STAFF')
+        .set('x-user-id', 'admin-id-d1');
+      expect(staffRes.status).toBe(403);
+
+      const adminRes = await request(app)
+        .post(`/v1/identity/users/${targetUserId}/enable`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'ADMIN')
+        .set('x-user-id', 'admin-id-d1');
+      expect(adminRes.status).toBe(200);
+      expect(adminRes.body.status).toBe('ACTIVE');
+    });
+
+    test('POST /v1/identity/users/:id/reset-password: 200 solo para ADMIN; 403 para MANAGER y STAFF', async () => {
+      const managerRes = await request(app)
+        .post(`/v1/identity/users/${targetUserId}/reset-password`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'MANAGER')
+        .send({ password: 'newPassword123' });
+      expect(managerRes.status).toBe(403);
+
+      const staffRes = await request(app)
+        .post(`/v1/identity/users/${targetUserId}/reset-password`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'STAFF')
+        .send({ password: 'newPassword123' });
+      expect(staffRes.status).toBe(403);
+
+      const adminRes = await request(app)
+        .post(`/v1/identity/users/${targetUserId}/reset-password`)
+        .set('x-tenant-id', tenantId)
+        .set('x-user-role', 'ADMIN')
+        .send({ password: 'newPassword123' });
+      expect(adminRes.status).toBe(200);
     });
   });
 });

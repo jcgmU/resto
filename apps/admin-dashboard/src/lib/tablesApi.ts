@@ -1,26 +1,18 @@
 import { ApiClient } from './api';
 import { getUserRole, UserRole } from './auth';
+import type {
+  CreateTablesBatchInput,
+  TableUpdatePatch,
+  DeleteTablesBatchResult,
+} from '@packages/shared-types';
 import type { TableItem } from '../components/mesas/types';
 
-export type CreateTablesBatchInput =
-  | { prefix: string; count: number; start?: number }
-  | { labels: string[] };
-
-export interface TableUpdatePatch {
-  tableId: string;
-  label?: string;
-  status?: 'active' | 'inactive';
-}
-
-export interface DeleteBatchFailedItem {
-  tableId: string;
-  code: 'TABLE_HAS_ACTIVE_SESSION' | 'TABLE_NOT_FOUND';
-}
-
-export interface DeleteTablesBatchResult {
-  deleted: string[];
-  failed: DeleteBatchFailedItem[];
-}
+export type {
+  CreateTablesBatchInput,
+  TableUpdatePatch,
+  DeleteBatchFailedItem,
+  DeleteTablesBatchResult,
+} from '@packages/shared-types';
 
 export interface NormalizedTableApiError extends Error {
   status?: number;
@@ -101,7 +93,7 @@ export async function updateTablesBatch(
 
 export async function updateTable(
   tableId: string,
-  patch: { label?: string; status?: 'active' | 'inactive' }
+  patch: Omit<TableUpdatePatch, 'tableId'>
 ): Promise<TableItem> {
   try {
     const res = await ApiClient.request(`/v1/tables/${encodeURIComponent(tableId)}`, {
@@ -142,9 +134,6 @@ export function isMutationAllowed(
     const normalized = role.trim().toUpperCase();
     if (normalized === 'ADMIN' || normalized === 'MANAGER') {
       return true;
-    }
-    if (normalized === 'STAFF') {
-      return false;
     }
     return false;
   }

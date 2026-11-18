@@ -59,7 +59,7 @@ export function TabsPill({ tabs, value, onChange, ariaLabel, className }: TabsPi
             role="tab"
             id={`tab-${tab.id}`}
             aria-selected={selected}
-            aria-controls={tab.panelId ?? `tabpanel-${tab.id}`}
+            aria-controls={tab.panelId || undefined}
             tabIndex={selected ? 0 : -1}
             className="bento-tabs__tab"
             onClick={() => onChange(tab.id)}

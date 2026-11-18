@@ -1,50 +1,83 @@
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
-import { FeatureGuard, BentoCard } from '@packages/ui-components';
-import { BillDTO, PaymentMethod, TableSessionDTO, TableDTO } from '@packages/shared-types';
+import React, { useState, useEffect, Suspense, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { FeatureGuard, BentoCard, Skeleton, getTableDisplayName } from '@packages/ui-components';
+import { BillDTO, PaymentMethod, TableSessionDTO, TableDTO, PendingOrderSummaryDTO } from '@packages/shared-types';
 import {
   ActiveTablesGrid,
   BillSummaryCard,
   PaymentMethodPicker,
   ConfirmPaymentButton,
   PaymentSuccessCard,
+  ReleaseTableModal,
+  dedupeSessions,
 } from '../../../components/checkout';
+import {
+  fetchActiveSessions as apiFetchActiveSessions,
+  fetchTables as apiFetchTables,
+  fetchSessionBill,
+  confirmCheckout,
+  closeSession,
+  retryInvoice,
+  parseCheckoutError,
+  FormattedCheckoutError,
+} from '../../../lib/api/checkout';
 import { ApiClient } from '../../../lib/api';
+import * as realtime from '../../../lib/realtime';
 
-export default function CheckoutPage() {
+function CheckoutContent({ allowPendingOrdersOverride = true }: { allowPendingOrdersOverride?: boolean }) {
+  const searchParams = useSearchParams();
+  const tableIdParam = searchParams.get('tableId');
+  const autoSelectedRef = useRef(false);
   const [sessions, setSessions] = useState<TableSessionDTO[]>([]);
   const [tables, setTables] = useState<TableDTO[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
-  const [loadingBill, setLoadingBill] = useState(false);
+  const [sessionError, setSessionError] = useState<FormattedCheckoutError | null>(null);
+
   const [selectedSession, setSelectedSession] = useState<TableSessionDTO | null>(null);
+  const [loadingBill, setLoadingBill] = useState(false);
   const [bill, setBill] = useState<BillDTO | null>(null);
-  const [currentRequestGen, setCurrentRequestGen] = useState(0);
-  const [loadedBillGen, setLoadedBillGen] = useState<number | null>(null);
+  const [billError, setBillError] = useState<FormattedCheckoutError | null>(null);
+
   const [method, setMethod] = useState<PaymentMethod | null>(null);
-  const [error, setError] = useState<string | undefined>(undefined);
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | undefined>(undefined);
+  const [pendingOrders, setPendingOrders] = useState<PendingOrderSummaryDTO[]>([]);
+  const [userRole, setUserRole] = useState<string>('');
   const [completedPayment, setCompletedPayment] = useState<{
     tableId: string;
     amount: number;
     method: PaymentMethod;
+    sessionId?: string;
+    invoiceStatus?: 'none' | 'pending' | 'issued' | 'error';
+    invoiceRef?: string;
+    invoiceError?: string;
   } | null>(null);
+
+  const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
+  const [isReleasing, setIsReleasing] = useState(false);
+  const [releaseError, setReleaseError] = useState<string | null>(null);
+  const [releaseSuccess, setReleaseSuccess] = useState<{
+    tableId: string;
+    displayName: string;
+  } | null>(null);
+
+  const [currentRequestGen, setCurrentRequestGen] = useState(0);
+  const [loadedBillGen, setLoadedBillGen] = useState<number | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const isMountedRef = useRef(true);
   const latestRequestedSessionIdRef = useRef<string | null>(null);
   const billRequestGenRef = useRef(0);
+  const sessionsRequestGenRef = useRef(0);
   const isProcessingPaymentRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const paidSessionIdsRef = useRef<Set<string>>(new Set());
 
   const fetchTables = async () => {
     try {
-      const res = await ApiClient.request('/v1/tables');
+      const data = await apiFetchTables();
       if (!isMountedRef.current) return;
-      if (Array.isArray(res)) {
-        setTables(res.filter((t: TableDTO) => (t as any).status !== 'deleted'));
-      } else if (res?.data && Array.isArray(res.data)) {
-        setTables(res.data.filter((t: TableDTO) => (t as any).status !== 'deleted'));
-      }
+      setTables(data.filter((t: TableDTO) => (t as any).status !== 'deleted'));
     } catch {
       // no bloqueante si falla la lista de mesas
     }
@@ -52,22 +85,18 @@ export default function CheckoutPage() {
 
   const fetchActiveSessions = async () => {
     if (!isMountedRef.current) return;
+    const requestGen = ++sessionsRequestGenRef.current;
     setLoadingSessions(true);
+    setSessionError(null);
     try {
-      const res = await ApiClient.request('/v1/sessions?status=active');
-      if (!isMountedRef.current) return;
-      const filterPaid = (list: TableSessionDTO[]) =>
-        list.filter((s) => !paidSessionIdsRef.current.has(s.sessionId));
-      if (Array.isArray(res)) {
-        setSessions(filterPaid(res));
-      } else if (res?.data && Array.isArray(res.data)) {
-        setSessions(filterPaid(res.data));
-      }
+      const data = await apiFetchActiveSessions();
+      if (!isMountedRef.current || requestGen !== sessionsRequestGenRef.current) return;
+      setSessions(dedupeSessions(data.filter((s) => !paidSessionIdsRef.current.has(s.sessionId))));
     } catch (err: any) {
-      if (!isMountedRef.current) return;
-      setError(err.code || err.message || 'Error al obtener sesiones activas');
+      if (!isMountedRef.current || requestGen !== sessionsRequestGenRef.current) return;
+      setSessionError(parseCheckoutError(err));
     } finally {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && requestGen === sessionsRequestGenRef.current) {
         setLoadingSessions(false);
       }
     }
@@ -75,8 +104,53 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     isMountedRef.current = true;
+    try {
+      const rawUser = typeof window !== 'undefined' ? window.localStorage?.getItem('resto_user') : null;
+      if (rawUser) {
+        const parsed = JSON.parse(rawUser);
+        setUserRole(String(parsed?.role || '').toUpperCase());
+      }
+    } catch {
+      // ignore
+    }
     fetchActiveSessions();
     fetchTables();
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchActiveSessions();
+        fetchTables();
+      }
+    };
+    const handleFocus = () => {
+      fetchActiveSessions();
+      fetchTables();
+    };
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', handleFocus);
+    }
+
+    let socket: any = null;
+    const token = ApiClient.token;
+    if (token) {
+      try {
+        socket = realtime.connectOrdersSocket(token);
+        socket.on('table:status-changed', () => {
+          fetchActiveSessions();
+          fetchTables();
+        });
+        socket.on('session:checkout-completed', () => {
+          fetchActiveSessions();
+          fetchTables();
+        });
+      } catch {
+        // Fallback gracefully
+      }
+    }
 
     return () => {
       isMountedRef.current = false;
@@ -84,14 +158,31 @@ export default function CheckoutPage() {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', handleFocus);
+      }
+      if (socket) {
+        try {
+          socket.disconnect();
+        } catch {}
+      }
     };
   }, []);
 
-  const handleSelectSession = async (session: TableSessionDTO) => {
-    if (paidSessionIdsRef.current.has(session.sessionId)) {
-      return;
+  useEffect(() => {
+    if (!tableIdParam || autoSelectedRef.current || sessions.length === 0) return;
+    const match = sessions.find((s) => s.tableId === tableIdParam && s.status !== 'closed');
+    if (match) {
+      autoSelectedRef.current = true;
+      handleSelectSession(match);
     }
-    // Abort previous in-flight bill request if any
+  }, [tableIdParam, sessions]);
+
+  const handleSelectSession = async (session: TableSessionDTO) => {
+    if (paidSessionIdsRef.current.has(session.sessionId)) return;
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -106,32 +197,33 @@ export default function CheckoutPage() {
     setCurrentRequestGen(reqGen);
     setLoadedBillGen(null);
     setLoadingBill(true);
-    setError(undefined);
-    setCompletedPayment(null);
     setBill(null);
+    setBillError(null);
+    setPaymentError(undefined);
+    setPendingOrders([]);
+    setReleaseError(null);
+    setCompletedPayment(null);
+    setReleaseSuccess(null);
     setMethod(null);
+
+    const isStale = () =>
+      !isMountedRef.current ||
+      paidSessionIdsRef.current.has(requestedSessionId) ||
+      billRequestGenRef.current !== reqGen ||
+      latestRequestedSessionIdRef.current !== requestedSessionId;
 
     try {
       const res = await ApiClient.request(`/v1/checkout/${requestedSessionId}`, {
         signal: abortController.signal,
       });
+      if (isStale()) return;
 
-      // DISCARD if unmounted, already paid, or if another request generation / session was started in the meantime
-      if (
-        !isMountedRef.current ||
-        paidSessionIdsRef.current.has(requestedSessionId) ||
-        billRequestGenRef.current !== reqGen ||
-        latestRequestedSessionIdRef.current !== requestedSessionId
-      ) {
-        return;
-      }
+      const payload = res?.data ?? res;
+      const billData: BillDTO =
+        payload && typeof payload === 'object' && 'bill' in payload && payload.bill ? payload.bill : payload;
 
-      const billData = res?.data || res;
-      // Safety check: bill must belong to the requested session and not already paid
-      if (billData && billData.sessionId && billData.sessionId !== requestedSessionId) {
-        return;
-      }
-      if (billData?.payment?.status === 'COMPLETED') {
+      if (billData && billData.sessionId && billData.sessionId !== requestedSessionId) return;
+      if ((billData?.payment as { status?: string } | null | undefined)?.status === 'COMPLETED') {
         paidSessionIdsRef.current.add(requestedSessionId);
         latestRequestedSessionIdRef.current = null;
         setSessions((prev) => prev.filter((s) => s.sessionId !== requestedSessionId));
@@ -145,18 +237,9 @@ export default function CheckoutPage() {
       setBill(billData);
       setLoadedBillGen(reqGen);
     } catch (err: any) {
-      // DISCARD error if unmounted, already paid, or if user started a newer request generation or if aborted
-      if (
-        !isMountedRef.current ||
-        paidSessionIdsRef.current.has(requestedSessionId) ||
-        billRequestGenRef.current !== reqGen ||
-        latestRequestedSessionIdRef.current !== requestedSessionId
-      ) {
-        return;
-      }
-      if (err.name === 'AbortError') return;
-
-      setError(err.message || err.code || 'Error al obtener la cuenta de la mesa');
+      if (isStale()) return;
+      if (err?.name === 'AbortError') return;
+      setBillError(parseCheckoutError(err));
     } finally {
       if (
         isMountedRef.current &&
@@ -168,16 +251,15 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleConfirmPayment = async () => {
+  const handleConfirmPayment = async (closePendingOrders?: boolean) => {
     if (isProcessingPaymentRef.current || isProcessingPayment) return;
     if (!selectedSession || !bill || !method) return;
     if (loadingBill) return;
-    if (bill.sessionId !== selectedSession.sessionId) return;
+    if (bill.sessionId && bill.sessionId !== selectedSession.sessionId) return;
     if (loadedBillGen === null || loadedBillGen !== currentRequestGen || billRequestGenRef.current !== currentRequestGen) {
       return;
     }
 
-    // Snapshot immutable state at confirmation time
     const snapshotSessionId = selectedSession.sessionId;
     const snapshotTableId = selectedSession.tableId;
     const snapshotBillTotal = bill.total;
@@ -186,16 +268,18 @@ export default function CheckoutPage() {
 
     isProcessingPaymentRef.current = true;
     setIsProcessingPayment(true);
-    setError(undefined);
+    setPaymentError(undefined);
+    if (!closePendingOrders) {
+      setPendingOrders([]);
+    }
 
     try {
-      const res = await ApiClient.request('/v1/checkout/confirm', {
-        method: 'POST',
-        body: JSON.stringify({
-          sessionId: snapshotSessionId,
-          tableId: snapshotTableId,
-          method: snapshotMethod,
-        }),
+      const result = await confirmCheckout({
+        sessionId: snapshotSessionId,
+        tableId: snapshotTableId,
+        method: snapshotMethod,
+        amount: snapshotBillTotal,
+        ...(closePendingOrders === true ? { closePendingOrders: true } : {}),
       });
 
       if (!isMountedRef.current) return;
@@ -203,15 +287,17 @@ export default function CheckoutPage() {
       paidSessionIdsRef.current.add(snapshotSessionId);
       setSessions((prev) => prev.filter((s) => s.sessionId !== snapshotSessionId));
 
-      const paymentResult = res?.data || res;
+      const paymentData = result.payment;
       setCompletedPayment({
         tableId: snapshotTableId,
-        amount: paymentResult?.amount || snapshotBillTotal,
+        amount: result.amount || snapshotBillTotal,
         method: snapshotMethod,
+        sessionId: snapshotSessionId,
+        invoiceStatus: paymentData?.invoiceStatus,
+        invoiceRef: paymentData?.invoiceRef,
+        invoiceError: paymentData?.invoiceError,
       });
 
-      // Invalidate & clear selection if the currently selected session is the one that was just paid,
-      // even if request generation advanced due to an A -> B -> A selection switch while POST was in flight!
       if (latestRequestedSessionIdRef.current === snapshotSessionId) {
         if (abortControllerRef.current) {
           abortControllerRef.current.abort();
@@ -224,7 +310,7 @@ export default function CheckoutPage() {
         setLoadedBillGen(null);
         setLoadingBill(false);
         setMethod(null);
-        setError(undefined);
+        setPendingOrders([]);
       }
 
       await fetchActiveSessions();
@@ -234,7 +320,11 @@ export default function CheckoutPage() {
         latestRequestedSessionIdRef.current === snapshotSessionId &&
         billRequestGenRef.current === snapshotRequestGen
       ) {
-        setError(err.code || err.message || 'Error al procesar cobro');
+        const parsed = parseCheckoutError(err);
+        setPaymentError(parsed.code || err.code || err.message || 'Error al procesar cobro');
+        if (parsed.pendingOrders && Array.isArray(parsed.pendingOrders)) {
+          setPendingOrders(parsed.pendingOrders);
+        }
       }
     } finally {
       isProcessingPaymentRef.current = false;
@@ -244,24 +334,68 @@ export default function CheckoutPage() {
     }
   };
 
+  const handleReleaseTable = async () => {
+    if (!selectedSession) return;
+    setIsReleasing(true);
+    setReleaseError(null);
+
+    try {
+      await closeSession(selectedSession.sessionId);
+      setIsReleaseModalOpen(false);
+      setReleaseSuccess({
+        tableId: selectedSession.tableId,
+        displayName: getTableDisplayName(selectedSession.tableId, tables),
+      });
+
+      setSelectedSession(null);
+      setBill(null);
+      setMethod(null);
+      await fetchActiveSessions();
+    } catch (err: any) {
+      const parsed = parseCheckoutError(err);
+      setReleaseError(parsed.code || parsed.message);
+    } finally {
+      setIsReleasing(false);
+    }
+  };
+
+  const handleRetry = async () => {
+    if (sessionError) {
+      await fetchActiveSessions();
+      return;
+    }
+    if (selectedSession && !activeBill) {
+      await handleSelectSession(selectedSession);
+      return;
+    }
+    if (paymentError) {
+      await handleConfirmPayment();
+      return;
+    }
+    if (releaseError) {
+      await handleReleaseTable();
+      return;
+    }
+  };
+
+  const tableDisplayName = selectedSession
+    ? getTableDisplayName(selectedSession.tableId, tables)
+    : '';
+
+  const pendingAmount =
+    bill && !bill.payment && bill.total > 0 ? bill.total : 0;
+
   const activeBill =
     bill &&
     selectedSession &&
-    bill.sessionId === selectedSession.sessionId &&
+    (!bill.sessionId || bill.sessionId === selectedSession.sessionId) &&
     loadedBillGen !== null &&
     loadedBillGen === currentRequestGen
       ? bill
       : null;
 
-  const handleRetry = async () => {
-    if (selectedSession && !activeBill) {
-      await handleSelectSession(selectedSession);
-    } else if (!selectedSession) {
-      await fetchActiveSessions();
-    } else {
-      await handleConfirmPayment();
-    }
-  };
+  const canOverridePendingOrders =
+    allowPendingOrdersOverride && (userRole === 'ADMIN' || userRole === 'MANAGER');
 
   return (
     <FeatureGuard flag="payments">
@@ -273,13 +407,68 @@ export default function CheckoutPage() {
               amount={completedPayment.amount}
               method={completedPayment.method}
               tables={tables}
+              sessionId={completedPayment.sessionId}
+              invoiceStatus={completedPayment.invoiceStatus}
+              invoiceRef={completedPayment.invoiceRef}
+              invoiceError={completedPayment.invoiceError}
+              onRetryInvoice={async () => {
+                if (!completedPayment?.sessionId) return;
+                try {
+                  const retryRes = await retryInvoice(completedPayment.sessionId);
+                  const pay = retryRes?.payment || retryRes;
+                  if (pay) {
+                    setCompletedPayment((prev) => prev ? {
+                      ...prev,
+                      invoiceStatus: pay.invoiceStatus,
+                      invoiceRef: pay.invoiceRef,
+                      invoiceError: pay.invoiceError,
+                    } : null);
+                  }
+                } catch {}
+              }}
             />
+          </div>
+        )}
+
+        {releaseSuccess && (
+          <div style={{ marginBottom: '16px' }}>
+            <BentoCard
+              data-testid="release-success-card"
+              style={{
+                padding: '20px',
+                border: '1px solid var(--bento-success)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--bento-success)' }}>
+                <svg
+                  aria-hidden="true"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+                <span style={{ fontWeight: 700, fontSize: '1.2rem', fontFamily: 'var(--bento-font-heading)' }}>
+                  Mesa liberada exitosamente.
+                </span>
+              </div>
+              <div style={{ color: 'var(--bento-text-muted)', fontFamily: 'var(--bento-font-body)' }}>
+                {releaseSuccess.displayName} • Sesión cerrada
+              </div>
+            </BentoCard>
           </div>
         )}
 
         <BentoCard
           style={{
-            backgroundColor: 'var(--bento-papel)',
+            backgroundColor: 'var(--bento-card-bg-solid)',
             padding: '24px',
             marginBottom: '24px',
           }}
@@ -295,29 +484,14 @@ export default function CheckoutPage() {
           >
             Mesas Activas
           </h2>
-          <ActiveTablesGrid
-            loading={loadingSessions}
-            sessions={sessions}
-            tables={tables}
-            selectedSessionId={selectedSession?.sessionId}
-            onSelectSession={handleSelectSession}
-          />
-        </BentoCard>
 
-        {!activeBill && error && (
-          <BentoCard
-            style={{
-              padding: '20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-            }}
-          >
+          {sessionError && (
             <div
               role="alert"
+              data-testid="sessions-error-banner"
               tabIndex={-1}
               style={{
-                padding: '12px',
+                padding: '12px 16px',
                 borderRadius: 'var(--bento-inner-radius)',
                 background: 'color-mix(in srgb, var(--bento-destructive) 10%, transparent)',
                 color: 'var(--bento-destructive)',
@@ -325,7 +499,8 @@ export default function CheckoutPage() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                gap: '8px',
+                gap: '12px',
+                marginBottom: '16px',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -342,18 +517,21 @@ export default function CheckoutPage() {
                   <line x1="12" y1="8" x2="12" y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                <span style={{ fontFamily: 'var(--bento-font-body)' }}>{error}</span>
+                <div>
+                  <span style={{ fontWeight: 700, marginRight: '6px' }}>{sessionError.code}:</span>
+                  <span style={{ fontFamily: 'var(--bento-font-body)' }}>{sessionError.userMessage}</span>
+                </div>
               </div>
               <button
                 type="button"
-                onClick={handleRetry}
+                onClick={fetchActiveSessions}
                 style={{
                   minHeight: '44px',
                   minWidth: '44px',
                   padding: '0 16px',
                   borderRadius: 'var(--bento-pill-radius)',
                   background: 'var(--bento-destructive)',
-                  color: 'var(--bento-papel)',
+                  color: 'var(--bento-card-bg-solid)',
                   border: 'none',
                   cursor: 'pointer',
                   fontFamily: 'var(--bento-font-body)',
@@ -363,24 +541,247 @@ export default function CheckoutPage() {
                 Reintentar
               </button>
             </div>
+          )}
+
+          <ActiveTablesGrid
+            loading={loadingSessions}
+            sessions={sessions}
+            tables={tables}
+            selectedSessionId={selectedSession?.sessionId}
+            onSelectSession={handleSelectSession}
+          />
+        </BentoCard>
+
+        {loadingBill && (
+          <BentoCard data-testid="bill-skeleton" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <Skeleton width="40%" height="28px" />
+            <Skeleton width="100%" height="60px" />
           </BentoCard>
+        )}
+
+        {billError && !activeBill && (
+          billError.code === 'BILL_NOT_FOUND' ? (
+            <BentoCard
+              data-testid="bill-empty-state"
+              style={{
+                padding: '24px',
+                borderRadius: 'var(--bento-card-radius)',
+                backgroundColor: 'var(--bento-card-bg-solid)',
+                border: '1px solid var(--bento-border)',
+                boxShadow: 'var(--bento-card-shadow)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '16px',
+                flexWrap: 'wrap',
+                marginBottom: '16px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: 'var(--bento-inner-radius)',
+                    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--bento-text-muted)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg
+                    aria-hidden="true"
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                </div>
+                <div>
+                  <h3
+                    style={{
+                      margin: '0 0 4px 0',
+                      fontSize: '1.1rem',
+                      fontWeight: 600,
+                      fontFamily: 'var(--bento-font-heading)',
+                      color: 'var(--bento-text)',
+                    }}
+                  >
+                    Mesa sin consumo
+                  </h3>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: '0.875rem',
+                      color: 'var(--bento-text-muted)',
+                      fontFamily: 'var(--bento-font-body)',
+                    }}
+                  >
+                    Esta sesión no tiene pedidos registrados para cobrar.
+                  </p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {selectedSession && (
+                  <button
+                    type="button"
+                    onClick={() => setIsReleaseModalOpen(true)}
+                    style={{
+                      minHeight: '44px',
+                      padding: '0 20px',
+                      borderRadius: 'var(--bento-pill-radius)',
+                      background: 'var(--bento-primary)',
+                      color: 'var(--bento-card-bg-solid)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontFamily: 'var(--bento-font-body)',
+                      fontWeight: 600,
+                      boxShadow: 'var(--bento-card-shadow)',
+                    }}
+                  >
+                    Liberar mesa
+                  </button>
+                )}
+              </div>
+            </BentoCard>
+          ) : (
+            <div
+              role="alert"
+              data-testid="bill-error-banner"
+              tabIndex={-1}
+              style={{
+                padding: '16px',
+                borderRadius: 'var(--bento-inner-radius)',
+                background: 'color-mix(in srgb, var(--bento-destructive) 10%, transparent)',
+                color: 'var(--bento-destructive)',
+                border: '1px solid var(--bento-destructive)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                marginBottom: '16px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg
+                  aria-hidden="true"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <div>
+                  <span style={{ fontWeight: 700, marginRight: '6px' }}>{billError.code}:</span>
+                  <span style={{ fontFamily: 'var(--bento-font-body)' }}>{billError.userMessage}</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  style={{
+                    minHeight: '44px',
+                    minWidth: '44px',
+                    padding: '0 16px',
+                    borderRadius: 'var(--bento-pill-radius)',
+                    background: 'var(--bento-destructive)',
+                    color: 'var(--bento-card-bg-solid)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontFamily: 'var(--bento-font-body)',
+                    fontWeight: 600,
+                  }}
+                >
+                  Reintentar
+                </button>
+              </div>
+            </div>
+          )
         )}
 
         {activeBill && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <BillSummaryCard bill={activeBill} tables={tables} error={error} onRetry={handleRetry} />
-            <PaymentMethodPicker selectedMethod={method} onSelect={setMethod} />
-            <ConfirmPaymentButton
-              disabled={!method || loadingBill || isProcessingPayment}
-              loading={isProcessingPayment}
-              sessionId={selectedSession?.sessionId}
-              total={activeBill.total}
-              method={method}
-              onConfirm={handleConfirmPayment}
+            <BillSummaryCard
+              bill={activeBill}
+              tables={tables}
+              error={paymentError}
+              onRetry={handleRetry}
+              pendingOrders={pendingOrders}
+              canOverridePendingOrders={canOverridePendingOrders}
+              onOverridePendingOrders={() => handleConfirmPayment(true)}
             />
+            <PaymentMethodPicker selectedMethod={method} onSelect={setMethod} />
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <ConfirmPaymentButton
+                disabled={!method || loadingBill || isProcessingPayment}
+                loading={isProcessingPayment}
+                sessionId={selectedSession?.sessionId}
+                total={activeBill.total}
+                method={method}
+                onConfirm={() => handleConfirmPayment(false)}
+              />
+              <button
+                type="button"
+                onClick={() => setIsReleaseModalOpen(true)}
+                style={{
+                  minHeight: '44px',
+                  padding: '0 20px',
+                  borderRadius: 'var(--bento-pill-radius)',
+                  background: 'transparent',
+                  color: 'var(--bento-text)',
+                  border: '1px solid var(--bento-border)',
+                  fontFamily: 'var(--bento-font-body)',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Liberar mesa
+              </button>
+            </div>
           </div>
+        )}
+
+        {selectedSession && (
+          <ReleaseTableModal
+            open={isReleaseModalOpen}
+            tableName={tableDisplayName}
+            pendingAmount={pendingAmount}
+            loading={isReleasing}
+            error={releaseError}
+            onConfirm={handleReleaseTable}
+            onClose={() => setIsReleaseModalOpen(false)}
+            onRetry={handleReleaseTable}
+          />
         )}
       </div>
     </FeatureGuard>
+  );
+}
+
+export default function CheckoutPage({
+  allowPendingOrdersOverride = true,
+}: {
+  allowPendingOrdersOverride?: boolean;
+} = {}) {
+  return (
+    <Suspense fallback={null}>
+      <CheckoutContent allowPendingOrdersOverride={allowPendingOrdersOverride} />
+    </Suspense>
   );
 }

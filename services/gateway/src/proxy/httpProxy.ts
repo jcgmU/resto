@@ -1,13 +1,23 @@
-import { createProxyMiddleware } from 'http-proxy-middleware';
+import { createProxyMiddleware, fixRequestBody } from 'http-proxy-middleware';
 import { Response } from 'express';
+
+const SESSION_SELECTING_ROLES = new Set(['ADMIN', 'MANAGER', 'WAITER']);
 
 export function createServiceProxy(target: string) {
   return createProxyMiddleware({
     target,
     changeOrigin: true,
+    proxyTimeout: 30000,
+    timeout: 30000,
     pathRewrite: (path: string) => path.replace(/^\/v1/, ''),
     on: {
       proxyReq: (proxyReq: any, req: any) => {
+        if (process.env.INTERNAL_SHARED_SECRET) {
+          proxyReq.setHeader('x-internal-token', process.env.INTERNAL_SHARED_SECRET);
+        }
+
+        const clientSessionId = req.headers?.['x-session-id'];
+
         // Eliminar cabeceras de identidad que pudieran venir inyectadas por el cliente
         proxyReq.removeHeader('x-user-id');
         proxyReq.removeHeader('x-tenant-id');
@@ -22,8 +32,22 @@ export function createServiceProxy(target: string) {
           if (user.tenantId) proxyReq.setHeader('x-tenant-id', String(user.tenantId));
           const role = user.role || (user.sessionId ? 'GUEST' : undefined);
           if (role) proxyReq.setHeader('x-user-role', String(role));
-          if (user.sessionId) proxyReq.setHeader('x-session-id', String(user.sessionId));
+          if (user.sessionId) {
+            proxyReq.setHeader('x-session-id', String(user.sessionId));
+          } else if (
+            typeof clientSessionId === 'string' &&
+            clientSessionId &&
+            SESSION_SELECTING_ROLES.has(String(user.role || '').toUpperCase())
+          ) {
+            // El personal opera sobre la sesión de la mesa que elige; un guest siempre queda atado a su token
+            proxyReq.setHeader('x-session-id', clientSessionId);
+          }
           if (user.tableId) proxyReq.setHeader('x-table-id', String(user.tableId));
+        }
+
+        const contentType = req.headers?.['content-type'];
+        if (typeof contentType !== 'string' || !/^application\/json(?:\s*;|\s*$)/i.test(contentType)) {
+          return;
         }
 
         if (req.body !== undefined && req.body !== null) {
@@ -39,7 +63,11 @@ export function createServiceProxy(target: string) {
             proxyReq.setHeader('Content-Type', 'application/json');
             proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
             proxyReq.write(bodyData);
+          } else {
+            fixRequestBody(proxyReq, req);
           }
+        } else {
+          fixRequestBody(proxyReq, req);
         }
       },
       error: (err: any, req: any, res: any) => {

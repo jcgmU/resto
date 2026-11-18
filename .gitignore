@@ -10,12 +10,17 @@ coverage
 testsprite_tests/tmp/
 testsprite_tests/tmp/config.json
 
+# Clientes Prisma generados (se crean con `prisma generate`: postinstall, build y test)
+services/*/src/generated/
+
 # Binarios regenerables del motor de Prisma (no deben versionarse)
 **/generated/client/*.so.node
 **/generated/client/*.node
 
 # Config local de agentes/skills (no es parte de la app)
 .agents/
+.agent/
+.claude/
 
 # Scripts sueltos de depuración/fix usados durante desarrollo
 /add-use-client.js

@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ApiClient } from '../../lib/api';
-import type { TableItem, TableStatusInfo } from './types';
+import type { TableItem, TableStatusInfo, ZoneItem } from './types';
 
 export function getTableStatusInfo(
   table: TableItem,
   occupiedTableIds: Set<string>
 ): TableStatusInfo {
-  const isInactive = table.status !== 'active';
+  const isInactive = table.status === 'inactive' || table.status === 'DISABLED' || table.status === 'deleted';
   const isOccupied = occupiedTableIds.has(table.tableId);
   if (isInactive) {
     return {
@@ -32,6 +32,7 @@ export function getTableStatusInfo(
 export function useTablesData() {
   const [tables, setTables] = useState<TableItem[]>([]);
   const [occupiedTableIds, setOccupiedTableIds] = useState<Set<string>>(new Set());
+  const [zones, setZones] = useState<ZoneItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,19 +41,26 @@ export function useTablesData() {
       if (!silent) setLoading(true);
       setError(null);
 
-      const [tablesRes, sessionsRes] = await Promise.all([
+      const [tablesRes, sessionsRes, zonesRes] = await Promise.all([
         ApiClient.request('/v1/tables', { method: 'GET' }),
         ApiClient.request('/v1/sessions?status=active', { method: 'GET' }).catch(() => ({
           data: [],
         })),
+        ApiClient.request('/v1/zones', { method: 'GET' }).catch(() => ({ data: [] })),
       ]);
+
+      const rawZones = Array.isArray(zonesRes) ? zonesRes : zonesRes?.data;
+      setZones(
+        Array.isArray(rawZones)
+          ? rawZones.filter((z: any) => z && z.id && z.active !== false)
+          : []
+      );
 
       const rawTables = Array.isArray(tablesRes) ? tablesRes : tablesRes?.data;
       if (Array.isArray(rawTables)) {
-        const normalizedTables: TableItem[] = rawTables.map((t: any) => ({
-          ...t,
-          tableId: t.tableId || t.id,
-        }));
+        const normalizedTables: TableItem[] = rawTables
+          .map((t: any) => ({ ...t, tableId: t.tableId || t.id }))
+          .filter((t: TableItem) => t.status !== 'deleted' && !t.deletedAt);
         setTables(normalizedTables);
       } else {
         setTables([]);
@@ -92,6 +100,7 @@ export function useTablesData() {
 
   return {
     tables,
+    zones,
     setTables,
     occupiedTableIds,
     loading,

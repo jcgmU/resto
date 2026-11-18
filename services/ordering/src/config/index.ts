@@ -14,5 +14,9 @@ export const config = {
   cartTtlSeconds: parseInt(process.env.CART_TTL_SECONDS || '14400', 10),
   cartPollIntervalMs: parseInt(process.env.CART_POLL_INTERVAL_MS || '5000', 10),
   serviceCallTtlSeconds: parseInt(process.env.SERVICE_CALL_TTL_SECONDS || '7200', 10),
+  identityInternalUrl:
+    process.env.IDENTITY_INTERNAL_URL ||
+    process.env.IDENTITY_URL ||
+    'http://localhost:4001',
   jwtSecret: process.env.JWT_SECRET || 'super-secret-jwt-key-oleada-0',
 };

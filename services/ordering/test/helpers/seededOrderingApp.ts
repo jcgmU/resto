@@ -1,3 +1,4 @@
+import { TableSessionDTO } from '@packages/shared-types';
 import { createOrderingApp } from '../../src/app';
 import {
   InMemoryCartRepository,
@@ -6,24 +7,32 @@ import {
   InMemoryEventPublisher,
   InMemoryServiceCallRepository,
   InMemoryPaymentRepository,
+  InMemorySessionServiceAdapter,
 } from '../../src/infrastructure/fakes/InMemoryOrderingAdapters';
 import { HttpSessionServiceAdapter } from '../../src/infrastructure/session/HttpSessionServiceAdapter';
 import { config } from '../../src/config';
 
 export class SeededSessionServiceAdapter extends HttpSessionServiceAdapter {
-  async getSession(tenantId: string, sessionId: string) {
+  async getSession(tenantId: string, sessionId: string): Promise<TableSessionDTO | null> {
+    const now = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + 3600000).toISOString();
     if (sessionId === 's-smoke-e2e') {
       return {
         sessionId,
         tenantId,
         tableId: 'M-1',
         status: 'active' as const,
+        createdAt: now,
+        expiresAt,
       };
     }
     return {
       sessionId,
       tenantId,
+      tableId: '*',
       status: 'active' as const,
+      createdAt: now,
+      expiresAt,
     };
   }
 
@@ -115,7 +124,7 @@ export function createSeededOrderingTestApp() {
     tenantId: 't-1',
     sessionId: 'session-checkout-test',
     tableId: 'T-1',
-    status: 'READY',
+    status: 'DELIVERED',
     total: 50,
     items: [],
     createdAt: new Date().toISOString(),
@@ -126,7 +135,7 @@ export function createSeededOrderingTestApp() {
     tenantId: 't-1',
     sessionId: 'session-double',
     tableId: 'T-2',
-    status: 'READY',
+    status: 'DELIVERED',
     total: 60,
     items: [],
     createdAt: new Date().toISOString(),
@@ -137,7 +146,7 @@ export function createSeededOrderingTestApp() {
     tenantId: 't-1',
     sessionId: 'session-guest',
     tableId: 'T-3',
-    status: 'READY',
+    status: 'DELIVERED',
     total: 40,
     items: [],
     createdAt: new Date().toISOString(),
@@ -148,7 +157,7 @@ export function createSeededOrderingTestApp() {
     tenantId: 't-1',
     sessionId: 'session-fail',
     tableId: 'T-4',
-    status: 'READY',
+    status: 'DELIVERED',
     total: 40,
     items: [],
     createdAt: new Date().toISOString(),
@@ -159,7 +168,7 @@ export function createSeededOrderingTestApp() {
     tenantId: 't-smoke-e2e',
     sessionId: 's-smoke-e2e',
     tableId: 'M-1',
-    status: 'READY',
+    status: 'DELIVERED',
     total: 35,
     items: [],
     createdAt: new Date().toISOString(),

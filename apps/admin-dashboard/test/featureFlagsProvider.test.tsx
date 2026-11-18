@@ -12,7 +12,7 @@ describe('HALLAZGO 1: FeatureFlagsProvider & Root Layout (TDD Rojo)', () => {
   });
 
   test('FeatureFlagsProvider monta EnvFeatureFlagProvider y habilita FeatureGuard cuando flag está en env', () => {
-    process.env.NEXT_PUBLIC_FEATURE_FLAGS = 'kitchen-display:true,payments:true';
+    process.env.NEXT_PUBLIC_FEATURE_FLAGS = 'kitchen-display:true,payments:true,analytics:false';
 
     render(
       <FeatureFlagsProvider>
@@ -27,7 +27,7 @@ describe('HALLAZGO 1: FeatureFlagsProvider & Root Layout (TDD Rojo)', () => {
   });
 
   test('FeatureFlagsProvider mantiene apagadas las flags no habilitadas (fail-closed)', () => {
-    process.env.NEXT_PUBLIC_FEATURE_FLAGS = 'kitchen-display:true,payments:true';
+    process.env.NEXT_PUBLIC_FEATURE_FLAGS = 'kitchen-display:true,payments:true,analytics:false';
 
     render(
       <FeatureFlagsProvider>

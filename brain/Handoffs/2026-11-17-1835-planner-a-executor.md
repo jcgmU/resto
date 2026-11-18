@@ -1,0 +1,35 @@
+---
+de: planner
+para: executor
+tipo: plan
+estado: hecho
+hilo: editor-espacios-f1
+ronda: 2
+creado: 2026-11-17T18:35:00-05:00
+criterios_de_aceptacion:
+  - "Contrato de session acepta un poligono dibujado de 1,2 x 3 m (sin regla de lado minimo)"
+  - "Editor /mesas/espacios hace pasar los 3 tests ya escritos en rojo de space-editor.test.tsx"
+  - "Seed con poligonos validos; bateria verde; 0 commits; sin next build"
+referencias:
+  - "brain/Handoffs/2026-11-17-1850-planner-a-codex.md"
+  - "brain/Handoffs/2026-11-17-1720-planner-a-codex.md"
+---
+
+# plan - editor de espacios fase 1 - continuacion (codex y agy sin cuota)
+
+Lee primero el plan original (1850) y la decision de lado minimo (1720). Estado que deja codex en el worktree, sin indexar:
+- ✅ E1 shared-types: `polygon` en ZoneDTO y requests, helper `zoneFloorSpace`; 153 tests verdes.
+- ✅ E2 session: validacion con `validateSpacePolygon` + `checkSpace`, 422 con codigo, Redis guarda el poligono; 121 tests verdes.
+- ✅ E3 gateway: test de paso de poligono y 422 verde.
+- ⏳ E4 admin: solo el test (`space-editor.test.tsx`, 3 casos) en rojo; falta la pagina.
+
+| Unidad | Oleada | Que hace | Depende de | Subagente | Nivel | Criterio |
+|---|---|---|---|---|---|---|
+| E2b | 1 | Añadir al contrato de session el caso que acepta un poligono dibujado de 1,2 × 3 m (201) | - | si | ligero | rojo si falla, verde |
+| E4 | 1 | Pagina `/mesas/espacios` segun el plan 1850 (flag `space-editor`, SVG en metros, rejilla, teclado, añadir/quitar vertice, validacion en vivo con `checkSpace`, 422 visible, Guardar con PATCH); enlace desde Zonas del dashboard. No cambies los tests ya escritos salvo error evidente (dilo en tu handoff) | - | si | potente | los 3 tests verdes + flag con test |
+| E5 | 2 | Seed con poligonos de ejemplo validos y sin solape (idempotente); nota corta en la doc de session; bateria: shared-types, session (`REDIS_URL=redis://localhost:6381/2`), gateway, admin, tsc admin, `check:a4`, diff-check | E2b, E4 | no | ligero | numeros de salida |
+| **Parada** | - | Handoff `executor-a-planner` con una linea por unidad | E5 | - | - | - |
+
+- Reglas: brain real en `/Users/jcgm/Developer/Resto/brain`; sin stash/reset/checkout --; sin migraciones; no tocar generated/client; sin `next build` (claude tiene 3100/3101 arriba); 0 commits. Circuit breaker: 3 intentos por test y reporta.
+- agy no llego a dejar cambios: todo E2b, E4 y E5 sigue pendiente. Usa subagentes y elige el modelo por nivel.
+- No tocar `.team/team.toml` (cambio de claude, sin indexar).

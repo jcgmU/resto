@@ -15,6 +15,30 @@ function getStoredRefreshToken(): string | null {
   return null;
 }
 
+function isJwtExpired(token: string): boolean {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    let decoded: string;
+    if (typeof atob === 'function') {
+      decoded = atob(base64);
+    } else if (typeof Buffer !== 'undefined') {
+      decoded = Buffer.from(base64, 'base64').toString('utf-8');
+    } else {
+      return false;
+    }
+    const payload = JSON.parse(decoded);
+    if (typeof payload.exp === 'number') {
+      return payload.exp * 1000 <= Date.now();
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export class ApiClient {
   private static _token: string | null = getStoredToken();
   private static _refreshToken: string | null = getStoredRefreshToken();
@@ -139,6 +163,30 @@ export class ApiClient {
     return null;
   }
 
+  static async getValidAccessToken(forceRefresh = false): Promise<string | null> {
+    if (this._refreshPromise) {
+      const inFlight = await this._refreshPromise;
+      return inFlight?.accessToken ?? null;
+    }
+
+    if (!forceRefresh && this.token && !isJwtExpired(this.token)) {
+      return this.token;
+    }
+
+    const currentRefreshToken = this.refreshToken;
+    if (!currentRefreshToken) {
+      return null;
+    }
+
+    const baseUrl = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:4000';
+    const generation = this._authGeneration;
+    this._refreshGeneration = generation;
+    this._refreshPromise = this._performRefresh(baseUrl, generation, currentRefreshToken);
+
+    const refreshed = await this._refreshPromise;
+    return refreshed?.accessToken ?? null;
+  }
+
   static async request(url: string, options: any = {}): Promise<any> {
     const baseUrl = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:4000';
     const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
@@ -200,13 +248,26 @@ export class ApiClient {
       const data = isJson ? await res.json() : await res.text();
       
       if (!res.ok) {
-        const errObj =
-          data && typeof data === 'object' && data.error && typeof data.error === 'object'
-            ? data.error
-            : data;
-        const error: any = new Error(errObj?.message || data?.message || 'Error en la petición');
+        const nestedError = data && typeof data === 'object' && 'error' in data ? data.error : null;
+        const errObj = nestedError && typeof nestedError === 'object' ? nestedError : (typeof data === 'object' ? data : null);
+
+        const message =
+          errObj?.message ||
+          (typeof nestedError === 'string' ? nestedError : null) ||
+          data?.message ||
+          (typeof data === 'string' ? data : null) ||
+          'Error en la petición';
+
+        const code =
+          errObj?.code ||
+          data?.code ||
+          (typeof nestedError === 'string' ? nestedError : null) ||
+          'UNKNOWN';
+
+        const error: any = new Error(message);
         error.status = res.status;
-        error.code = errObj?.code || data?.code || 'UNKNOWN';
+        error.code = code;
+        error.data = data;
         if ((errObj?.details ?? data?.details) !== undefined) {
           error.details = errObj?.details ?? data?.details;
         }
@@ -230,6 +291,9 @@ export class ApiClient {
     if (response.status === 200 && response.data?.tokens?.accessToken) {
       this.token = response.data.tokens.accessToken;
       this.refreshToken = response.data.tokens.refreshToken ?? null;
+      if (response.data?.user && typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('resto_user', JSON.stringify(response.data.user));
+      }
     }
     return response;
   }
@@ -246,6 +310,9 @@ export class ApiClient {
       if (response.data?.tokens?.refreshToken) {
         this.refreshToken = response.data.tokens.refreshToken;
       }
+      if (response.data?.user && typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('resto_user', JSON.stringify(response.data.user));
+      }
     }
     return response;
   }
@@ -259,7 +326,7 @@ export class ApiClient {
   static async createTeamMember(data: {
     email: string;
     displayName: string;
-    role: 'MANAGER' | 'STAFF';
+    role: 'MANAGER' | 'WAITER' | 'CASHIER' | 'MONITOR';
     password: string;
   }): Promise<any> {
     return this.request('/v1/identity/users', {
@@ -270,7 +337,7 @@ export class ApiClient {
 
   static async updateTeamMember(
     id: string,
-    data: { displayName?: string; role?: 'MANAGER' | 'STAFF' }
+    data: { displayName?: string; role?: 'MANAGER' | 'WAITER' | 'CASHIER' | 'MONITOR'; avatarUrl?: string | null }
   ): Promise<any> {
     return this.request(`/v1/identity/users/${id}`, {
       method: 'PATCH',
@@ -305,5 +372,11 @@ export class ApiClient {
   static clearAuth(): void {
     this.token = null;
     this.refreshToken = null;
+    this._refreshPromise = null;
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem('resto_user');
+    }
   }
 }
+
+export const getValidAccessToken = (forceRefresh = false) => ApiClient.getValidAccessToken(forceRefresh);

@@ -1,7 +1,6 @@
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
   BentoGrid,
   BentoCard,
@@ -9,165 +8,66 @@ import {
   EmptyState,
   ErrorState,
   Toast,
+  Modal,
 } from '@packages/ui-components';
 import { ApiClient } from '../../../lib/api';
+import {
+  fetchMenu,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  setProductAvailability,
+  uploadProductImage,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} from '../../../lib/api/menu';
 import { ProductCard } from '../../../components/ProductCard';
 import { CategoryCard } from '../../../components/CategoryCard';
+import type { CategoryDTO, ProductDTO } from '@packages/shared-types';
 
-const FOCUSABLE_SELECTOR =
-  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
-interface Category {
-  id: string;
-  name: string;
-  sortOrder?: number;
-}
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  categoryId: string;
-  isAvailable?: boolean;
-}
 
 export default function MenuPage() {
   const router = useRouter();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<CategoryDTO[]>([]);
+  const [products, setProducts] = useState<ProductDTO[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState(false);
   const [toastMessage, setToastMessage] = useState('Nuevo Producto Creado');
 
-  // Modales
+  // Modales Producto
   const [showModal, setShowModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<ProductDTO | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
   const [newProdName, setNewProdName] = useState('');
   const [newProdPrice, setNewProdPrice] = useState('');
   const [newProdCategory, setNewProdCategory] = useState('');
+  const [newProdPrepTime, setNewProdPrepTime] = useState(15);
+  const [newProdDescription, setNewProdDescription] = useState('');
+  const [newProdImageUrl, setNewProdImageUrl] = useState('');
+  const [newProdImagePreview, setNewProdImagePreview] = useState<string | null>(null);
   const [newProdAvailable, setNewProdAvailable] = useState(true);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
+  // Modales Categoría
   const [showCatModal, setShowCatModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<CategoryDTO | null>(null);
   const [catModalError, setCatModalError] = useState<string | null>(null);
   const [newCatName, setNewCatName] = useState('');
   const [newCatSortOrder, setNewCatSortOrder] = useState('0');
-
-  const prodModalRef = useRef<HTMLDivElement>(null);
-  const catModalRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!showModal) return;
-    const prevFocus = document.activeElement as HTMLElement | null;
-    prodModalRef.current?.focus();
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        setShowModal(false);
-        return;
-      }
-      if (e.key === 'Tab') {
-        if (!prodModalRef.current) return;
-        const nodes = Array.from(prodModalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-        if (nodes.length === 0) {
-          e.preventDefault();
-          return;
-        }
-        const first = nodes[0];
-        const last = nodes[nodes.length - 1];
-        const active = document.activeElement;
-        if (e.shiftKey && (active === first || active === prodModalRef.current)) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && active === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      prevFocus?.focus?.();
-    };
-  }, [showModal]);
-
-  useEffect(() => {
-    if (!showCatModal) return;
-    const prevFocus = document.activeElement as HTMLElement | null;
-    catModalRef.current?.focus();
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        setShowCatModal(false);
-        return;
-      }
-      if (e.key === 'Tab') {
-        if (!catModalRef.current) return;
-        const nodes = Array.from(catModalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-        if (nodes.length === 0) {
-          e.preventDefault();
-          return;
-        }
-        const first = nodes[0];
-        const last = nodes[nodes.length - 1];
-        const active = document.activeElement;
-        if (e.shiftKey && (active === first || active === catModalRef.current)) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && active === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      prevFocus?.focus?.();
-    };
-  }, [showCatModal]);
+  const [newCatDestination, setNewCatDestination] = useState<'kitchen' | 'bar'>('kitchen');
 
   const fetchMenuData = async () => {
     try {
-      const res = await ApiClient.request('/v1/graphql', {
-        method: 'POST',
-        body: JSON.stringify({
-          query: `
-            query AdminMenu {
-              categories { id name }
-              products { id name price isAvailable category { id } }
-            }
-          `,
-        }),
-      });
-
-      if (res?.data?.errors && res.data.errors.length > 0) {
-        throw new Error(res.data.errors[0].message || 'Error en consulta GraphQL');
-      }
-
-      if (res?.data?.data) {
-        const fetchedCats: Category[] = res.data.data.categories || [];
-        const rawProds: any[] = res.data.data.products || [];
-        const mappedProds: Product[] = rawProds.map((p) => ({
-          id: p.id,
-          name: p.name,
-          price: p.price,
-          isAvailable: p.isAvailable,
-          categoryId: p.categoryId ?? p.category?.id,
-        }));
-
-        setCategories(fetchedCats);
-        setProducts(mappedProds);
-        setError(null);
-      }
+      const data = await fetchMenu();
+      const sortedCats = [...(data.categories || [])].sort(
+        (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+      );
+      setCategories(sortedCats);
+      setProducts(data.products || []);
+      setError(null);
     } catch (err: any) {
       setError(err.message || 'Error al cargar el menú');
       setCategories([]);
@@ -190,10 +90,63 @@ export default function MenuPage() {
   }, [router]);
 
   const handleOpenCatModal = () => {
+    setEditingCategory(null);
     setShowCatModal(true);
     setCatModalError(null);
     setNewCatName('');
-    setNewCatSortOrder('0');
+    setNewCatSortOrder(String(categories.length));
+    setNewCatDestination('kitchen');
+  };
+
+  const handleEditCategory = (cat: CategoryDTO) => {
+    setEditingCategory(cat);
+    setShowCatModal(true);
+    setCatModalError(null);
+    setNewCatName(cat.name);
+    setNewCatSortOrder(String(cat.sortOrder ?? 0));
+    setNewCatDestination((cat.destination as 'kitchen' | 'bar') || 'kitchen');
+  };
+
+  const handleDeleteCategory = async (cat: CategoryDTO) => {
+    const confirmed =
+      typeof window !== 'undefined' && window.confirm
+        ? window.confirm(`¿Estás seguro de eliminar la categoría "${cat.name}"?`)
+        : true;
+    if (!confirmed) return;
+
+    try {
+      await deleteCategory(cat.id);
+      setToastMessage('Categoría Eliminada');
+      setCreated(true);
+      await fetchMenuData();
+    } catch (err: any) {
+      setError(err.message || 'Error al eliminar categoría');
+    }
+  };
+
+  const handleMoveCategory = async (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= categories.length) return;
+
+    const currentCat = categories[index];
+    const targetCat = categories[targetIndex];
+
+    const currentOrder = currentCat.sortOrder ?? index;
+    const targetOrder = targetCat.sortOrder ?? targetIndex;
+    const orderForCurrent = targetOrder === currentOrder
+      ? (direction === 'up' ? targetOrder - 1 : targetOrder + 1)
+      : targetOrder;
+
+    try {
+      await Promise.all([
+        updateCategory(currentCat.id, { sortOrder: orderForCurrent }),
+        updateCategory(targetCat.id, { sortOrder: currentOrder }),
+      ]);
+      await fetchMenuData();
+    } catch (err: any) {
+      setError(err.message || 'Error al reordenar categorías');
+      await fetchMenuData();
+    }
   };
 
   const handleSaveCategory = async (e: React.FormEvent) => {
@@ -204,50 +157,103 @@ export default function MenuPage() {
     const sortOrderNum = parseInt(newCatSortOrder, 10) || 0;
 
     try {
-      const res = await ApiClient.request('/v1/graphql', {
-        method: 'POST',
-        body: JSON.stringify({
-          query: `
-            mutation CreateCategory($input: CreateCategoryInput!) {
-              createCategory(input: $input) {
-                id
-                name
-              }
-            }
-          `,
-          variables: {
-            input: {
-              name: newCatName,
-              sortOrder: sortOrderNum,
-            },
-          },
-        }),
-      });
-
-      if (res?.data?.errors && res.data.errors.length > 0) {
-        throw new Error(res.data.errors[0].message || 'Error al crear categoría');
+      if (editingCategory) {
+        await updateCategory(editingCategory.id, {
+          name: newCatName,
+          sortOrder: sortOrderNum,
+          destination: newCatDestination,
+        });
+        setToastMessage('Categoría Actualizada');
+      } else {
+        await createCategory({
+          name: newCatName,
+          sortOrder: sortOrderNum,
+          destination: newCatDestination,
+        });
+        setToastMessage('Nueva Categoría Creada');
       }
 
-      setToastMessage('Nueva Categoría Creada');
       setCreated(true);
       setShowCatModal(false);
+      setEditingCategory(null);
       setNewCatName('');
       setNewCatSortOrder('0');
       await fetchMenuData();
     } catch (err: any) {
       setCreated(false);
-      setCatModalError(err.message || 'Error al crear categoría');
+      setCatModalError(err.message || 'Error al guardar categoría');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleOpenModal = () => {
+    setEditingProduct(null);
     setShowModal(true);
     setToastMessage('Nuevo Producto Creado');
     setCreated(true);
     setModalError(null);
+    setNewProdName('');
+    setNewProdPrice('');
+    setNewProdDescription('');
+    setNewProdImageUrl('');
+    setNewProdImagePreview(null);
+    setNewProdPrepTime(15);
+    setNewProdAvailable(true);
     setNewProdCategory(categories[0]?.id || '');
+  };
+
+  const handleEditProduct = (prod: ProductDTO) => {
+    setEditingProduct(prod);
+    setShowModal(true);
+    setModalError(null);
+    setNewProdName(prod.name);
+    setNewProdPrice(String(prod.price));
+    setNewProdDescription(prod.description || '');
+    setNewProdImageUrl(prod.imageUrl || '');
+    setNewProdImagePreview(prod.imageUrl || null);
+    setNewProdPrepTime(prod.prepTimeMinutes ?? 15);
+    setNewProdAvailable(prod.isAvailable !== false);
+    setNewProdCategory(prod.categoryId);
+  };
+
+  const handleDeleteProduct = async (prod: ProductDTO) => {
+    const confirmed =
+      typeof window !== 'undefined' && window.confirm
+        ? window.confirm(`¿Estás seguro de eliminar el producto "${prod.name}"?`)
+        : true;
+    if (!confirmed) return;
+
+    try {
+      await deleteProduct(prod.id);
+      setToastMessage('Producto Eliminado');
+      setCreated(true);
+      await fetchMenuData();
+    } catch (err: any) {
+      setError(err.message || 'Error al eliminar producto');
+    }
+  };
+
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (typeof window !== 'undefined' && window.URL && window.URL.createObjectURL) {
+      setNewProdImagePreview(window.URL.createObjectURL(file));
+    }
+
+    try {
+      setUploadingImage(true);
+      const res = await uploadProductImage(file);
+      if (res?.url) {
+        setNewProdImageUrl(res.url);
+        setNewProdImagePreview(res.url);
+      }
+    } catch (err: any) {
+      setModalError(err.message || 'Error al subir imagen');
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
@@ -255,61 +261,59 @@ export default function MenuPage() {
     setSubmitting(true);
     setModalError(null);
 
-    const priceNum = parseFloat(newProdPrice) || 0;
+    const priceNum = Math.round(parseFloat(newProdPrice)) || 0;
+    if (priceNum <= 0) {
+      setModalError('El precio debe ser un número entero positivo');
+      setSubmitting(false);
+      return;
+    }
+
     const catId = newProdCategory || categories[0]?.id || '';
+    if (!catId) {
+      setModalError('Debe seleccionar una categoría');
+      setSubmitting(false);
+      return;
+    }
 
     try {
-      const res = await ApiClient.request('/v1/graphql', {
-        method: 'POST',
-        body: JSON.stringify({
-          query: `
-            mutation CreateProduct($input: CreateProductInput!) {
-              createProduct(input: $input) {
-                id
-                name
-                price
-                isAvailable
-                category {
-                  id
-                }
-              }
-            }
-          `,
-          variables: {
-            input: {
-              name: newProdName,
-              price: priceNum,
-              categoryId: catId,
-            },
-          },
-        }),
-      });
-
-      if (res?.data?.errors && res.data.errors.length > 0) {
-        throw new Error(res.data.errors[0].message || 'Error al crear producto');
+      if (editingProduct) {
+        await updateProduct(editingProduct.id, {
+          name: newProdName,
+          price: priceNum,
+          categoryId: catId,
+          prepTimeMinutes: newProdPrepTime,
+          description: newProdDescription || undefined,
+          imageUrl: newProdImageUrl || undefined,
+          isAvailable: newProdAvailable,
+        });
+        setToastMessage('Producto Actualizado');
+      } else {
+        await createProduct({
+          name: newProdName,
+          price: priceNum,
+          categoryId: catId,
+          prepTimeMinutes: newProdPrepTime,
+          description: newProdDescription || undefined,
+          imageUrl: newProdImageUrl || undefined,
+          isAvailable: newProdAvailable,
+        });
+        setToastMessage('Nuevo Producto Creado');
       }
 
-      const createdProduct = res?.data?.data?.createProduct;
-      if (createdProduct) {
-        const mappedNewProd: Product = {
-          id: createdProduct.id,
-          name: createdProduct.name,
-          price: createdProduct.price,
-          isAvailable: createdProduct.isAvailable,
-          categoryId: createdProduct.categoryId ?? createdProduct.category?.id,
-        };
-        setProducts((prev) => [...prev, mappedNewProd]);
-      }
-
-      setToastMessage('Nuevo Producto Creado');
       setCreated(true);
       setShowModal(false);
+      setEditingProduct(null);
       setNewProdName('');
       setNewProdPrice('');
+      setNewProdDescription('');
+      setNewProdImageUrl('');
+      setNewProdImagePreview(null);
+      setNewProdPrepTime(15);
+      setNewProdAvailable(true);
       await fetchMenuData();
     } catch (err: any) {
       setCreated(false);
-      setModalError(err.message || 'Error al crear producto');
+      setModalError(err.message || 'Error al guardar producto');
     } finally {
       setSubmitting(false);
     }
@@ -322,27 +326,7 @@ export default function MenuPage() {
     );
 
     try {
-      const res = await ApiClient.request('/v1/graphql', {
-        method: 'POST',
-        body: JSON.stringify({
-          query: `
-            mutation SetAvailability($id: ID!, $isAvailable: Boolean!) {
-              setProductAvailability(id: $id, isAvailable: $isAvailable) {
-                id
-                isAvailable
-              }
-            }
-          `,
-          variables: {
-            id: productId,
-            isAvailable,
-          },
-        }),
-      });
-
-      if (res?.data?.errors && res.data.errors.length > 0) {
-        throw new Error(res.data.errors[0].message || 'Error al actualizar disponibilidad');
-      }
+      await setProductAvailability(productId, isAvailable);
     } catch (err: any) {
       // Revertir ante error
       setProducts((prev) =>
@@ -354,10 +338,10 @@ export default function MenuPage() {
 
   const primaryBtnStyle: React.CSSProperties = {
     padding: '10px 18px',
-    backgroundColor: 'var(--bento-tinta)',
-    color: 'var(--bento-papel)',
+    backgroundColor: 'var(--bento-primary)',
+    color: 'var(--bento-card-bg-solid)',
     borderRadius: 'var(--bento-pill-radius)',
-    border: '1px solid var(--bento-tinta)',
+    border: '1px solid var(--bento-primary)',
     fontFamily: 'var(--bento-font-body)',
     fontWeight: 600,
     fontSize: '0.875rem',
@@ -371,7 +355,7 @@ export default function MenuPage() {
 
   const secondaryBtnStyle: React.CSSProperties = {
     padding: '10px 18px',
-    backgroundColor: 'var(--bento-papel)',
+    backgroundColor: 'var(--bento-card-bg-solid)',
     color: 'var(--bento-text)',
     borderRadius: 'var(--bento-pill-radius)',
     border: '1px solid var(--bento-border)',
@@ -400,7 +384,7 @@ export default function MenuPage() {
 
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'var(--bento-font-body)' }}>
-      {/* Barra de título y acciones */}
+      {/* Barra de título y acciones (N10: SOLO MENÚ, sin links de mesas o QR) */}
       <div
         style={{
           display: 'flex',
@@ -434,9 +418,6 @@ export default function MenuPage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <Link href="/mesas" style={secondaryBtnStyle}>
-            Gestión de Mesas
-          </Link>
           <button
             type="button"
             onClick={handleOpenCatModal}
@@ -489,78 +470,12 @@ export default function MenuPage() {
         </div>
       )}
 
-      {/* Modal Crear Producto */}
+      {/* Modal Crear / Editar Producto */}
       {showModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-prod-title"
-          ref={prodModalRef}
-          tabIndex={-1}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              e.preventDefault();
-              e.stopPropagation();
-              setShowModal(false);
-              return;
-            }
-            if (e.key === 'Tab') {
-              if (!prodModalRef.current) return;
-              const nodes = Array.from(prodModalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-              if (nodes.length === 0) {
-                e.preventDefault();
-                return;
-              }
-              const first = nodes[0];
-              const last = nodes[nodes.length - 1];
-              const active = document.activeElement;
-              if (e.shiftKey && (active === first || active === prodModalRef.current)) {
-                e.preventDefault();
-                last.focus();
-              } else if (!e.shiftKey && active === last) {
-                e.preventDefault();
-                first.focus();
-              }
-            }
-          }}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'color-mix(in srgb, var(--bento-hueso) 70%, transparent)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '16px',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowModal(false);
-          }}
-        >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '480px',
-              backgroundColor: 'var(--bento-papel)',
-              borderRadius: 'var(--bento-card-radius)',
-              border: '1px solid var(--bento-border)',
-              boxShadow: 'var(--bento-card-shadow)',
-              padding: '24px',
-            }}
-          >
-            <h2
-              id="modal-prod-title"
-              style={{
-                margin: '0 0 16px 0',
-                fontSize: '1.25rem',
-                fontWeight: 700,
-                fontFamily: 'var(--bento-font-heading)',
-                color: 'var(--bento-text)',
-              }}
-            >
-              Crear Nuevo Producto
-            </h2>
-
+        <Modal open title={editingProduct ? 'Editar Producto' : 'Crear Nuevo Producto'}
+          onClose={() => setShowModal(false)} onSubmit={handleSaveProduct}
+          primaryLabel={editingProduct ? 'Guardar Cambios' : 'Crear Producto'}
+          primaryLoading={submitting} primaryLoadingLabel="Guardando..." maxWidth="520px">
             {modalError && (
               <div
                 role="alert"
@@ -569,7 +484,7 @@ export default function MenuPage() {
                   marginBottom: '16px',
                   borderRadius: 'var(--bento-inner-radius)',
                   border: '1px solid var(--bento-destructive)',
-                  backgroundColor: 'var(--bento-papel)',
+                  backgroundColor: 'var(--bento-card-bg-solid)',
                   color: 'var(--bento-destructive)',
                   fontSize: '0.85rem',
                   fontWeight: 600,
@@ -579,7 +494,6 @@ export default function MenuPage() {
               </div>
             )}
 
-            <form onSubmit={handleSaveProduct} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label
                   htmlFor="prod-name"
@@ -598,23 +512,45 @@ export default function MenuPage() {
                 />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label
-                  htmlFor="prod-price"
-                  style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--bento-text)' }}
-                >
-                  Precio
-                </label>
-                <input
-                  id="prod-price"
-                  type="number"
-                  step="any"
-                  value={newProdPrice}
-                  onChange={(e) => setNewProdPrice(e.target.value)}
-                  placeholder="1200"
-                  required
-                  style={inputStyle}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label
+                    htmlFor="prod-price"
+                    style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--bento-text)' }}
+                  >
+                    Precio en COP
+                  </label>
+                  <input
+                    id="prod-price"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={newProdPrice}
+                    onChange={(e) => setNewProdPrice(e.target.value)}
+                    placeholder="25000"
+                    required
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label
+                    htmlFor="prod-prep-time"
+                    style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--bento-text)' }}
+                  >
+                    Tiempo Prep. (min)
+                  </label>
+                  <input
+                    id="prod-prep-time"
+                    type="number"
+                    min="1"
+                    max="120"
+                    value={newProdPrepTime}
+                    onChange={(e) => setNewProdPrepTime(Math.max(1, Math.min(120, parseInt(e.target.value, 10) || 15)))}
+                    required
+                    style={inputStyle}
+                  />
+                </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -641,7 +577,62 @@ export default function MenuPage() {
                 </select>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label
+                  htmlFor="prod-description"
+                  style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--bento-text)' }}
+                >
+                  Descripción (opcional)
+                </label>
+                <textarea
+                  id="prod-description"
+                  value={newProdDescription}
+                  onChange={(e) => setNewProdDescription(e.target.value)}
+                  placeholder="Detalles de preparación, ingredientes, etc."
+                  rows={2}
+                  style={{ ...inputStyle, resize: 'vertical' }}
+                />
+              </div>
+
+              {/* Imagen: Subida de archivo + preview */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label
+                  htmlFor="prod-image-file"
+                  style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--bento-text)' }}
+                >
+                  Imagen del Plato
+                </label>
+                <input
+                  id="prod-image-file"
+                  type="file"
+                  accept="image/png, image/jpeg, image/webp"
+                  onChange={handleImageFileChange}
+                  style={inputStyle}
+                />
+                {uploadingImage && (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--bento-text-muted)' }}>
+                    Subiendo imagen...
+                  </span>
+                )}
+                {(newProdImagePreview || newProdImageUrl) && (
+                  <div style={{ marginTop: '6px' }}>
+                    <img
+                      src={newProdImagePreview || newProdImageUrl}
+                      alt="Vista previa de imagen"
+                      style={{
+                        width: '100%',
+                        maxHeight: '140px',
+                        objectFit: 'cover',
+                        borderRadius: 'var(--bento-inner-radius)',
+                        border: '1px solid var(--bento-border)',
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Toggle Disponible */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '2px' }}>
                 <input
                   id="prod-available"
                   type="checkbox"
@@ -657,103 +648,15 @@ export default function MenuPage() {
                 </label>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  style={secondaryBtnStyle}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  style={{
-                    ...primaryBtnStyle,
-                    opacity: submitting ? 0.6 : 1,
-                    cursor: submitting ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {submitting ? 'Guardando...' : 'Crear Producto'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
-      {/* Modal Crear Categoría */}
+      {/* Modal Crear / Editar Categoría */}
       {showCatModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-cat-title"
-          ref={catModalRef}
-          tabIndex={-1}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              e.preventDefault();
-              e.stopPropagation();
-              setShowCatModal(false);
-              return;
-            }
-            if (e.key === 'Tab') {
-              if (!catModalRef.current) return;
-              const nodes = Array.from(catModalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-              if (nodes.length === 0) {
-                e.preventDefault();
-                return;
-              }
-              const first = nodes[0];
-              const last = nodes[nodes.length - 1];
-              const active = document.activeElement;
-              if (e.shiftKey && (active === first || active === catModalRef.current)) {
-                e.preventDefault();
-                last.focus();
-              } else if (!e.shiftKey && active === last) {
-                e.preventDefault();
-                first.focus();
-              }
-            }
-          }}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'color-mix(in srgb, var(--bento-hueso) 70%, transparent)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '16px',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowCatModal(false);
-          }}
-        >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '440px',
-              backgroundColor: 'var(--bento-papel)',
-              borderRadius: 'var(--bento-card-radius)',
-              border: '1px solid var(--bento-border)',
-              boxShadow: 'var(--bento-card-shadow)',
-              padding: '24px',
-            }}
-          >
-            <h2
-              id="modal-cat-title"
-              style={{
-                margin: '0 0 16px 0',
-                fontSize: '1.25rem',
-                fontWeight: 700,
-                fontFamily: 'var(--bento-font-heading)',
-                color: 'var(--bento-text)',
-              }}
-            >
-              Crear Nueva Categoría
-            </h2>
-
+        <Modal open title={editingCategory ? 'Editar Categoría' : 'Crear Nueva Categoría'}
+          onClose={() => setShowCatModal(false)} onSubmit={handleSaveCategory}
+          primaryLabel="Guardar Categoría" primaryLoading={submitting}
+          primaryLoadingLabel="Guardando..." maxWidth="440px">
             {catModalError && (
               <div
                 role="alert"
@@ -762,7 +665,7 @@ export default function MenuPage() {
                   marginBottom: '16px',
                   borderRadius: 'var(--bento-inner-radius)',
                   border: '1px solid var(--bento-destructive)',
-                  backgroundColor: 'var(--bento-papel)',
+                  backgroundColor: 'var(--bento-card-bg-solid)',
                   color: 'var(--bento-destructive)',
                   fontSize: '0.85rem',
                   fontWeight: 600,
@@ -772,7 +675,6 @@ export default function MenuPage() {
               </div>
             )}
 
-            <form onSubmit={handleSaveCategory} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label
                   htmlFor="cat-name-input"
@@ -807,29 +709,25 @@ export default function MenuPage() {
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowCatModal(false)}
-                  style={secondaryBtnStyle}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label
+                  htmlFor="cat-destination-select"
+                  style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--bento-text)' }}
                 >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  style={{
-                    ...primaryBtnStyle,
-                    opacity: submitting ? 0.6 : 1,
-                    cursor: submitting ? 'not-allowed' : 'pointer',
-                  }}
+                  Destino de preparación
+                </label>
+                <select
+                  id="cat-destination-select"
+                  value={newCatDestination}
+                  onChange={(e) => setNewCatDestination(e.target.value as 'kitchen' | 'bar')}
+                  style={inputStyle}
                 >
-                  {submitting ? 'Guardando...' : 'Guardar Categoría'}
-                </button>
+                  <option value="kitchen">Cocina</option>
+                  <option value="bar">Bar</option>
+                </select>
               </div>
-            </form>
-          </div>
-        </div>
+
+        </Modal>
       )}
 
       {/* Estado de carga inicial con Skeleton */}
@@ -837,7 +735,7 @@ export default function MenuPage() {
         <div data-testid="menu-loading-skeleton" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
           <div>
             <Skeleton width="180px" height="24px" style={{ marginBottom: '16px' }} />
-            <BentoGrid>
+            <BentoGrid style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
               {[1, 2, 3, 4].map((i) => (
                 <BentoCard key={i}>
                   <div style={{ padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -865,7 +763,7 @@ export default function MenuPage() {
         </div>
       ) : (
         <>
-          {/* Sección de Categorías */}
+          {/* Sección de Categorías con CRUD y Reordenamiento (N11) */}
           <section aria-labelledby="section-categories-title">
             <h2
               id="section-categories-title"
@@ -895,19 +793,25 @@ export default function MenuPage() {
                 }
               />
             ) : (
-              <BentoGrid>
-                {categories.map((cat) => (
+              <BentoGrid style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
+                {categories.map((cat, idx) => (
                   <CategoryCard
                     key={cat.id}
                     category={cat}
                     productCount={products.filter((p) => p.categoryId === cat.id).length}
+                    canMoveUp={idx > 0}
+                    canMoveDown={idx < categories.length - 1}
+                    onMoveUp={() => handleMoveCategory(idx, 'up')}
+                    onMoveDown={() => handleMoveCategory(idx, 'down')}
+                    onEdit={handleEditCategory}
+                    onDelete={handleDeleteCategory}
                   />
                 ))}
               </BentoGrid>
             )}
           </section>
 
-          {/* Sección de Platos Registrados */}
+          {/* Sección de Platos Registrados (REF-6, N05, N11, N12) */}
           {categories.length > 0 && (
             <section aria-labelledby="section-products-title" style={{ marginTop: '36px' }}>
               <h2
@@ -948,8 +852,14 @@ export default function MenuPage() {
                         price: p.price,
                         categoryId: p.categoryId,
                         isAvailable: p.isAvailable !== false,
+                        description: p.description,
+                        imageUrl: p.imageUrl,
+                        prepTimeMinutes: p.prepTimeMinutes,
                       }}
+                      categoryName={categories.find((c) => c.id === p.categoryId)?.name}
                       onAvailabilityChange={(isAvail) => handleToggleAvailability(p.id, isAvail)}
+                      onEdit={handleEditProduct}
+                      onDelete={handleDeleteProduct}
                     />
                   ))}
                 </BentoGrid>

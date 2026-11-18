@@ -1,0 +1,13 @@
+﻿[
+  {
+    "antipattern": "icon-tile-stack",
+    "name": "Icon tile stacked above heading",
+    "description": "A small rounded-square icon container above a heading is the universal AI feature-card template ÔÇö every generator outputs this exact shape. Try a side-by-side icon and heading, or let the icon sit in flow without its own container.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "http://localhost:3001",
+    "line": 0,
+    "snippet": "74x74px icon tile above h1 \"Men├║ Digital\"",
+    "selector": "h1"
+  }
+]

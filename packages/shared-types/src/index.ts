@@ -1,10 +1,13 @@
 export * from './common/UseCase';
 export * from './common/errors';
+export * from './common/format';
 export * from './identity/dtos';
 export * from './identity/ports';
 export * from './catalog/dtos';
 export * from './catalog/ports';
 export * from './session/dtos';
+export * from './session/zoneFloorSpace';
 export * from './session/ports';
 export * from './ordering/dtos';
 export * from './ordering/ports';
+export * as floorplan from './floorplan';

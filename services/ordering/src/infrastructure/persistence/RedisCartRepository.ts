@@ -1,5 +1,6 @@
 import Redis from 'ioredis';
 import { CartDTO, CartItemDTO, CartRepository } from '@packages/shared-types';
+import { canonicalModifierKey } from '../../domain/merge';
 import {
   CartReservation,
   CartReservationPort,
@@ -17,6 +18,13 @@ export class RedisCartRepository implements CartRepository, CartReservationPort 
     return `cart:${tenantId}:${sessionId}`;
   }
 
+  private normalizeItem(item: any): CartItemDTO {
+    return {
+      ...item,
+      modifiers: Array.isArray(item.modifiers) ? item.modifiers : [],
+    };
+  }
+
   private getReservationKey(tenantId: string, sessionId: string): string {
     return `cart:reservation:${tenantId}:${sessionId}`;
   }
@@ -27,7 +35,8 @@ export class RedisCartRepository implements CartRepository, CartReservationPort 
 
   private calculateTotal(items: CartItemDTO[]): number {
     const totalCents = items.reduce((sum, item) => {
-      const deltas = (item.modifiers || []).reduce(
+      const modifiers = Array.isArray(item.modifiers) ? item.modifiers : [];
+      const deltas = modifiers.reduce(
         (dSum, m) => dSum + Math.round((m.priceDelta || 0) * 100),
         0
       );
@@ -37,18 +46,13 @@ export class RedisCartRepository implements CartRepository, CartReservationPort 
     return totalCents / 100;
   }
 
-  private normalizeItem(item: CartItemDTO): CartItemDTO {
-    if (!Array.isArray(item.modifiers)) {
-      item.modifiers = [];
-    }
-    return item;
-  }
-
   async get(tenantId: string, sessionId: string, ttlSeconds: number): Promise<CartDTO> {
     const key = this.getKey(tenantId, sessionId);
     const multi = this.redis.multi();
     multi.hgetall(key);
-    multi.expire(key, ttlSeconds);
+    if (ttlSeconds && ttlSeconds > 0) {
+      multi.expire(key, ttlSeconds);
+    }
     const results = await multi.exec();
 
     const rawHash = (results?.[0]?.[1] as Record<string, string>) || {};
@@ -71,14 +75,141 @@ export class RedisCartRepository implements CartRepository, CartReservationPort 
     ttlSeconds: number
   ): Promise<CartDTO> {
     const key = this.getKey(tenantId, sessionId);
-    const serialized = JSON.stringify(item);
+    const incomingModKey = canonicalModifierKey(item.modifiers || []);
 
-    const multi = this.redis.multi();
-    multi.hset(key, item.cartItemId, serialized);
-    multi.expire(key, ttlSeconds);
-    await multi.exec();
+    const luaScript = `
+      pcall(function() cjson.encode_empty_table_as_object(false) end)
+      local key = KEYS[1]
+      local newItem = cjson.decode(ARGV[1])
+      local ttlSeconds = tonumber(ARGV[2])
+      local incomingModKey = ARGV[3] or ""
 
-    return this.get(tenantId, sessionId, ttlSeconds);
+      local function getCanonicalModKey(mods)
+        if not mods or #mods == 0 then
+          return ""
+        end
+        local refs = {}
+        for _, m in ipairs(mods) do
+          table.insert(refs, tostring(m.groupId) .. ":" .. tostring(m.optionId))
+        end
+        table.sort(refs)
+        return table.concat(refs, "|")
+      end
+
+      local rawHash = redis.call('HGETALL', key)
+      local matchedField = nil
+      local matchedItem = nil
+
+      for i = 1, #rawHash, 2 do
+        local field = rawHash[i]
+        local valStr = rawHash[i + 1]
+        local existing = cjson.decode(valStr)
+        if existing.productId == newItem.productId then
+          local existingModKey = getCanonicalModKey(existing.modifiers)
+          if existingModKey == incomingModKey then
+            matchedField = field
+            matchedItem = existing
+            break
+          end
+        end
+      end
+
+      if matchedItem then
+        local newQty = matchedItem.quantity + newItem.quantity
+        if newQty > 99 then
+          return cjson.encode({
+            error = "VALIDATION_ERROR",
+            message = "La cantidad total por ítem no puede exceder 99"
+          })
+        end
+        matchedItem.quantity = newQty
+        if newItem.notes and newItem.notes ~= "" then
+          matchedItem.notes = newItem.notes
+        end
+        local deltasCents = 0
+        if matchedItem.modifiers and #matchedItem.modifiers > 0 then
+          for _, m in ipairs(matchedItem.modifiers) do
+            deltasCents = deltasCents + math.floor((tonumber(m.priceDelta) or 0) * 100 + 0.5)
+          end
+        end
+        local unitCents = math.floor((tonumber(matchedItem.unitPrice) or 0) * 100 + 0.5)
+        matchedItem.lineTotal = ((unitCents + deltasCents) * newQty) / 100
+        redis.call('HSET', key, matchedField, cjson.encode(matchedItem))
+      else
+        if newItem.quantity > 99 then
+          return cjson.encode({
+            error = "VALIDATION_ERROR",
+            message = "La cantidad total por ítem no puede exceder 99"
+          })
+        end
+        local deltasCents = 0
+        if newItem.modifiers and #newItem.modifiers > 0 then
+          for _, m in ipairs(newItem.modifiers) do
+            deltasCents = deltasCents + math.floor((tonumber(m.priceDelta) or 0) * 100 + 0.5)
+          end
+        end
+        local unitCents = math.floor((tonumber(newItem.unitPrice) or 0) * 100 + 0.5)
+        newItem.lineTotal = ((unitCents + deltasCents) * newItem.quantity) / 100
+        redis.call('HSET', key, newItem.cartItemId, cjson.encode(newItem))
+      end
+
+      if ttlSeconds and ttlSeconds > 0 then
+        redis.call('EXPIRE', key, ttlSeconds)
+      end
+
+      local allVals = redis.call('HVALS', key)
+      local items = {}
+      local totalCents = 0
+      for _, v in ipairs(allVals) do
+        local it = cjson.decode(v)
+        table.insert(items, it)
+        local itemDeltasCents = 0
+        if it.modifiers and #it.modifiers > 0 then
+          for _, m in ipairs(it.modifiers) do
+            itemDeltasCents = itemDeltasCents + math.floor((tonumber(m.priceDelta) or 0) * 100 + 0.5)
+          end
+        end
+        local itUnitCents = math.floor((tonumber(it.unitPrice) or 0) * 100 + 0.5)
+        totalCents = totalCents + (itUnitCents + itemDeltasCents) * it.quantity
+      end
+
+      return cjson.encode({
+        items = items,
+        total = totalCents / 100
+      })
+    `;
+
+    const rawResult = (await this.redis.eval(
+      luaScript,
+      1,
+      key,
+      JSON.stringify(item),
+      ttlSeconds.toString(),
+      incomingModKey
+    )) as string;
+
+    const parsed = JSON.parse(rawResult);
+    if (parsed.error === 'VALIDATION_ERROR') {
+      throw new ValidationError(parsed.message || 'La cantidad total por ítem no puede exceder 99');
+    }
+
+    const items: CartItemDTO[] = (parsed.items || []).map((it: any) => this.normalizeItem(it));
+
+    return {
+      tenantId,
+      sessionId,
+      items,
+      total: parsed.total,
+    };
+  }
+
+  async addItem(
+    tenantId: string,
+    sessionId: string,
+    item: CartItemDTO,
+    ttlSeconds: number
+  ): Promise<CartDTO> {
+    return this.upsertItem(tenantId, sessionId, item, ttlSeconds);
   }
 
   async addItemAtomic(
@@ -135,6 +266,10 @@ export class RedisCartRepository implements CartRepository, CartReservationPort 
           return cjson.encode({ status = 'MAX_QUANTITY_EXCEEDED', currentQuantity = matchedItem.quantity, requestedQuantity = inputQty, maxQuantity = maxQty })
         end
         matchedItem.quantity = newQty
+        local newItem = cjson.decode(newItemJson)
+        if newItem.notes and newItem.notes ~= "" then
+          matchedItem.notes = newItem.notes
+        end
         local deltas = 0
         if matchedItem.modifiers then
           for _, m in ipairs(matchedItem.modifiers) do
@@ -491,20 +626,76 @@ export class RedisCartRepository implements CartRepository, CartReservationPort 
       return this.removeItem(tenantId, sessionId, cartItemId, ttlSeconds);
     }
 
-    const raw = await this.redis.hget(key, cartItemId);
-    if (raw) {
-      const item: CartItemDTO = this.normalizeItem(JSON.parse(raw));
-      item.quantity = quantity;
-      const deltas = (item.modifiers || []).reduce((sum, m) => sum + (m.priceDelta || 0), 0);
-      item.lineTotal = (item.unitPrice + deltas) * quantity;
-
-      const multi = this.redis.multi();
-      multi.hset(key, cartItemId, JSON.stringify(item));
-      multi.expire(key, ttlSeconds);
-      await multi.exec();
+    if (quantity > 99) {
+      throw new ValidationError('La cantidad total por ítem no puede exceder 99');
     }
 
-    return this.get(tenantId, sessionId, ttlSeconds);
+    const luaScript = `
+      pcall(function() cjson.encode_empty_table_as_object(false) end)
+      local key = KEYS[1]
+      local cartItemId = ARGV[1]
+      local newQty = tonumber(ARGV[2])
+      local ttlSeconds = tonumber(ARGV[3])
+
+      local raw = redis.call('HGET', key, cartItemId)
+      if raw then
+        local item = cjson.decode(raw)
+        item.quantity = newQty
+        local deltasCents = 0
+        if item.modifiers and #item.modifiers > 0 then
+          for _, m in ipairs(item.modifiers) do
+            deltasCents = deltasCents + math.floor((tonumber(m.priceDelta) or 0) * 100 + 0.5)
+          end
+        end
+        local unitCents = math.floor((tonumber(item.unitPrice) or 0) * 100 + 0.5)
+        item.lineTotal = ((unitCents + deltasCents) * newQty) / 100
+        redis.call('HSET', key, cartItemId, cjson.encode(item))
+      end
+
+      if ttlSeconds and ttlSeconds > 0 then
+        redis.call('EXPIRE', key, ttlSeconds)
+      end
+
+      local allVals = redis.call('HVALS', key)
+      local items = {}
+      local totalCents = 0
+      for _, v in ipairs(allVals) do
+        local it = cjson.decode(v)
+        table.insert(items, it)
+        local itemDeltasCents = 0
+        if it.modifiers and #it.modifiers > 0 then
+          for _, m in ipairs(it.modifiers) do
+            itemDeltasCents = itemDeltasCents + math.floor((tonumber(m.priceDelta) or 0) * 100 + 0.5)
+          end
+        end
+        local itUnitCents = math.floor((tonumber(it.unitPrice) or 0) * 100 + 0.5)
+        totalCents = totalCents + (itUnitCents + itemDeltasCents) * it.quantity
+      end
+
+      return cjson.encode({
+        items = items,
+        total = totalCents / 100
+      })
+    `;
+
+    const rawResult = (await this.redis.eval(
+      luaScript,
+      1,
+      key,
+      cartItemId,
+      quantity.toString(),
+      ttlSeconds.toString()
+    )) as string;
+
+    const parsed = JSON.parse(rawResult);
+    const items: CartItemDTO[] = (parsed.items || []).map((it: any) => this.normalizeItem(it));
+
+    return {
+      tenantId,
+      sessionId,
+      items,
+      total: parsed.total,
+    };
   }
 
   async removeItem(
@@ -519,17 +710,133 @@ export class RedisCartRepository implements CartRepository, CartReservationPort 
     }
 
     const key = this.getKey(tenantId, sessionId);
-    const multi = this.redis.multi();
-    multi.hdel(key, cartItemId);
-    multi.expire(key, ttlSeconds);
-    await multi.exec();
 
-    return this.get(tenantId, sessionId, ttlSeconds);
+    const luaScript = `
+      pcall(function() cjson.encode_empty_table_as_object(false) end)
+      local key = KEYS[1]
+      local cartItemId = ARGV[1]
+      local ttlSeconds = tonumber(ARGV[2])
+
+      redis.call('HDEL', key, cartItemId)
+
+      if ttlSeconds and ttlSeconds > 0 then
+        redis.call('EXPIRE', key, ttlSeconds)
+      end
+
+      local allVals = redis.call('HVALS', key)
+      local items = {}
+      local totalCents = 0
+      for _, v in ipairs(allVals) do
+        local it = cjson.decode(v)
+        table.insert(items, it)
+        local itemDeltasCents = 0
+        if it.modifiers and #it.modifiers > 0 then
+          for _, m in ipairs(it.modifiers) do
+            itemDeltasCents = itemDeltasCents + math.floor((tonumber(m.priceDelta) or 0) * 100 + 0.5)
+          end
+        end
+        local itUnitCents = math.floor((tonumber(it.unitPrice) or 0) * 100 + 0.5)
+        totalCents = totalCents + (itUnitCents + itemDeltasCents) * it.quantity
+      end
+
+      return cjson.encode({
+        items = items,
+        total = totalCents / 100
+      })
+    `;
+
+    const rawResult = (await this.redis.eval(
+      luaScript,
+      1,
+      key,
+      cartItemId,
+      ttlSeconds.toString()
+    )) as string;
+
+    const parsed = JSON.parse(rawResult);
+    const items: CartItemDTO[] = (parsed.items || []).map((it: any) => this.normalizeItem(it));
+
+    return {
+      tenantId,
+      sessionId,
+      items,
+      total: parsed.total,
+    };
   }
 
   async clear(tenantId: string, sessionId: string): Promise<void> {
     const key = this.getKey(tenantId, sessionId);
     await this.redis.del(key);
+  }
+
+  async takeSnapshot(tenantId: string, sessionId: string): Promise<CartDTO> {
+    const key = this.getKey(tenantId, sessionId);
+    const luaScript = `
+      pcall(function() cjson.encode_empty_table_as_object(false) end)
+      local key = KEYS[1]
+      local rawVals = redis.call('HVALS', key)
+      if #rawVals == 0 then
+        return nil
+      end
+      redis.call('DEL', key)
+      local items = {}
+      local totalCents = 0
+      for _, v in ipairs(rawVals) do
+        local it = cjson.decode(v)
+        table.insert(items, it)
+        local itemDeltasCents = 0
+        if it.modifiers and #it.modifiers > 0 then
+          for _, m in ipairs(it.modifiers) do
+            itemDeltasCents = itemDeltasCents + math.floor((tonumber(m.priceDelta) or 0) * 100 + 0.5)
+          end
+        end
+        local itUnitCents = math.floor((tonumber(it.unitPrice) or 0) * 100 + 0.5)
+        totalCents = totalCents + (itUnitCents + itemDeltasCents) * it.quantity
+      end
+
+      return cjson.encode({
+        items = items,
+        total = totalCents / 100
+      })
+    `;
+
+    const rawResult = (await this.redis.eval(luaScript, 1, key)) as string | null;
+    if (!rawResult) {
+      return {
+        tenantId,
+        sessionId,
+        items: [],
+        total: 0,
+      };
+    }
+
+    const parsed = JSON.parse(rawResult);
+    const items: CartItemDTO[] = (parsed.items || []).map((it: any) => this.normalizeItem(it));
+
+    return {
+      tenantId,
+      sessionId,
+      items,
+      total: parsed.total,
+    };
+  }
+
+  async restoreCart(
+    tenantId: string,
+    sessionId: string,
+    cart: CartDTO,
+    ttlSeconds: number
+  ): Promise<void> {
+    if (!cart.items || cart.items.length === 0) return;
+    const key = this.getKey(tenantId, sessionId);
+    const multi = this.redis.multi();
+    for (const item of cart.items) {
+      multi.hset(key, item.cartItemId, JSON.stringify(item));
+    }
+    if (ttlSeconds && ttlSeconds > 0) {
+      multi.expire(key, ttlSeconds);
+    }
+    await multi.exec();
   }
 
   async clearAll(tenantId: string, sessionId: string): Promise<void> {

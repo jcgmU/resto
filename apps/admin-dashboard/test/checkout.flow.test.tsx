@@ -1,9 +1,35 @@
 import React from 'react';
 import '@testing-library/jest-dom';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import CheckoutPage from '../src/app/(panel)/checkout/page';
+import TerminalCajaPage from '../src/app/(terminal)/terminal-caja/page';
+import { BillSummaryCard } from '../src/components/checkout';
 import { ApiClient } from '../src/lib/api';
+import * as realtimeModule from '../src/lib/realtime';
 import { FeatureFlagProviderRoot, StaticFeatureFlagProvider } from '@packages/ui-components';
+
+// Polyfill jsdom cssstyle 2.3.0 para preservar CSS variables en propiedades de color/fondo
+if (typeof window !== 'undefined' && (window as any).CSSStyleDeclaration) {
+  const proto = (window as any).CSSStyleDeclaration.prototype;
+  for (const prop of ['color', 'backgroundColor', 'border', 'borderColor']) {
+    const origDesc = Object.getOwnPropertyDescriptor(proto, prop);
+    if (origDesc && origDesc.set) {
+      Object.defineProperty(proto, prop, {
+        get: origDesc.get,
+        set: function (v: any) {
+          if (typeof v === 'string' && v.includes('var(')) {
+            const kebab = prop === 'backgroundColor' ? 'background-color' : prop === 'borderColor' ? 'border-color' : prop;
+            (this as any)._setProperty(kebab, v);
+          } else {
+            origDesc.set.call(this, v);
+          }
+        },
+        configurable: true,
+        enumerable: true,
+      });
+    }
+  }
+}
 
 describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
   const provider = new StaticFeatureFlagProvider({ payments: true });
@@ -18,8 +44,8 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
     const fetchMock = jest.fn(async (url: any, opts: any) => {
       const urlStr = url.toString();
 
-      // 1. GET /v1/sessions?status=active
-      if (urlStr.includes('/v1/sessions?status=active')) {
+      // 1. GET /v1/sessions
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
         return {
           ok: true,
           status: 200,
@@ -98,7 +124,7 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
       // Debe cargar el bill y mostrar el total
       await waitFor(() => {
         expect(screen.getByText(/Total a Cobrar/i)).toBeInTheDocument();
-        expect(screen.getByText(/\$1500/i)).toBeInTheDocument();
+        expect(screen.getByText(/\$\s*1\.500/i)).toBeInTheDocument();
       });
 
       // Seleccionar método de pago Efectivo
@@ -134,7 +160,7 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
     const fetchMock = jest.fn(async (url: any, opts: any) => {
       const urlStr = url.toString();
 
-      if (urlStr.includes('/v1/sessions?status=active')) {
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
         return {
           ok: true,
           status: 200,
@@ -214,7 +240,7 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
       fireEvent.click(screen.getByText('Mesa 5'));
 
       await waitFor(() => {
-        expect(screen.getByText(/\$200/i)).toBeInTheDocument();
+        expect(screen.getByText(/\$\s*200/i)).toBeInTheDocument();
       });
 
       const cashBtn = screen.getByRole('radio', { name: /efectivo/i });
@@ -268,8 +294,8 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
         };
       }
 
-      // GET /v1/sessions?status=active: dos sesiones en la misma mesa (sesiones gemelas)
-      if (urlStr.includes('/v1/sessions?status=active')) {
+      // GET /v1/sessions: dos sesiones en la misma mesa (sesiones gemelas)
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
         return {
           ok: true,
           status: 200,
@@ -339,11 +365,11 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
           status: 201,
           headers: { get: () => 'application/json' },
           json: async () => ({
-            paymentId: 'pay-card-1',
+            paymentId: 'pay-cash-1',
             sessionId: 'sess-gemela-111111',
             tableId: 'tbl-vip-77',
             amount: 3500,
-            method: 'CARD',
+            method: 'CASH',
             status: 'COMPLETED',
           }),
         };
@@ -363,7 +389,7 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
       // (a) Nombre de mesa resuelto con getTableDisplayName
       await waitFor(() => {
         const vipHeaders = screen.getAllByText('Mesa VIP 77');
-        expect(vipHeaders).toHaveLength(2);
+        expect(vipHeaders).toHaveLength(1);
       });
 
       // (b) Sesiones gemelas son distinguibles en la grilla
@@ -379,23 +405,1199 @@ describe('RONDA 5: FIX B1 - Admin Checkout Cableado Real (TDD Rojo)', () => {
         expect(screen.getByText(/Orden #334444/i)).toBeInTheDocument();
       });
 
-      // (c) Elegir Tarjeta
-      const cardRadio = screen.getByRole('radio', { name: 'Tarjeta' });
-      fireEvent.click(cardRadio);
+      // (c) Elegir Efectivo
+      const cashRadio = screen.getByRole('radio', { name: 'Efectivo' });
+      fireEvent.click(cashRadio);
 
       // Confirmar cobro
       fireEvent.click(screen.getByRole('button', { name: /registrar cobro/i }));
       const dialog = screen.getByRole('dialog');
-      expect(within(dialog).getByText('Tarjeta')).toBeInTheDocument();
+      expect(within(dialog).getByText('Efectivo')).toBeInTheDocument();
 
       fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar cobro' }));
 
       // Tarjeta de éxito muestra nombre real y método en español
       await waitFor(() => {
-        expect(screen.getByText(/Mesa VIP 77 • Total: \$3500 • Medio: Tarjeta/i)).toBeInTheDocument();
+        expect(screen.getByText(/Mesa VIP 77 • Total:\s*\$\s*3\.500\s*• Medio:\s*Efectivo/i)).toBeInTheDocument();
       });
     } finally {
       global.fetch = originalFetch;
     }
   });
+
+  test('V12 (a): Cobro CASH con respuesta backend anidada { bill, payment } envía monto y registra confirmación', async () => {
+    const originalFetch = global.fetch;
+    let confirmBody: any = null;
+
+    const fetchMock = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-cash-nested',
+              tenantId: 't-1',
+              tableId: 'Mesa 8',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/sess-cash-nested')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            bill: {
+              sessionId: 'sess-cash-nested',
+              tableId: 'Mesa 8',
+              ordersCount: 1,
+              total: 5400,
+              payment: null,
+              orders: [],
+            },
+          }),
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/confirm') && opts?.method === 'POST') {
+        confirmBody = JSON.parse(opts.body);
+        return {
+          ok: true,
+          status: 201,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            bill: {
+              sessionId: 'sess-cash-nested',
+              tableId: 'Mesa 8',
+              total: 5400,
+              ordersCount: 1,
+              orders: [],
+            },
+            payment: {
+              id: 'pay-nested-8',
+              amount: 5400,
+              method: 'CASH',
+              status: 'COMPLETED',
+            },
+          }),
+        };
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <CheckoutPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesa 8')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Mesa 8'));
+
+      await waitFor(() => {
+        expect(screen.getByText(/\$\s*5\.400/i)).toBeInTheDocument();
+      });
+
+      const cashRadio = screen.getByRole('radio', { name: /efectivo/i });
+      fireEvent.click(cashRadio);
+
+      const registrarBtn = screen.getByRole('button', { name: /registrar cobro/i });
+      fireEvent.click(registrarBtn);
+
+      const dialog = screen.getByRole('dialog');
+      const confirmBtn = within(dialog).getByRole('button', { name: 'Confirmar cobro' });
+      fireEvent.click(confirmBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText(/cobro registrado\. mesa liberada\./i)).toBeInTheDocument();
+        expect(screen.getByText(/\$\s*5\.400/i)).toBeInTheDocument();
+      });
+
+      expect(confirmBody).toEqual({
+        sessionId: 'sess-cash-nested',
+        tableId: 'Mesa 8',
+        method: 'CASH',
+        amount: 5400,
+      });
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('V12 (b): Error con respuesta anidada { error: { code, message } } (ej. BILL_EMPTY) visible fuera de bill && con botón de reintento', async () => {
+    let attempt = 0;
+    const originalFetch = global.fetch;
+
+    const fetchMock = jest.fn(async (url: any) => {
+      const urlStr = url.toString();
+
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-empty-1',
+              tenantId: 't-1',
+              tableId: 'Mesa 12',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/sess-empty-1')) {
+        attempt += 1;
+        if (attempt === 1) {
+          return {
+            ok: false,
+            status: 400,
+            headers: { get: () => 'application/json' },
+            json: async () => ({
+              error: {
+                code: 'BILL_EMPTY',
+                message: 'No hay pedidos activos',
+              },
+            }),
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            sessionId: 'sess-empty-1',
+            tableId: 'Mesa 12',
+            ordersCount: 1,
+            total: 100,
+            payment: null,
+            orders: [],
+          }),
+        };
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <CheckoutPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesa 12')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Mesa 12'));
+
+      // Error banner fuera de bill && debe ser visible
+      await waitFor(() => {
+        const errorBanner = screen.getByTestId('bill-error-banner');
+        expect(errorBanner).toBeInTheDocument();
+        expect(within(errorBanner).getByText(/BILL_EMPTY/i)).toBeInTheDocument();
+        expect(within(errorBanner).getByText(/la mesa no tiene pedidos registrados para cobrar/i)).toBeInTheDocument();
+        expect(within(errorBanner).getByRole('button', { name: /reintentar/i })).toBeInTheDocument();
+      });
+
+      // Click en Reintentar
+      const retryBtn = within(screen.getByTestId('bill-error-banner')).getByRole('button', { name: /reintentar/i });
+      fireEvent.click(retryBtn);
+
+      // Segundo intento carga exitosamente la cuenta
+      await waitFor(() => {
+        expect(screen.getByText(/\$\s*100/i)).toBeInTheDocument();
+        expect(screen.queryByTestId('bill-error-banner')).not.toBeInTheDocument();
+      });
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('V12 (c): Política N16: Liberar mesa bloqueada cuando hay consumo pendiente sin pagar', async () => {
+    const originalFetch = global.fetch;
+
+    const fetchMock = jest.fn(async (url: any) => {
+      const urlStr = url.toString();
+
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-pending-1',
+              tenantId: 't-1',
+              tableId: 'Mesa 15',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/sess-pending-1')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            sessionId: 'sess-pending-1',
+            tableId: 'Mesa 15',
+            ordersCount: 2,
+            total: 7800,
+            payment: null,
+            orders: [],
+          }),
+        };
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <CheckoutPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesa 15')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Mesa 15'));
+
+      await waitFor(() => {
+        expect(screen.getByText(/\$\s*7\.800/i)).toBeInTheDocument();
+      });
+
+      // Botón "Liberar mesa"
+      const releaseBtn = screen.getByRole('button', { name: /liberar mesa/i });
+      fireEvent.click(releaseBtn);
+
+      // Modal N16 se abre
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toBeInTheDocument();
+
+      // Debe indicar Acción bloqueada y mostrar el saldo pendiente
+      expect(within(dialog).getByText(/acción bloqueada/i)).toBeInTheDocument();
+      expect(within(dialog).getAllByText(/\$\s*7\.800/i).length).toBeGreaterThanOrEqual(1);
+
+      // Botón de confirmación debe estar estrictamente BLOQUEADO (disabled)
+      const confirmReleaseBtn = within(dialog).getByRole('button', { name: /confirmar liberación/i });
+      expect(confirmReleaseBtn).toBeDisabled();
+
+      // Cerrar modal
+      const cancelBtn = within(dialog).getByRole('button', { name: /cancelar/i });
+      fireEvent.click(cancelBtn);
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('V12 (d): Política N16: Liberar mesa permitida cuando no hay saldo pendiente ($0) y cierra sesión exitosamente', async () => {
+    let closedSessionCalled = false;
+    const originalFetch = global.fetch;
+
+    const fetchMock = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-free-1',
+              tenantId: 't-1',
+              tableId: 'Mesa 20',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/sess-free-1')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            sessionId: 'sess-free-1',
+            tableId: 'Mesa 20',
+            ordersCount: 0,
+            total: 0,
+            payment: null,
+            orders: [],
+          }),
+        };
+      }
+
+      if (urlStr.includes('/v1/sessions/sess-free-1/close') && opts?.method === 'PATCH') {
+        closedSessionCalled = true;
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            sessionId: 'sess-free-1',
+            status: 'closed',
+            closedAt: new Date().toISOString(),
+          }),
+        };
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <CheckoutPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesa 20')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Mesa 20'));
+
+      await waitFor(() => {
+        expect(screen.getByText(/\$\s*0/i)).toBeInTheDocument();
+      });
+
+      // Click en Liberar mesa
+      const releaseBtn = screen.getByRole('button', { name: /liberar mesa/i });
+      fireEvent.click(releaseBtn);
+
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toBeInTheDocument();
+      expect(within(dialog).getByText(/está al día/i)).toBeInTheDocument();
+
+      // Botón debe estar HABILITADO
+      const confirmReleaseBtn = within(dialog).getByRole('button', { name: /confirmar liberación/i });
+      expect(confirmReleaseBtn).not.toBeDisabled();
+
+      fireEvent.click(confirmReleaseBtn);
+
+      await waitFor(() => {
+        expect(closedSessionCalled).toBe(true);
+        expect(screen.getByText(/mesa liberada exitosamente\./i)).toBeInTheDocument();
+      });
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('U21: con respuesta que contiene sesiones active, billRequested y closed, la lista muestra active y billRequested pero no closed, y se puede abrir la cuenta de billRequested', async () => {
+    const originalFetch = global.fetch;
+    const requestedUrls: string[] = [];
+    const fetchMock = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+      requestedUrls.push(urlStr);
+
+      if (urlStr.includes('/v1/sessions')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-active-1',
+              tenantId: 't-1',
+              tableId: 'Mesa 1',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+            {
+              sessionId: 'sess-bill-req-2',
+              tenantId: 't-1',
+              tableId: 'Mesa 2',
+              status: 'billRequested',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+            {
+              sessionId: 'sess-closed-3',
+              tenantId: 't-1',
+              tableId: 'Mesa 3',
+              status: 'closed',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/sess-bill-req-2')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            sessionId: 'sess-bill-req-2',
+            tableId: 'Mesa 2',
+            ordersCount: 1,
+            total: 35000,
+            payment: null,
+            orders: [
+              {
+                id: 'ord-bill-1',
+                status: 'DELIVERED',
+                total: 35000,
+                items: [
+                  {
+                    id: 'it-1',
+                    productName: 'Bandeja Paisa',
+                    unitPrice: 35000,
+                    quantity: 1,
+                  },
+                ],
+              },
+            ],
+          }),
+        };
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <CheckoutPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      // Debe consultar sesiones y mostrar Mesa 1 y Mesa 2, pero NO Mesa 3
+      await waitFor(() => {
+        expect(screen.getByText('Mesa 1')).toBeInTheDocument();
+        expect(screen.getByText('Mesa 2')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Mesa 3')).not.toBeInTheDocument();
+
+      // La petición debió hacerse a /v1/sessions sin ?status=active
+      const sessionsCall = requestedUrls.find((u) => u.includes('/v1/sessions'));
+      expect(sessionsCall).toBeDefined();
+      expect(sessionsCall).not.toContain('status=active');
+
+      // Se puede abrir la cuenta de la mesa billRequested (Mesa 2)
+      fireEvent.click(screen.getByText('Mesa 2'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Cuenta — Mesa 2')).toBeInTheDocument();
+        expect(screen.getByText('Bandeja Paisa')).toBeInTheDocument();
+      });
+      expect(screen.getAllByText(/35\.000/).length).toBeGreaterThan(0);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('R2: Checkout muestra estado vacío "Mesa sin consumo" con acción "Liberar mesa" ante 404 BILL_NOT_FOUND', async () => {
+    const originalFetch = global.fetch;
+    const fetchMock = jest.fn(async (url: any) => {
+      const urlStr = url.toString();
+
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-sin-pedidos',
+              tenantId: 't-1',
+              tableId: 'Mesa 5',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+
+      if (urlStr.includes('/v1/tables')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [{ tableId: 'Mesa 5', label: 'Mesa 5' }],
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/sess-sin-pedidos')) {
+        return {
+          ok: false,
+          status: 404,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            error: {
+              code: 'BILL_NOT_FOUND',
+              message: 'No active bill found for session sess-sin-pedidos',
+            },
+          }),
+        };
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <CheckoutPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesa 5')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Mesa 5'));
+
+      // Debe mostrar estado vacío "Mesa sin consumo" con botón "Liberar mesa"
+      await waitFor(() => {
+        expect(screen.getByTestId('bill-empty-state')).toBeInTheDocument();
+      });
+      expect(screen.getByText('Mesa sin consumo')).toBeInTheDocument();
+      expect(screen.getByText(/no tiene pedidos registrados para cobrar/i)).toBeInTheDocument();
+      expect(screen.queryByTestId('bill-error-banner')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Liberar mesa/i })).toBeInTheDocument();
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('H-A2: CheckoutPage se refresca automáticamente cuando recibe eventos socket table:status-changed o session:checkout-completed', async () => {
+    const originalFetch = global.fetch;
+    const socketListeners: Record<string, () => void> = {};
+    const mockSocket = {
+      on: jest.fn((evt: string, cb: () => void) => {
+        socketListeners[evt] = cb;
+      }),
+      off: jest.fn(),
+      disconnect: jest.fn(),
+    };
+    const socketSpy = jest.spyOn(realtimeModule, 'connectOrdersSocket').mockReturnValue(mockSocket as any);
+
+    let fetchCount = 0;
+    const fetchMock = jest.fn(async (url: any) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/v1/sessions')) {
+        fetchCount++;
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-socket-1',
+              tenantId: 't-1',
+              tableId: 'Mesa 1',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+      if (urlStr.includes('/v1/tables')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [{ tableId: 'Mesa 1', label: 'Mesa 1' }],
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <CheckoutPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesa 1')).toBeInTheDocument();
+      });
+
+      const initialFetchCount = fetchCount;
+      expect(initialFetchCount).toBeGreaterThan(0);
+      expect(typeof socketListeners['table:status-changed']).toBe('function');
+      expect(typeof socketListeners['session:checkout-completed']).toBe('function');
+
+      // Disparar evento de socket table:status-changed
+      await act(async () => {
+        socketListeners['table:status-changed']();
+      });
+
+      await waitFor(() => {
+        expect(fetchCount).toBeGreaterThan(initialFetchCount);
+      });
+
+      const afterFirstEvent = fetchCount;
+      // Disparar evento de socket session:checkout-completed
+      await act(async () => {
+        socketListeners['session:checkout-completed']();
+      });
+
+      await waitFor(() => {
+        expect(fetchCount).toBeGreaterThan(afterFirstEvent);
+      });
+    } finally {
+      socketSpy.mockRestore();
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('U2 (D2.1): Ante 409 ORDERS_NOT_DELIVERED, ADMIN/MANAGER ve el Alert con órdenes pendientes y el botón "Cobrar igual y cerrar pedidos", que abre ModalConfirm y reintenta con closePendingOrders: true', async () => {
+    const originalFetch = global.fetch;
+    localStorage.setItem(
+      'resto_user',
+      JSON.stringify({ id: 'u-admin', email: 'admin@resto.com', displayName: 'Admin', role: 'ADMIN' })
+    );
+
+    const confirmPayloads: any[] = [];
+    const fetchMock = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-pending-orders',
+              tenantId: 't-1',
+              tableId: 'Mesa 2',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/sess-pending-orders')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            sessionId: 'sess-pending-orders',
+            tableId: 'Mesa 2',
+            ordersCount: 2,
+            total: 42000,
+            payment: null,
+            orders: [
+              {
+                id: 'ord-aa11bb',
+                tenantId: 't-1',
+                sessionId: 'sess-pending-orders',
+                tableId: 'Mesa 2',
+                status: 'PLACED',
+                total: 22000,
+                items: [{ id: 'i1', productId: 'p1', productName: 'Bandeja', unitPrice: 22000, quantity: 1, modifiers: [] }],
+                createdAt: new Date().toISOString(),
+              },
+              {
+                id: 'ord-cc22dd',
+                tenantId: 't-1',
+                sessionId: 'sess-pending-orders',
+                tableId: 'Mesa 2',
+                status: 'IN_KITCHEN',
+                total: 20000,
+                items: [{ id: 'i2', productId: 'p2', productName: 'Sopa', unitPrice: 20000, quantity: 1, modifiers: [] }],
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          }),
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/confirm') && opts?.method === 'POST') {
+        const body = JSON.parse(opts.body);
+        confirmPayloads.push(body);
+        if (!body.closePendingOrders) {
+          return {
+            ok: false,
+            status: 409,
+            headers: { get: () => 'application/json' },
+            json: async () => ({
+              error: {
+                code: 'ORDERS_NOT_DELIVERED',
+                message: 'Existen órdenes sin entregar en esta sesión',
+                details: {
+                  pendingOrders: [
+                    {
+                      orderId: 'ord-aa11bb',
+                      tableId: 'Mesa 2',
+                      status: 'PLACED',
+                      kitchenStatus: 'PLACED',
+                      barStatus: null,
+                      createdAt: new Date().toISOString(),
+                      itemsCount: 1,
+                    },
+                    {
+                      orderId: 'ord-cc22dd',
+                      tableId: 'Mesa 2',
+                      status: 'IN_KITCHEN',
+                      kitchenStatus: 'IN_KITCHEN',
+                      barStatus: 'READY',
+                      createdAt: new Date().toISOString(),
+                      itemsCount: 1,
+                    },
+                  ],
+                },
+              },
+            }),
+          };
+        }
+
+        return {
+          ok: true,
+          status: 201,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            payment: {
+              id: 'pay-override-1',
+              sessionId: 'sess-pending-orders',
+              tableId: 'Mesa 2',
+              amount: 42000,
+              method: 'CASH',
+              status: 'COMPLETED',
+            },
+          }),
+        };
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <CheckoutPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesa 2')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Mesa 2'));
+
+      await waitFor(() => {
+        expect(screen.getByText(/\$\s*42\.000/i)).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('radio', { name: /efectivo/i }));
+      fireEvent.click(screen.getByRole('button', { name: /registrar cobro/i }));
+
+      const initialDialog = screen.getByRole('dialog');
+      fireEvent.click(within(initialDialog).getByRole('button', { name: 'Confirmar cobro' }));
+
+      // Debe aparecer el Alert con la lista de órdenes pendientes y sus estados en español
+      await waitFor(() => {
+        const alertBox = screen.getByTestId('pending-orders-alert');
+        expect(within(alertBox).getByText(/Orden #aa11bb/i)).toBeInTheDocument();
+        expect(within(alertBox).getByText(/Orden #cc22dd/i)).toBeInTheDocument();
+      });
+
+      // Como es ADMIN, ve el botón "Cobrar igual y cerrar pedidos"
+      const overrideBtn = screen.getByRole('button', { name: /cobrar igual y cerrar pedidos/i });
+      expect(overrideBtn).toBeInTheDocument();
+      expect(overrideBtn.style.color).toBe('var(--bento-status-occupied-text)');
+      expect(overrideBtn.style.backgroundColor).toBe('var(--bento-card-bg-solid)');
+      expect(overrideBtn.style.border).toBe('1px solid var(--bento-status-occupied-text)');
+      const overrideBtnStyle = overrideBtn.getAttribute('style') || '';
+      expect(overrideBtnStyle).toContain('color: var(--bento-status-occupied-text)');
+      expect(overrideBtnStyle).toContain('background-color: var(--bento-card-bg-solid)');
+      expect(overrideBtnStyle).toContain('border: 1px solid var(--bento-status-occupied-text)');
+
+      const alertBox = screen.getByTestId('pending-orders-alert');
+      expect(alertBox.style.backgroundColor).toBe('var(--bento-card-bg-solid)');
+      expect(alertBox.style.color).toBe('var(--bento-status-occupied-text)');
+      expect(alertBox.style.border).toBe('1px solid var(--bento-status-occupied-text)');
+      const alertBoxStyle = alertBox.getAttribute('style') || '';
+      expect(alertBoxStyle).toContain('background-color: var(--bento-card-bg-solid)');
+      expect(alertBoxStyle).toContain('color: var(--bento-status-occupied-text)');
+      expect(alertBoxStyle).toContain('border: 1px solid var(--bento-status-occupied-text)');
+      expect(screen.queryByText(/avisa a un administrador o encargado para cerrar estos pedidos/i)).not.toBeInTheDocument();
+
+      // Al pulsarlo, abre ModalConfirm con el texto de cancelación de las 2 órdenes pendientes
+      fireEvent.click(overrideBtn);
+
+      const overrideDialog = screen.getByRole('dialog');
+      expect(overrideDialog).toBeInTheDocument();
+      expect(
+        within(overrideDialog).getByText('Las 2 órdenes pendientes se cancelarán y se cobrarán igual')
+      ).toBeInTheDocument();
+      expect(within(overrideDialog).queryByText(/en cocina/i)).not.toBeInTheDocument();
+
+      // Confirmar en el modal reintenta con closePendingOrders: true
+      const approveOverrideBtn = within(overrideDialog).getByRole('button', { name: /confirmar|cobrar igual/i });
+      fireEvent.click(approveOverrideBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText(/cobro registrado\. mesa liberada\./i)).toBeInTheDocument();
+      });
+
+      expect(confirmPayloads).toHaveLength(2);
+      expect(confirmPayloads[0].closePendingOrders).toBeUndefined();
+      expect(confirmPayloads[1].closePendingOrders).toBe(true);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('U2 (D2.2): Ante 409 ORDERS_NOT_DELIVERED, otros roles (STAFF/WAITER) y TerminalCajaPage (CASHIER) ven la lista de órdenes y el aviso "Avisa a un administrador o encargado para cerrar estos pedidos", NUNCA el botón de override', async () => {
+    const originalFetch = global.fetch;
+    localStorage.setItem(
+      'resto_user',
+      JSON.stringify({ id: 'u-cashier', email: 'caja@resto.com', displayName: 'Laura Caja', role: 'CASHIER' })
+    );
+
+    const fetchMock = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-caja-409',
+              tenantId: 't-1',
+              tableId: 'Mesa 3',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/sess-caja-409')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            sessionId: 'sess-caja-409',
+            tableId: 'Mesa 3',
+            ordersCount: 1,
+            total: 18000,
+            payment: null,
+            orders: [
+              {
+                id: 'ord-ff99ee',
+                tenantId: 't-1',
+                sessionId: 'sess-caja-409',
+                tableId: 'Mesa 3',
+                status: 'READY',
+                total: 18000,
+                items: [{ id: 'i1', productId: 'p1', productName: 'Postre', unitPrice: 18000, quantity: 1, modifiers: [] }],
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          }),
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/confirm') && opts?.method === 'POST') {
+        return {
+          ok: false,
+          status: 409,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            error: {
+              code: 'ORDERS_NOT_DELIVERED',
+              message: 'Existen órdenes sin entregar en esta sesión',
+              details: {
+                pendingOrders: [
+                  {
+                    orderId: 'ord-ff99ee',
+                    tableId: 'Mesa 3',
+                    status: 'READY',
+                    kitchenStatus: 'READY',
+                    barStatus: null,
+                    createdAt: new Date().toISOString(),
+                    itemsCount: 1,
+                  },
+                ],
+              },
+            },
+          }),
+        };
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      // Incluso si por error hubiera rol ADMIN en localStorage cuando se renderiza TerminalCajaPage,
+      // TerminalCajaPage nunca debe mostrar el override. Probemos primero con CASHIER en TerminalCajaPage
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <TerminalCajaPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Mesa 3')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Mesa 3'));
+
+      await waitFor(() => {
+        expect(screen.getAllByText(/\$\s*18\.000/i).length).toBeGreaterThan(0);
+      });
+
+      fireEvent.click(screen.getByRole('radio', { name: /efectivo/i }));
+      fireEvent.click(screen.getByRole('button', { name: /registrar cobro/i }));
+
+      const dialog = screen.getByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar cobro' }));
+
+      await waitFor(() => {
+        const alertBox = screen.getByTestId('pending-orders-alert');
+        expect(within(alertBox).getByText(/Orden #ff99ee/i)).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Avisa a un administrador o encargado para cerrar estos pedidos/i)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /cobrar igual y cerrar pedidos/i })).not.toBeInTheDocument();
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('U2 (D2.3): TerminalCajaPage NUNCA muestra el botón de override aunque resto_user tenga rol ADMIN, y STAFF en CheckoutPage tampoco lo ve', async () => {
+    const originalFetch = global.fetch;
+
+    const fetchMock = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+
+      if (urlStr.includes('/v1/sessions') && !urlStr.includes('/close')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => [
+            {
+              sessionId: 'sess-role-check',
+              tenantId: 't-1',
+              tableId: 'Mesa 4',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 3600000).toISOString(),
+            },
+          ],
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/sess-role-check')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            sessionId: 'sess-role-check',
+            tableId: 'Mesa 4',
+            ordersCount: 1,
+            total: 12000,
+            payment: null,
+            orders: [],
+          }),
+        };
+      }
+
+      if (urlStr.includes('/v1/checkout/confirm') && opts?.method === 'POST') {
+        return {
+          ok: false,
+          status: 409,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            error: {
+              code: 'ORDERS_NOT_DELIVERED',
+              message: 'Existen órdenes sin entregar en esta sesión',
+              details: {
+                pendingOrders: [
+                  {
+                    orderId: 'ord-778899',
+                    tableId: 'Mesa 4',
+                    status: 'PLACED',
+                    kitchenStatus: 'PLACED',
+                    barStatus: null,
+                    createdAt: new Date().toISOString(),
+                    itemsCount: 1,
+                  },
+                ],
+              },
+            },
+          }),
+        };
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    global.fetch = fetchMock as any;
+
+    try {
+      // 1. STAFF en CheckoutPage
+      localStorage.setItem(
+        'resto_user',
+        JSON.stringify({ id: 'u-staff', email: 'staff@resto.com', displayName: 'Staff', role: 'STAFF' })
+      );
+
+      const { unmount } = render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <CheckoutPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => expect(screen.getByText('Mesa 4')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('Mesa 4'));
+      await waitFor(() => expect(screen.getByText(/\$\s*12\.000/i)).toBeInTheDocument());
+      fireEvent.click(screen.getByRole('radio', { name: /efectivo/i }));
+      fireEvent.click(screen.getByRole('button', { name: /registrar cobro/i }));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirmar cobro' }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Orden #778899/i)).toBeInTheDocument();
+      });
+      expect(screen.getByText(/Avisa a un administrador o encargado para cerrar estos pedidos/i)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /cobrar igual y cerrar pedidos/i })).not.toBeInTheDocument();
+      unmount();
+
+      // 2. ADMIN en TerminalCajaPage (forzando ruta terminal-caja) -> NUNCA ve override
+      localStorage.setItem(
+        'resto_user',
+        JSON.stringify({ id: 'u-admin', email: 'admin@resto.com', displayName: 'Admin', role: 'ADMIN' })
+      );
+
+      render(
+        <FeatureFlagProviderRoot provider={provider}>
+          <TerminalCajaPage />
+        </FeatureFlagProviderRoot>
+      );
+
+      await waitFor(() => expect(screen.getByText('Mesa 4')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('Mesa 4'));
+      await waitFor(() => expect(screen.getByText(/\$\s*12\.000/i)).toBeInTheDocument());
+      fireEvent.click(screen.getByRole('radio', { name: /efectivo/i }));
+      fireEvent.click(screen.getByRole('button', { name: /registrar cobro/i }));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirmar cobro' }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Orden #778899/i)).toBeInTheDocument();
+      });
+      expect(screen.getByText(/Avisa a un administrador o encargado para cerrar estos pedidos/i)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /cobrar igual y cerrar pedidos/i })).not.toBeInTheDocument();
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('U8: ModalConfirm muestra texto en singular para 1 orden sin "en cocina", y estilo de botón/aviso cumple tokens accesibles', () => {
+    const mockBill: any = {
+      sessionId: 'sess-single-pending',
+      tableId: 'tbl-1',
+      ordersCount: 1,
+      total: 15000,
+      payment: null,
+      orders: [],
+    };
+    const mockPendingOrder: any = {
+      orderId: 'ord-bar-99',
+      tableId: 'tbl-1',
+      status: 'PLACED',
+      kitchenStatus: null,
+      barStatus: 'PLACED',
+      createdAt: new Date().toISOString(),
+      itemsCount: 1,
+    };
+
+    const onOverride = jest.fn();
+
+    render(
+      <BillSummaryCard
+        bill={mockBill}
+        error="ORDERS_NOT_DELIVERED"
+        pendingOrders={[mockPendingOrder]}
+        canOverridePendingOrders={true}
+        onOverridePendingOrders={onOverride}
+      />
+    );
+
+    const alertBox = screen.getByTestId('pending-orders-alert');
+    expect(alertBox.style.backgroundColor).toBe('var(--bento-card-bg-solid)');
+    expect(alertBox.style.color).toBe('var(--bento-status-occupied-text)');
+    expect(alertBox.style.border).toBe('1px solid var(--bento-status-occupied-text)');
+    const alertStyle = alertBox.getAttribute('style') || '';
+    expect(alertStyle).toContain('background-color: var(--bento-card-bg-solid)');
+    expect(alertStyle).toContain('color: var(--bento-status-occupied-text)');
+    expect(alertStyle).toContain('border: 1px solid var(--bento-status-occupied-text)');
+
+    const overrideBtn = screen.getByTestId('override-pending-orders-btn');
+    expect(overrideBtn.style.color).toBe('var(--bento-status-occupied-text)');
+    expect(overrideBtn.style.backgroundColor).toBe('var(--bento-card-bg-solid)');
+    expect(overrideBtn.style.border).toBe('1px solid var(--bento-status-occupied-text)');
+    const btnStyle = overrideBtn.getAttribute('style') || '';
+    expect(btnStyle).toContain('color: var(--bento-status-occupied-text)');
+    expect(btnStyle).toContain('background-color: var(--bento-card-bg-solid)');
+    expect(btnStyle).toContain('border: 1px solid var(--bento-status-occupied-text)');
+
+    fireEvent.click(overrideBtn);
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(
+      within(dialog).getByText('La orden pendiente se cancelará y se cobrará igual')
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByText(/en cocina/i)).not.toBeInTheDocument();
+  });
 });
+

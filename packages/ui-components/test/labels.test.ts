@@ -4,6 +4,7 @@ import {
   shortId,
   formatOrderNumber,
   getTableDisplayName,
+  tableDisplayName,
 } from '../src/kit/labels';
 
 describe('kit labels and id helpers (H7)', () => {
@@ -48,5 +49,16 @@ describe('kit labels and id helpers (H7)', () => {
     expect(getTableDisplayName('table-1791762875669-723', [])).toBe('Mesa · 669723');
     expect(getTableDisplayName('Mesa 4')).toBe('Mesa 4');
     expect(getTableDisplayName(null)).toBe('');
+  });
+
+  test('tableDisplayName antepone "Mesa" solo si la etiqueta no empieza ya por "mesa"', () => {
+    expect(tableDisplayName('1')).toBe('Mesa 1');
+    expect(tableDisplayName('  12 ')).toBe('Mesa 12');
+    expect(tableDisplayName('Mesa 3')).toBe('Mesa 3');
+    expect(tableDisplayName('mesa 3')).toBe('mesa 3');
+    expect(tableDisplayName('MESA 4')).toBe('MESA 4');
+    expect(tableDisplayName('Terraza 2')).toBe('Mesa Terraza 2');
+    expect(tableDisplayName('')).toBe('');
+    expect(tableDisplayName(null)).toBe('');
   });
 });

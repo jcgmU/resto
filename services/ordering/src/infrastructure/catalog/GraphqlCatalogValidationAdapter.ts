@@ -25,6 +25,10 @@ export class GraphqlCatalogValidationAdapter implements CatalogValidationPort {
           name
           price
           isAvailable
+          category {
+            id
+            destination
+          }
           modifierGroups {
             id
             name
@@ -53,6 +57,9 @@ export class GraphqlCatalogValidationAdapter implements CatalogValidationPort {
               headers: {
                 'Content-Type': 'application/json',
                 'x-tenant-id': tenantId,
+                ...(process.env.INTERNAL_SHARED_SECRET
+                  ? { 'x-internal-token': process.env.INTERNAL_SHARED_SECRET }
+                  : {}),
               },
               body: JSON.stringify({
                 query,
@@ -95,6 +102,7 @@ export class GraphqlCatalogValidationAdapter implements CatalogValidationPort {
               name: rawProduct.name,
               price: Number(rawProduct.price),
               isAvailable: Boolean(rawProduct.isAvailable),
+              destination: (rawProduct.category?.destination as 'kitchen' | 'bar') || 'kitchen',
               modifierGroups,
             };
 

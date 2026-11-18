@@ -330,7 +330,7 @@ describe('Bloque 3: Menu Admin Real (Tests Rojo)', () => {
               {
                 id: 'prod-10',
                 name: 'Spaghetti Carbonara',
-                price: 14.5,
+                price: 28000,
                 isAvailable: true,
                 category: { id: 'cat-1' },
               },
@@ -346,8 +346,8 @@ describe('Bloque 3: Menu Admin Real (Tests Rojo)', () => {
         expect(screen.getByText('Spaghetti Carbonara')).toBeInTheDocument();
       });
 
-      // Precio renderizado con KpiValue
-      expect(screen.getByText('$14.50')).toBeInTheDocument();
+      // Precio renderizado con KpiValue (formatCOP)
+      expect(screen.getByText(/\$\s*28\.000/)).toBeInTheDocument();
 
       // AvailabilityToggle con role="switch"
       const toggle = screen.getByRole('switch', { name: /disponible/i });
@@ -501,6 +501,358 @@ describe('Bloque 3: Menu Admin Real (Tests Rojo)', () => {
       expect(menuSource).not.toContain('var(--bento-amber)');
     } finally {
       global.fetch = originalFetch;
+    }
+  });
+
+  test('REF-6 & N05: Crear producto completo con nombre, precio COP, prepTimeMinutes, descripción e imagen', async () => {
+    let createProductCalledWith: any = null;
+    const originalFetch = global.fetch;
+
+    global.fetch = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/v1/uploads')) {
+        return {
+          ok: true,
+          status: 201,
+          headers: { get: () => 'application/json' },
+          json: async () => ({ url: '/uploads/ajiaco.webp' }),
+        };
+      }
+      if (urlStr.includes('/v1/graphql')) {
+        const body = JSON.parse(opts.body);
+        if (body.query?.includes('createProduct')) {
+          createProductCalledWith = body.variables?.input;
+          return {
+            ok: true,
+            status: 200,
+            headers: { get: () => 'application/json' },
+            json: async () => ({
+              data: {
+                createProduct: {
+                  id: 'prod-ajiaco-1',
+                  name: body.variables.input.name,
+                  price: body.variables.input.price,
+                  isAvailable: true,
+                  prepTimeMinutes: body.variables.input.prepTimeMinutes,
+                  description: body.variables.input.description,
+                  imageUrl: body.variables.input.imageUrl,
+                  category: { id: 'cat-1' },
+                },
+              },
+            }),
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            data: {
+              categories: [{ id: 'cat-1', name: 'Platos Típicos' }],
+              products: [],
+            },
+          }),
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as any;
+
+    try {
+      render(<MenuPage />);
+      await waitFor(() => {
+        expect(screen.getByText('Platos Típicos')).toBeInTheDocument();
+      });
+
+      const openProdBtn = screen.getByRole('button', { name: /nuevo producto/i });
+      fireEvent.click(openProdBtn);
+
+      fireEvent.change(screen.getByLabelText(/nombre del producto/i), {
+        target: { value: 'Ajiaco Santafereño' },
+      });
+      fireEvent.change(screen.getByLabelText(/precio en cop/i), {
+        target: { value: '32000' },
+      });
+      fireEvent.change(screen.getByLabelText(/tiempo prep/i), {
+        target: { value: '25' },
+      });
+      fireEvent.change(screen.getByLabelText(/descripción/i), {
+        target: { value: 'Sopa tradicional con pollo y tres tipos de papa' },
+      });
+
+      const file = new File(['dummy-image-bytes'], 'ajiaco.png', { type: 'image/png' });
+      const fileInput = screen.getByLabelText(/imagen del plato/i);
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      await waitFor(() => {
+        const preview = screen.getByAltText(/vista previa de imagen/i);
+        expect(preview).toBeInTheDocument();
+        expect(preview).toHaveAttribute('src', '/uploads/ajiaco.webp');
+      });
+
+      const saveBtn = screen.getByRole('button', { name: /crear producto/i });
+      fireEvent.click(saveBtn);
+
+      await waitFor(() => {
+        expect(createProductCalledWith).toBeDefined();
+        expect(createProductCalledWith.name).toBe('Ajiaco Santafereño');
+        expect(createProductCalledWith.price).toBe(32000);
+        expect(createProductCalledWith.prepTimeMinutes).toBe(25);
+        expect(createProductCalledWith.description).toBe('Sopa tradicional con pollo y tres tipos de papa');
+        expect(createProductCalledWith.imageUrl).toBe('/uploads/ajiaco.webp');
+        expect(screen.getByText('Nuevo Producto Creado')).toBeInTheDocument();
+      });
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('N12: Toggle de disponibilidad guarda isAvailable: false/true al crear producto con checkbox desmarcado', async () => {
+    let setAvailabilityCalled = false;
+    let availabilityVal: boolean | null = null;
+    const originalFetch = global.fetch;
+
+    global.fetch = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/v1/graphql')) {
+        const body = JSON.parse(opts.body);
+        if (body.query?.includes('createProduct')) {
+          return {
+            ok: true,
+            status: 200,
+            headers: { get: () => 'application/json' },
+            json: async () => ({
+              data: {
+                createProduct: {
+                  id: 'prod-agotado-1',
+                  name: 'Jugo Natural',
+                  price: 8000,
+                  isAvailable: true,
+                  category: { id: 'cat-1' },
+                },
+              },
+            }),
+          };
+        }
+        if (body.query?.includes('setProductAvailability')) {
+          setAvailabilityCalled = true;
+          availabilityVal = body.variables?.isAvailable;
+          return {
+            ok: true,
+            status: 200,
+            headers: { get: () => 'application/json' },
+            json: async () => ({
+              data: {
+                setProductAvailability: {
+                  id: body.variables.id,
+                  isAvailable: body.variables.isAvailable,
+                },
+              },
+            }),
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            data: {
+              categories: [{ id: 'cat-1', name: 'Bebidas' }],
+              products: [],
+            },
+          }),
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as any;
+
+    try {
+      render(<MenuPage />);
+      await waitFor(() => {
+        expect(screen.getByText('Bebidas')).toBeInTheDocument();
+      });
+
+      const openProdBtn = screen.getByRole('button', { name: /nuevo producto/i });
+      fireEvent.click(openProdBtn);
+
+      fireEvent.change(screen.getByLabelText(/nombre del producto/i), { target: { value: 'Jugo Natural' } });
+      fireEvent.change(screen.getByLabelText(/precio en cop/i), { target: { value: '8000' } });
+
+      const availCheckbox = screen.getByLabelText(/disponible para ordenar/i);
+      expect(availCheckbox).toBeChecked();
+      fireEvent.click(availCheckbox);
+      expect(availCheckbox).not.toBeChecked();
+
+      const saveBtn = screen.getByRole('button', { name: /crear producto/i });
+      fireEvent.click(saveBtn);
+
+      await waitFor(() => {
+        expect(setAvailabilityCalled).toBe(true);
+        expect(availabilityVal).toBe(false);
+      });
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('N11: Reordenar categorías con botones Subir y Bajar llama a updateCategory con nuevo sortOrder', async () => {
+    const updatedCategories: any[] = [];
+    const originalFetch = global.fetch;
+
+    global.fetch = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/v1/graphql')) {
+        const body = JSON.parse(opts.body);
+        if (body.query?.includes('updateCategory')) {
+          updatedCategories.push({
+            id: body.variables?.id,
+            input: body.variables?.input,
+          });
+          return {
+            ok: true,
+            status: 200,
+            headers: { get: () => 'application/json' },
+            json: async () => ({
+              data: {
+                updateCategory: {
+                  id: body.variables.id,
+                  name: 'Actualizada',
+                  sortOrder: body.variables.input?.sortOrder,
+                },
+              },
+            }),
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            data: {
+              categories: [
+                { id: 'cat-1', name: 'Entradas', sortOrder: 0 },
+                { id: 'cat-2', name: 'Fuertes', sortOrder: 1 },
+              ],
+              products: [],
+            },
+          }),
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as any;
+
+    try {
+      render(<MenuPage />);
+      await waitFor(() => {
+        expect(screen.getByText('Entradas')).toBeInTheDocument();
+        expect(screen.getByText('Fuertes')).toBeInTheDocument();
+      });
+
+      const subirFuertesBtn = screen.getByRole('button', { name: /subir categoría fuertes/i });
+      expect(subirFuertesBtn).toBeEnabled();
+      fireEvent.click(subirFuertesBtn);
+
+      await waitFor(() => {
+        expect(updatedCategories.length).toBeGreaterThanOrEqual(2);
+      });
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('N10: Menú es SOLO MENÚ — ausencia total de elementos o links de mesas y QR en /menu', async () => {
+    const originalFetch = global.fetch;
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => 'application/json' },
+      json: async () => ({
+        data: {
+          categories: [{ id: 'cat-1', name: 'Postres' }],
+          products: [],
+        },
+      }),
+    })) as any;
+
+    try {
+      render(<MenuPage />);
+      await waitFor(() => {
+        expect(screen.getByText('Postres')).toBeInTheDocument();
+      });
+
+      // No debe existir ningún link ni texto de gestión de mesas o QR
+      expect(screen.queryByText(/gestión de mesas/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/código qr|rotar qr|código de mesa/i)).not.toBeInTheDocument();
+
+      const allLinks = screen.queryAllByRole('link');
+      for (const link of allLinks) {
+        expect(link.getAttribute('href')).not.toMatch(/mesas|qr/i);
+      }
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test('REF-6 & N11: Eliminar producto con confirmación ejecuta mutación deleteProduct', async () => {
+    let deleteProductCalledId = '';
+    const originalFetch = global.fetch;
+    const originalConfirm = window.confirm;
+    window.confirm = jest.fn(() => true);
+
+    global.fetch = jest.fn(async (url: any, opts: any) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/v1/graphql')) {
+        const body = JSON.parse(opts.body);
+        if (body.query?.includes('deleteProduct')) {
+          deleteProductCalledId = body.variables?.id;
+          return {
+            ok: true,
+            status: 200,
+            headers: { get: () => 'application/json' },
+            json: async () => ({
+              data: { deleteProduct: true },
+            }),
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            data: {
+              categories: [{ id: 'cat-1', name: 'Pizzas' }],
+              products: [
+                {
+                  id: 'prod-to-delete',
+                  name: 'Pizza Hawaiana',
+                  price: 24000,
+                  isAvailable: true,
+                  category: { id: 'cat-1' },
+                },
+              ],
+            },
+          }),
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as any;
+
+    try {
+      render(<MenuPage />);
+      await waitFor(() => {
+        expect(screen.getByText('Pizza Hawaiana')).toBeInTheDocument();
+      });
+
+      const deleteBtn = screen.getByRole('button', { name: /eliminar pizza hawaiana/i });
+      fireEvent.click(deleteBtn);
+
+      await waitFor(() => {
+        expect(window.confirm).toHaveBeenCalled();
+        expect(deleteProductCalledId).toBe('prod-to-delete');
+        expect(screen.getByText('Producto Eliminado')).toBeInTheDocument();
+      });
+    } finally {
+      global.fetch = originalFetch;
+      window.confirm = originalConfirm;
     }
   });
 });

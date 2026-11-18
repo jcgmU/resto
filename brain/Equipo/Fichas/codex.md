@@ -84,3 +84,11 @@ Archivo completo en `brain/Handoffs/`, frontmatter del Protocolo, hilo y ronda, 
 | Engram | herramientas listadas; memoria 30 guardada en resto | ⚠ comprobación propia de codex; falta verificación independiente de claude |
 | Skills visibles | catálogo completo arriba; graphify no visible | ⚠ comprobación propia de codex; falta verificación independiente de claude |
 | Subagentes | 4 plazas incluyendo coordinador; revisión ligera completada | ⚠ comprobación propia de codex; falta verificación independiente de claude |
+
+## Actualización de sesión — 2026-11-17
+
+- Rol vigente por instrucción del usuario: ejecutor `codex`; recibe planes de `planner`, implementa con TDD y entrega evidencia por unidad. La declaración anterior de retiro y las referencias al rol de planificador son históricas.
+- CLI observado: `codex-cli 0.169.0`. El modelo efectivo de esta sesión no se expone de forma verificable.
+- Capacidades multiagente: `collaboration.spawn_agent`; hasta tres subagentes simultáneos además del coordinador; los niveles y parámetros anteriores siguen disponibles en esta sesión.
+- Engram disponible por MCP; proyecto `resto`. Sandbox de escritura: este worktree y directorios temporales autorizados. La verificación del orquestador queda pendiente.
+- Para recibir trabajo: handoff `plan` con unidades, dependencias, criterios y comandos; respeta el código sin commitear, el rojo antes de verde y la parada indicada.

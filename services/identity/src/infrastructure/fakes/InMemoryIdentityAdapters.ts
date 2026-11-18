@@ -7,8 +7,9 @@ import {
   TenantDTO,
   UserDTO,
   AccessTokenClaims,
+  DomainError,
 } from '@packages/shared-types';
-import { hashRefreshToken } from '../security/JwtTokenIssuer';
+import { hashRefreshToken } from '../security/tokenHash';
 
 export class InMemoryTenantRepository implements TenantRepository {
   public tenants: TenantDTO[] = [
@@ -17,6 +18,11 @@ export class InMemoryTenantRepository implements TenantRepository {
       name: 'Pergola Existente',
       slug: 'pergola-duplicada',
       status: 'ACTIVE',
+      operatingMode: 'hybrid',
+      estimatedPrepMinutes: 18,
+      invoiceMode: 'simple',
+      currency: 'COP',
+      locale: 'es-CO',
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -25,6 +31,11 @@ export class InMemoryTenantRepository implements TenantRepository {
       name: 'Default Tenant',
       slug: 'default-tenant',
       status: 'ACTIVE',
+      operatingMode: 'hybrid',
+      estimatedPrepMinutes: 18,
+      invoiceMode: 'simple',
+      currency: 'COP',
+      locale: 'es-CO',
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -45,6 +56,33 @@ export class InMemoryTenantRepository implements TenantRepository {
     } else {
       this.tenants.push(tenant);
     }
+    return tenant;
+  }
+
+  async updateSettings(
+    id: string,
+    settings: { operatingMode?: string; estimatedPrepMinutes?: number; invoiceMode?: string; currency?: string; locale?: string }
+  ): Promise<TenantDTO> {
+    const tenant = this.tenants.find((t) => t.id === id);
+    if (!tenant) {
+      throw new DomainError('NOT_FOUND', 'Tenant no encontrado');
+    }
+    if (settings.operatingMode !== undefined) {
+      tenant.operatingMode = settings.operatingMode as any;
+    }
+    if (settings.estimatedPrepMinutes !== undefined) {
+      tenant.estimatedPrepMinutes = settings.estimatedPrepMinutes;
+    }
+    if (settings.invoiceMode !== undefined) {
+      tenant.invoiceMode = settings.invoiceMode as any;
+    }
+    if (settings.currency !== undefined) {
+      tenant.currency = settings.currency;
+    }
+    if (settings.locale !== undefined) {
+      tenant.locale = settings.locale;
+    }
+    tenant.updatedAt = new Date();
     return tenant;
   }
 
@@ -165,6 +203,32 @@ export class InMemoryRefreshTokenRepository implements RefreshTokenRepository {
     if (token) {
       token.revokedAt = new Date();
     }
+  }
+
+  async rotate(
+    oldTokenHash: string,
+    newToken: { tokenHash: string; expiresAt: Date }
+  ): Promise<{ userId: string }> {
+    const now = new Date();
+    const token = this.tokens.find(
+      (t) => t.tokenHash === oldTokenHash && !t.revokedAt && t.expiresAt > now
+    );
+
+    if (!token) {
+      throw new DomainError('INVALID_CREDENTIALS', 'Token de refresco inválido o expirado');
+    }
+
+    token.revokedAt = now;
+
+    this.tokens.push({
+      id: `rt-${this.tokens.length + 1}`,
+      userId: token.userId,
+      tokenHash: newToken.tokenHash,
+      expiresAt: newToken.expiresAt,
+      revokedAt: null,
+    });
+
+    return { userId: token.userId };
   }
 
   async revokeAllForUser(userId: string): Promise<void> {

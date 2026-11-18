@@ -9,6 +9,8 @@ import { createApp as createGatewayApp } from '../../gateway/src/app';
 import { config as gatewayConfig } from '../../gateway/src/config';
 const jwt = require('../../gateway/node_modules/jsonwebtoken');
 
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key-hardening-test';
+
 describe('Catalog Real Authorization & Query Limitation (U2)', () => {
   let app: any;
   let catalogServer: http.Server;

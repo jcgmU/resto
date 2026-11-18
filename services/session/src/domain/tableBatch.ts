@@ -1,9 +1,34 @@
-import { DomainError } from '@packages/shared-types';
+import { DomainError, TableStatus } from '@packages/shared-types';
 
 export const MAX_BATCH_SIZE = 50;
 export const MAX_TABLES_PER_TENANT = 500;
 export const MAX_LABEL_LENGTH = 40;
 
+export const VALID_TABLE_STATUSES = [
+  'AVAILABLE',
+  'OCCUPIED',
+  'RESERVED',
+  'DISABLED',
+  'active',
+  'inactive',
+];
+
+export function parseAndValidateTableStatus(status: any): TableStatus | null {
+  if (typeof status !== 'string') return null;
+  const trimmed = status.trim();
+  if (trimmed === 'active') return 'active';
+  if (trimmed === 'inactive') return 'inactive';
+  const upper = trimmed.toUpperCase();
+  if (upper === 'AVAILABLE') return 'AVAILABLE';
+  if (upper === 'OCCUPIED') return 'OCCUPIED';
+  if (upper === 'RESERVED') return 'RESERVED';
+  if (upper === 'DISABLED') return 'DISABLED';
+  if (upper === 'ACTIVE') return 'active';
+  if (upper === 'INACTIVE') return 'inactive';
+  return null;
+}
+
+// eslint-disable-next-line no-control-regex
 const CONTROL_CHAR_REGEX = /[\u0000-\u001F\u007F-\u009F]/;
 
 export interface NormalizedTableLabel {
@@ -15,7 +40,9 @@ export interface TableUpdateItem {
   tableId: string;
   label?: string;
   labelKey?: string;
-  status?: 'active' | 'inactive';
+  status?: TableStatus;
+  zoneId?: string;
+  capacity?: number;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -59,6 +86,8 @@ export function normalizeTableLabel(raw: unknown): NormalizedTableLabel {
 export function parseCreateBatchInput(body: unknown): {
   items: NormalizedTableLabel[];
   labels: string[];
+  zoneId?: string;
+  capacity?: number;
 } {
   if (!isPlainObject(body)) {
     throw new DomainError('VALIDATION_ERROR', 'Request body must be a JSON object');
@@ -153,9 +182,27 @@ export function parseCreateBatchInput(body: unknown): {
     });
   }
 
+  let zoneId: string | undefined;
+  if (body.zoneId !== undefined) {
+    if (typeof body.zoneId !== 'string' || body.zoneId.trim().length === 0) {
+      throw new DomainError('VALIDATION_ERROR', 'zoneId must be a non-empty string');
+    }
+    zoneId = body.zoneId.trim();
+  }
+
+  let capacity: number | undefined;
+  if (body.capacity !== undefined) {
+    if (typeof body.capacity !== 'number' || !Number.isInteger(body.capacity) || body.capacity <= 0) {
+      throw new DomainError('VALIDATION_ERROR', 'capacity must be a positive integer');
+    }
+    capacity = body.capacity;
+  }
+
   return {
     items,
     labels: items.map((item) => item.label),
+    zoneId,
+    capacity,
   };
 }
 
@@ -193,11 +240,13 @@ export function parseUpdateBatchInput(body: unknown): { updates: TableUpdateItem
 
     const hasLabel = rawItem.label !== undefined;
     const hasStatus = rawItem.status !== undefined;
+    const hasZoneId = rawItem.zoneId !== undefined;
+    const hasCapacity = rawItem.capacity !== undefined;
 
-    if (!hasLabel && !hasStatus) {
+    if (!hasLabel && !hasStatus && !hasZoneId && !hasCapacity) {
       throw new DomainError(
         'VALIDATION_ERROR',
-        `Update for table ${tableId} must include label or status`
+        `Update for table ${tableId} must include label, status, zoneId or capacity`
       );
     }
 
@@ -215,13 +264,31 @@ export function parseUpdateBatchInput(body: unknown): { updates: TableUpdateItem
     }
 
     if (hasStatus) {
-      if (rawItem.status !== 'active' && rawItem.status !== 'inactive') {
+      const parsedStatus = parseAndValidateTableStatus(rawItem.status);
+      if (!parsedStatus) {
         throw new DomainError(
           'VALIDATION_ERROR',
-          'status must be either "active" or "inactive"'
+          'status must be a valid table status'
         );
       }
-      parsed.status = rawItem.status;
+      parsed.status = parsedStatus;
+    }
+
+    if (hasZoneId) {
+      if (rawItem.zoneId === null || rawItem.zoneId === '') {
+        parsed.zoneId = '';
+      } else if (typeof rawItem.zoneId === 'string') {
+        parsed.zoneId = rawItem.zoneId.trim();
+      } else {
+        throw new DomainError('VALIDATION_ERROR', 'zoneId must be a string');
+      }
+    }
+
+    if (hasCapacity) {
+      if (typeof rawItem.capacity !== 'number' || !Number.isInteger(rawItem.capacity) || rawItem.capacity <= 0) {
+        throw new DomainError('VALIDATION_ERROR', 'capacity must be a positive integer');
+      }
+      parsed.capacity = rawItem.capacity;
     }
 
     updates.push(parsed);

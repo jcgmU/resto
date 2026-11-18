@@ -15,7 +15,7 @@ describe('B. Ordering — integración tiempo real y sockets (Tests 8-13)', () =
     const res = await request(app)
       .patch('/orders/ord-realtime-test/status')
       .set('x-tenant-id', 't-1')
-      .set('x-user-role', 'staff')
+      .set('x-user-role', 'waiter')
       .send({ status: 'IN_KITCHEN' });
 
     expect(res.status).toBe(200);
@@ -35,24 +35,26 @@ describe('B. Ordering — integración tiempo real y sockets (Tests 8-13)', () =
       .post('/service-calls')
       .set('x-tenant-id', 't-1')
       .set('x-session-id', 's-1')
-      .send({ tableId: 'tb-3', note: 'Agua por favor' });
+      .send({ tableId: 'tb-3', type: 'WAITER_CALL', note: 'Agua por favor' });
 
     expect(res.status).toBe(201);
     expect(res.body.status).toBe('pending');
     expect(res.body.tableId).toBe('tb-3');
+    expect(res.body.type).toBe('WAITER_CALL');
 
     const published = sharedEventPublisher.serviceCallEvents.find(
       (e) => e.tenantId === 't-1' && e.event.type === 'service-call.created'
     );
     expect(published).toBeDefined();
     expect(published?.event.call.tableId).toBe('tb-3');
+    expect(published?.event.call.type).toBe('WAITER_CALL');
   });
 
   test('10. PATCH /service-calls/:id/resolve (staff) -> evento service-call.resolved; GET /service-calls?status=pending ya no lo lista', async () => {
     const res = await request(app)
       .patch('/service-calls/call-to-resolve/resolve')
       .set('x-tenant-id', 't-1')
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('resolved');
@@ -60,7 +62,7 @@ describe('B. Ordering — integración tiempo real y sockets (Tests 8-13)', () =
     const pending = await request(app)
       .get('/service-calls?status=pending')
       .set('x-tenant-id', 't-1')
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
 
     expect(pending.status).toBe(200);
     const found = (pending.body || []).find((c: any) => c.callId === 'call-to-resolve');
@@ -101,7 +103,7 @@ describe('B. Ordering — integración tiempo real y sockets (Tests 8-13)', () =
     const port = (server.address() as any).port;
     const socketUrl = `http://localhost:${port}/orders`;
 
-    const staffToken = jwt.sign({ tenantId: 't-1', role: 'staff' }, JWT_SECRET);
+    const staffToken = jwt.sign({ tenantId: 't-1', role: 'waiter' }, JWT_SECRET);
     const guest1Token = jwt.sign({ tenantId: 't-1', role: 'guest', sessionId: 's-1' }, JWT_SECRET);
     const guest2Token = jwt.sign({ tenantId: 't-1', role: 'guest', sessionId: 's-other' }, JWT_SECRET);
 
@@ -127,7 +129,7 @@ describe('B. Ordering — integración tiempo real y sockets (Tests 8-13)', () =
     const patchRes = await request(app)
       .patch('/orders/ord-realtime-test/status')
       .set('x-tenant-id', 't-1')
-      .set('x-user-role', 'staff')
+      .set('x-user-role', 'waiter')
       .send({ status: 'READY' });
 
     expect(patchRes.status).toBe(200);
@@ -218,7 +220,7 @@ describe('B. Ordering — integración tiempo real y sockets (Tests 8-13)', () =
     const staffPatch = await request(app)
       .patch('/orders/ord-test/status')
       .set('x-tenant-id', 't-1')
-      .set('x-user-role', 'staff')
+      .set('x-user-role', 'waiter')
       .send({ status: 'IN_KITCHEN' });
     expect(staffPatch.status).toBe(200);
 

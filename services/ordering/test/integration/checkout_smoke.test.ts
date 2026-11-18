@@ -2,13 +2,14 @@ import { routeTable } from '../../../gateway/src/routes/routeTable';
 import fs from 'fs';
 import path from 'path';
 import request from 'supertest';
+import nock from 'nock';
 import { createSeededOrderingTestApp  } from '../helpers/seededOrderingApp';
 
 describe('D. Cierre de oleada (smoke) (Tests 20-22)', () => {
   test('20. Gateway: filas de §3.2 activas; los 160 tests previos en verde', () => {
     const requiredRoutes = [
-      { method: 'GET', path: '/v1/checkout/:sessionId', targetService: 'ordering', roles: ['staff'] },
-      { method: 'POST', path: '/v1/checkout/confirm', targetService: 'ordering', roles: ['staff', 'manager', 'admin'] },
+      { method: 'GET', path: '/v1/checkout/:sessionId', targetService: 'ordering', roles: ['waiter'] },
+      { method: 'POST', path: '/v1/checkout/confirm', targetService: 'ordering', roles: ['waiter', 'manager', 'admin'] },
     ];
 
     for (const r of requiredRoutes) {
@@ -27,11 +28,18 @@ describe('D. Cierre de oleada (smoke) (Tests 20-22)', () => {
     const tenantId = 't-smoke-e2e';
     const sessionId = 's-smoke-e2e';
 
+    nock('http://localhost:4003')
+      .patch(`/sessions/${sessionId}/close`)
+      .matchHeader('x-tenant-id', tenantId)
+      .matchHeader('x-user-id', 'staff-1')
+      .matchHeader('x-user-role', 'waiter')
+      .reply(200, { sessionId, status: 'closed' });
+
     // 1. Staff consulta la cuenta
     const billRes = await request(app)
       .get(`/checkout/${sessionId}`)
       .set('x-tenant-id', tenantId)
-      .set('x-user-role', 'staff');
+      .set('x-user-role', 'waiter');
 
     expect(billRes.status).toBe(200);
 
@@ -40,7 +48,7 @@ describe('D. Cierre de oleada (smoke) (Tests 20-22)', () => {
       .post('/checkout/confirm')
       .set('x-tenant-id', tenantId)
       .set('x-user-id', 'staff-1')
-      .set('x-user-role', 'staff')
+      .set('x-user-role', 'waiter')
       .send({
         sessionId,
         tableId: 'M-1',
